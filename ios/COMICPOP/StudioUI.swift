@@ -348,7 +348,7 @@ struct SettingsScreen:View {
                     Button("自分の無料枠を接続"){
                         store.cloudflareAccount=account
                         Task {await store.connect(token:token);token=""}
-                    }.disabled(account.isEmpty||token.isEmpty||!store.confirmsFree)
+                    }.disabled(account.isEmpty || token.isEmpty || !store.confirmsFree)
                     if store.isConnected || store.tokenExists {
                         Label("接続情報がiPhoneのKeychainに保存されています",systemImage:"lock.shield")
                         Button("切断してトークンを削除",role:.destructive){store.disconnect()}
