@@ -28,7 +28,7 @@ assert "iOS v2.1" in ui
 import re
 for swift_source in src.glob("*.swift"):
     content = swift_source.read_text(encoding="utf-8")
-    assert not re.search(r"(?:\\|\\||&&)!", content), f"Missing whitespace before ! in {swift_source.name}"
+    assert not re.search(r"(?:\|\||&&)!", content), f"Missing whitespace before ! in {swift_source.name}"
 
 ci = (root / "codemagic.yaml").read_text(encoding="utf-8")
 project = (root / "ios" / "project.yml").read_text(encoding="utf-8")
