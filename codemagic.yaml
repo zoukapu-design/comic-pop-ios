@@ -34,46 +34,44 @@ workflows:
       - $CM_BUILD_DIR/DerivedData/Build/Products/**/*.app
 
   ios-signed-ipa:
-    name: COMIC POP iOS / Signed IPA (manual)
+    name: COMIC POP iOS / Signed IPA (managed signing, no publish)
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
       xcode: latest
       groups:
         - ios_config
-        - appstore_credentials
+      ios_signing:
+        provisioning_profiles:
+          - comicpop_appstore_profile
+        certificates:
+          - comicpop_distribution
     scripts:
-      - name: Validate source and signing settings
+      - name: Validate application and Bundle ID
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR"
           bash tests/run.sh
-          : "${BUNDLE_ID:?Set BUNDLE_ID in the ios_config variable group}"
-          : "${APP_STORE_CONNECT_ISSUER_ID:?Set Apple issuer ID as a secret}"
-          : "${APP_STORE_CONNECT_KEY_IDENTIFIER:?Set Apple API key identifier as a secret}"
-          : "${APP_STORE_CONNECT_PRIVATE_KEY:?Set Apple API private key as a secret}"
-          : "${CERTIFICATE_PRIVATE_KEY:?Set distribution certificate RSA private key as a secret}"
+          : "${BUNDLE_ID:?Set BUNDLE_ID in ios_config environment group}"
           python3 - <<'PY'
-          import os, re
-          bundle_id = os.environ["BUNDLE_ID"].strip()
-          if not re.fullmatch(r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+", bundle_id) or bundle_id.startswith("com.example."):
-              raise SystemExit("BUNDLE_ID must be a registered, non-example Apple Bundle ID")
-          print("Bundle ID format validated; Apple registration will be checked during signing")
+          import os,re
+          value=os.environ['BUNDLE_ID'].strip()
+          if not re.fullmatch(r'[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+',value) or value.startswith('com.example.'):
+              raise SystemExit("BUNDLE_ID must be a registered unique Apple Bundle ID.")
+          print("Bundle ID format: OK")
           PY
-      - name: Prepare app identity and Xcode project
+      - name: Generate Xcode project with registered App ID
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR"
           python3 - <<'PY'
-          import os
           from pathlib import Path
-          bundle_id=os.environ["BUNDLE_ID"].strip()
-          spec=Path("ios/project.yml")
-          original=spec.read_text(encoding="utf-8")
-          old="com.example.comicpop.dev"
-          if original.count(old)!=1:
-              raise SystemExit("Expected one placeholder bundle identifier in XcodeGen project")
-          spec.write_text(original.replace(old,bundle_id),encoding="utf-8")
+          import os
+          p=Path("ios/project.yml")
+          source=p.read_text(encoding="utf-8")
+          placeholder='com.example.comicpop.dev'
+          assert source.count(placeholder)==1,"Expected one development Bundle ID"
+          p.write_text(source.replace(placeholder,os.environ['BUNDLE_ID'].strip()),encoding="utf-8")
           PY
           plutil -replace CFBundleVersion -string "${BUILD_NUMBER:-1}" ios/COMICPOP/Info.plist
           if ! command -v xcodegen >/dev/null 2>&1; then
@@ -82,23 +80,21 @@ workflows:
           cd "$CM_BUILD_DIR/ios"
           xcodegen generate --spec project.yml
           test -f COMICPOP.xcodeproj/project.pbxproj
-      - name: Fetch Apple distribution signing assets
-        script: |
-          set -euo pipefail
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
-          keychain initialize
-          keychain add-certificates
-          xcode-project use-profiles --project "$CM_BUILD_DIR/ios/COMICPOP.xcodeproj"
-      - name: Build signed IPA without publishing
+      - name: Apply Codemagic managed signing profiles
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR/ios"
-          xcode-project build-ipa --project "$CM_BUILD_DIR/ios/COMICPOP.xcodeproj" --scheme COMICPOP
+          xcode-project use-profiles --project COMICPOP.xcodeproj
+      - name: Build signed iPhone IPA (do not publish)
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR/ios"
+          xcode-project build-ipa --project COMICPOP.xcodeproj --scheme COMICPOP
     artifacts:
       - $CM_BUILD_DIR/ios/build/ios/ipa/*.ipa
       - $CM_BUILD_DIR/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-    # No publishing block: manual signed-build verification comes first.
+    # TestFlight publishing is intentionally disabled until owner reviews IPA.
 
   ios-simulator-screenshot:
     name: COMIC POP iOS / Simulator screenshot (no Team required)
