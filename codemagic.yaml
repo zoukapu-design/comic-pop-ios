@@ -45,7 +45,7 @@ workflows:
         provisioning_profiles:
           - comicpop_appstore_profile
         certificates:
-          - comicpop_distribution
+          - Cybernetic_Distribution
     scripts:
       - name: Validate application and Bundle ID
         script: |
