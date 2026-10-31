@@ -1,5 +1,17 @@
 # COMIC POP! — TestFlight署名設定（2026-10-31 更新）
 
+## 2026-11-01: App Store Connect 90475 / 90474 修正
+Codemagic `ios-testflight-upload` は署名付きIPA生成まで成功したが、Appleのアップロード検証で次の2件を拒否されました。
+- 90475: 起動画面がIPAに存在しない／設定不十分
+- 90474: iPad互換アプリに必要な画面方向が不足
+
+原因：XcodeGenの `ios/project.yml` で `info.properties` を指定しておらず、`Info.plist` の必要な設定を生成プロジェクトへ確実に反映できていなかった。
+
+修正：`LaunchScreen.storyboard` を追加。XcodeGenの `info.properties` に `UILaunchStoryboardName`、iPad用4方向、iPhone縦向き、動画アクセスのプライバシー文言、表示名を明示。ビルド番号の適用を `xcodegen generate` 後に変更。IPA生成後にバンドル内部のStoryboard・画面方向をチェックしてからAppleへ送信する検査を追加。
+
+**次の操作**：`main` の最新コミットを使い、Codemagicで **`ios-testflight-upload`** を再ビルド。Xcode/Apple受理については実行結果を確認するまで未検証。エラーの場合は失敗したステップのログを共有する（秘密情報は伏せる）。
+
+
 ## 2026-11-01: signed IPA生成成功 → App Store Connectアップロード
 
 Codemagic署名付きビルド **finished**、成果物 `COMICPOP.ipa` (1.64 MB) をユーザー画面で確認しました。
