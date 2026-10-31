@@ -1,5 +1,12 @@
 # COMIC POP! — TestFlight署名設定（2026-10-31 更新）
 
+## 2026-10-31: 既存証明書の再利用（確認済み）
+
+Codemagic Personal AccountのiOS certificatesに **Cybernetic_Distribution**（production、有効期限2027-10-29）が登録済み。これをCOMIC POP!でも再利用するため、`codemagic.yaml`の`ios_signing.certificates`を`Cybernetic_Distribution`へ修正済み。**Generate certificateやFetch certificateを押さない。既存証明書を削除・失効させない。**
+
+次はApple DeveloperでCOMIC POP!用App Store Connectプロビジョニングプロファイルを作る。証明書はApple Developer側で同じTeam・同じ有効期限のApple Distributionを選択。作った`.mobileprovision`をCodemagicの`iOS provisioning profiles`へアップロードし、Reference name=`comicpop_appstore_profile`とする。既存のCSE用プロファイルは使い回さない。
+
+
 ## 確認済み
 - Codemagic `ios-unsigned-check` はSimulatorコンパイルに成功。
 - Apple DeveloperでApp ID、App Store Connectでアプリ登録は利用者が完了。
@@ -18,7 +25,7 @@ Codemagicの **Personal Account settings > codemagic.yaml settings > Code signin
 - **Apple Distribution** 証明書がすでに登録され利用可能なら再利用を優先。他アプリの証明書を取り消さない。
 - 必要ならAPIキーを使って `Generate certificate` → Type `Apple Distribution` を選ぶ。AppleはDistribution証明書を最大3枚に制限するため、不要に増やさない。
 - 生成後の証明書を保存し、必要に応じてUIの `Upload certificate` に追加する。
-- 今回のGitHub YAMLが参照する **Reference name** は必ず `comicpop_distribution` にする。
+- 今回のGitHub YAMLが参照する **Reference name** は必ず `Cybernetic_Distribution` にする。
 
 ## 手順3. App Storeプロビジョニングプロファイル
 - Apple Developer > Profiles にCOMIC POP!専用の **App Store Connect用配布プロファイル**を作成。Step1で作った正確なBundle IDを選び、Step2と一致するDistribution証明書を指定する。
