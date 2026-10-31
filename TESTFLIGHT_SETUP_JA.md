@@ -6,7 +6,7 @@ Codemagic署名付きビルド **finished**、成果物 `COMICPOP.ipa` (1.64 MB)
 
 ### 次の作業
 
-1. **Codemagic Personal Account > Settings > Integrations > Developer Portal > Manage keys** に、App Store Connect APIキーが登録されているか確認する。**API key name が `comicpop-apple` である必要があります。** 違う名前ならその名前を確認してGitHub `codemagic.yaml` の `integrations.app_store_connect` を修正する。秘密鍵・Key IDなどはチャットに送らない。
+1. **Codemagic Personal Account > Settings > Integrations > Developer Portal > Manage keys** に、App Store Connect APIキーが登録されているか確認する。**登録済み連携名は **`Codemagic Cybernetic`**（画面確認済み）。GitHub `codemagic.yaml` の `integrations.app_store_connect` もこの名前に修正済み。秘密鍵・Key IDなどはチャットに送らない。
 2. GitHubの新ワークフロー `ios-testflight-upload` は別の手動実行用。既存の成功した `ios-signed-ipa` は維持。
 3. Codemagic > `comic-pop-ios` > Start new build > branch `main` > Workflow **`ios-testflight-upload`** を選択する。
 4. このワークフローは署名付きIPAを作り直し、**App Store Connectへアップロードするだけ**。`submit_to_testflight: false`（beta review/グループ自動配信なし）、`submit_to_app_store: false`（App Store審査提出なし）。
