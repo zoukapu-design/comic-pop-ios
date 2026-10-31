@@ -157,10 +157,6 @@ workflows:
           set -euo pipefail
           cd "$CM_BUILD_DIR/ios"
           xcode-project build-ipa --project COMICPOP.xcodeproj --scheme COMICPOP
-    artifacts:
-      - $CM_BUILD_DIR/ios/build/ios/ipa/*.ipa
-      - $CM_BUILD_DIR/build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
       - name: Verify IPA launch screen and iPad orientations before upload
         script: |
           set -euo pipefail
@@ -183,6 +179,10 @@ workflows:
               assert any("LaunchScreen.storyboardc/" in n for n in z.namelist()), "90475: compiled storyboard missing"
               print("PASS: IPA launch screen storyboard, four iPad orientations, portrait iPhone, bundle ID")
           PY
+    artifacts:
+      - $CM_BUILD_DIR/ios/build/ios/ipa/*.ipa
+      - $CM_BUILD_DIR/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
     publishing:
       app_store_connect:
         auth: integration
