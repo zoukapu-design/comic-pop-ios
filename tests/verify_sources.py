@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import plistlib
 import struct
+import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parents[1]
 src = root / "ios" / "COMICPOP"
@@ -39,6 +40,29 @@ assert "COMICPOP:" in project and "Resources/cards.json" in project
 with (src / "Info.plist").open("rb") as f:
     info = plistlib.load(f)
 assert info["CFBundleName"] == "COMICPOP"
+
+# App Store Connect error 90475/90474 regression guard.
+# XcodeGen regenerates Info.plist, so verify BOTH generated-property source and storyboard.
+expected_orientations = {
+    "UIInterfaceOrientationPortrait",
+    "UIInterfaceOrientationPortraitUpsideDown",
+    "UIInterfaceOrientationLandscapeLeft",
+    "UIInterfaceOrientationLandscapeRight",
+}
+assert info["UILaunchStoryboardName"] == "LaunchScreen"
+assert set(info["UISupportedInterfaceOrientations"]) == expected_orientations
+assert info["UISupportedInterfaceOrientations~iphone"] == ["UIInterfaceOrientationPortrait"]
+assert "UILaunchStoryboardName: LaunchScreen" in project, "XcodeGen must generate the launch storyboard property"
+for orientation in sorted(expected_orientations):
+    assert f"- {orientation}" in project, f"XcodeGen missing iPad orientation: {orientation}"
+assert "UISupportedInterfaceOrientations~iphone" in project
+assert "NSPhotoLibraryUsageDescription:" in project
+storyboard = src / "LaunchScreen.storyboard"
+assert storyboard.exists(), "LaunchScreen.storyboard must be included in app target"
+xml = ET.parse(storyboard).getroot()
+assert xml.attrib.get("launchScreen") == "YES", "Storyboard must be designated as a launch screen"
+assert xml.attrib.get("initialViewController"), "Storyboard must have a launch controller"
+assert "LaunchScreen.storyboard" not in project.split("excludes:", 1)[-1].split("info:", 1)[0], "Launch screen cannot be excluded from target"
 
 icon = (src / "Assets.xcassets" / "AppIcon.appiconset" / "app-icon.png").read_bytes()
 assert icon[:8] == b"\x89PNG\r\n\x1a\n"
