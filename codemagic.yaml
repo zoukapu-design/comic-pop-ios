@@ -96,6 +96,76 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
     # TestFlight publishing is intentionally disabled until owner reviews IPA.
 
+  ios-testflight-upload:
+    name: ムビコマ iOS / Upload to TestFlight (manual trigger)
+    integrations:
+      app_store_connect: comicpop-apple
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+      vars:
+        BUNDLE_ID: com.zoukapu.comicpop
+      ios_signing:
+        provisioning_profiles:
+          - comicpop_appstore_profile
+        certificates:
+          - Cybernetic_Distribution
+    scripts:
+      - name: Validate application and Bundle ID
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          bash tests/run.sh
+          : "${BUNDLE_ID:?Missing BUNDLE_ID in signed workflow}"
+          python3 - <<'PY'
+          import os,re
+          value=os.environ['BUNDLE_ID'].strip()
+          if not re.fullmatch(r'[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+',value) or value.startswith('com.example.'):
+              raise SystemExit("BUNDLE_ID must be a registered unique Apple Bundle ID.")
+          print("Bundle ID format: OK")
+          PY
+      - name: Generate Xcode project with registered App ID
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          p=Path("ios/project.yml")
+          source=p.read_text(encoding="utf-8")
+          placeholder='com.example.comicpop.dev'
+          assert source.count(placeholder)==1,"Expected one development Bundle ID"
+          p.write_text(source.replace(placeholder,os.environ['BUNDLE_ID'].strip()),encoding="utf-8")
+          PY
+          plutil -replace CFBundleVersion -string "${BUILD_NUMBER:-1}" ios/COMICPOP/Info.plist
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          cd "$CM_BUILD_DIR/ios"
+          xcodegen generate --spec project.yml
+          test -f COMICPOP.xcodeproj/project.pbxproj
+      - name: Apply Codemagic managed signing profiles
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR/ios"
+          xcode-project use-profiles --project COMICPOP.xcodeproj
+      - name: Build signed iPhone IPA (do not publish)
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR/ios"
+          xcode-project build-ipa --project COMICPOP.xcodeproj --scheme COMICPOP
+    artifacts:
+      - $CM_BUILD_DIR/ios/build/ios/ipa/*.ipa
+      - $CM_BUILD_DIR/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
+    # Uploads the signed IPA to App Store Connect only. The owner adds the build to internal testers manually.
+
   ios-simulator-screenshot:
     name: COMIC POP iOS / Simulator screenshot (no Team required)
     instance_type: mac_mini_m2
