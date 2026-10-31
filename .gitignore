@@ -1,0 +1,24 @@
+# macOS & Xcode
+.DS_Store
+DerivedData/
+*.xcuserstate
+xcuserdata/
+ios/COMICPOP.xcodeproj/
+*.ipa
+*.app/
+*.dSYM/
+
+# Local media and caches
+*.mov
+*.mp4
+*.heic
+*.log
+
+# Never commit authentication material
+.env
+.env.*
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.pem
