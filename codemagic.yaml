@@ -39,8 +39,8 @@ workflows:
     max_build_duration: 60
     environment:
       xcode: latest
-      groups:
-        - ios_config
+      vars:
+        BUNDLE_ID: com.zoukapu.comicpop
       ios_signing:
         provisioning_profiles:
           - comicpop_appstore_profile
@@ -52,7 +52,7 @@ workflows:
           set -euo pipefail
           cd "$CM_BUILD_DIR"
           bash tests/run.sh
-          : "${BUNDLE_ID:?Set BUNDLE_ID in ios_config environment group}"
+          : "${BUNDLE_ID:?Missing BUNDLE_ID in signed workflow}"
           python3 - <<'PY'
           import os,re
           value=os.environ['BUNDLE_ID'].strip()
