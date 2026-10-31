@@ -1,5 +1,15 @@
 # COMIC POP! — TestFlight署名設定（2026-10-31 更新）
 
+## 2026-10-31: COMIC POP! の署名準備完了（登録画面で確認）
+
+- **Bundle ID**: `com.zoukapu.comicpop`
+- **Apple Distribution証明書のCodemagic参照名**: `Cybernetic_Distribution`（既存のものを共用、削除しない）
+- **App Storeプロファイル参照名**: `comicpop_appstore_profile`（Codemagic一覧に表示、Certificateは緑チェック）
+- GitHubの `codemagic.yaml` の `ios-signed-ipa` にBundle IDを直接設定済み。**`ios_config` や `BUNDLE_ID` 環境変数を手動追加する必要はない**。
+- 次は Codemagic → `comic-pop-ios` → Start new build → `main` → `ios-signed-ipa` → Start new build。
+- このワークフローは署名付きIPA生成のみ。**TestFlight自動アップロード・App Store公開は行わない**。
+
+
 ## 2026-10-31: 既存証明書の再利用（確認済み）
 
 Codemagic Personal AccountのiOS certificatesに **Cybernetic_Distribution**（production、有効期限2027-10-29）が登録済み。これをCOMIC POP!でも再利用するため、`codemagic.yaml`の`ios_signing.certificates`を`Cybernetic_Distribution`へ修正済み。**Generate certificateやFetch certificateを押さない。既存証明書を削除・失効させない。**
