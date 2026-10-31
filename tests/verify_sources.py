@@ -43,5 +43,5 @@ assert info["CFBundleName"] == "COMICPOP"
 icon = (src / "Assets.xcassets" / "AppIcon.appiconset" / "app-icon.png").read_bytes()
 assert icon[:8] == b"\x89PNG\r\n\x1a\n"
 assert struct.unpack(">II", icon[16:24]) == (1024, 1024)
-assert icon[25] == 2, "App Store icon must not have an alpha channel"
+assert icon[24] == 8 and icon[25] == 2, "App Store icon must be 8-bit truecolor RGB PNG (not palette PNG or RGBA)"
 print("PASS: 84 cards, personal Cloudflare, stale-task guards, unsigned CI, plist and app icon")
