@@ -1,0 +1,674 @@
+[
+  {
+    "id": "funny",
+    "title": "面白",
+    "subtitle": "笑える！",
+    "category": "feeling",
+    "art": 2,
+    "color": "#ffe277"
+  },
+  {
+    "id": "punch",
+    "title": "オチ",
+    "subtitle": "ここが決め！",
+    "category": "story",
+    "art": 3,
+    "color": "#ff707a"
+  },
+  {
+    "id": "dramatic",
+    "title": "ドラマティック",
+    "subtitle": "盛り上がり",
+    "category": "feeling",
+    "art": 5,
+    "color": "#d9b8ff"
+  },
+  {
+    "id": "emotion",
+    "title": "感動",
+    "subtitle": "胸が熱い",
+    "category": "feeling",
+    "art": 4,
+    "color": "#92dafa"
+  },
+  {
+    "id": "reaction",
+    "title": "リアクション",
+    "subtitle": "いい表情",
+    "category": "character",
+    "art": 8,
+    "color": "#8de6ff"
+  },
+  {
+    "id": "intro",
+    "title": "導入",
+    "subtitle": "はじまり",
+    "category": "story",
+    "art": 0,
+    "color": "#a4e9ad"
+  },
+  {
+    "id": "setup",
+    "title": "前振り",
+    "subtitle": "伏線を張る",
+    "category": "story",
+    "art": 1,
+    "color": "#ffc68d"
+  },
+  {
+    "id": "surprise",
+    "title": "驚き",
+    "subtitle": "まさか！",
+    "category": "feeling",
+    "art": 5,
+    "color": "#cfc0ff"
+  },
+  {
+    "id": "large",
+    "title": "大ゴマ",
+    "subtitle": "迫力を出す",
+    "category": "scene",
+    "art": 10,
+    "color": "#ffe27c"
+  },
+  {
+    "id": "speed",
+    "title": "集中線",
+    "subtitle": "視線を集中",
+    "category": "scene",
+    "art": 10,
+    "color": "#ffabab"
+  },
+  {
+    "id": "voice",
+    "title": "心の声",
+    "subtitle": "モノローグ",
+    "category": "character",
+    "art": 9,
+    "color": "#c3b7ff"
+  },
+  {
+    "id": "compare",
+    "title": "比較",
+    "subtitle": "ビフォーアフター",
+    "category": "scene",
+    "art": 7,
+    "color": "#9bd9ff"
+  },
+  {
+    "id": "explain",
+    "title": "説明",
+    "subtitle": "わかりやすく",
+    "category": "story",
+    "art": 6,
+    "color": "#ffce96"
+  },
+  {
+    "id": "turn",
+    "title": "転換",
+    "subtitle": "流れが変わる",
+    "category": "story",
+    "art": 8,
+    "color": "#a7effc"
+  },
+  {
+    "id": "climax",
+    "title": "クライマックス",
+    "subtitle": "最大の山場",
+    "category": "story",
+    "art": 3,
+    "color": "#ff888a"
+  },
+  {
+    "id": "ending",
+    "title": "結末",
+    "subtitle": "物語の結び",
+    "category": "story",
+    "art": 11,
+    "color": "#ffe27c"
+  },
+  {
+    "id": "after",
+    "title": "余韻",
+    "subtitle": "静かに締める",
+    "category": "story",
+    "art": 4,
+    "color": "#c4c0fa"
+  },
+  {
+    "id": "reveal",
+    "title": "種明かし",
+    "subtitle": "真相が分かる",
+    "category": "story",
+    "art": 1,
+    "color": "#c0eab7"
+  },
+  {
+    "id": "cute",
+    "title": "キュン",
+    "subtitle": "ときめき",
+    "category": "feeling",
+    "art": 9,
+    "color": "#ffa9d4"
+  },
+  {
+    "id": "horror",
+    "title": "恐怖",
+    "subtitle": "ぞくっと",
+    "category": "feeling",
+    "art": 11,
+    "color": "#bfadfc"
+  },
+  {
+    "id": "tension",
+    "title": "緊張",
+    "subtitle": "ハラハラ",
+    "category": "feeling",
+    "art": 5,
+    "color": "#eab7ff"
+  },
+  {
+    "id": "chaos",
+    "title": "カオス",
+    "subtitle": "大混乱",
+    "category": "feeling",
+    "art": 3,
+    "color": "#ff9e8b"
+  },
+  {
+    "id": "sad",
+    "title": "しんみり",
+    "subtitle": "切なさ",
+    "category": "feeling",
+    "art": 4,
+    "color": "#b4daff"
+  },
+  {
+    "id": "happy",
+    "title": "歓喜",
+    "subtitle": "最高の瞬間",
+    "category": "feeling",
+    "art": 2,
+    "color": "#ffd875"
+  },
+  {
+    "id": "zoom",
+    "title": "アップ",
+    "subtitle": "寄って見せる",
+    "category": "scene",
+    "art": 2,
+    "color": "#ffb0ac"
+  },
+  {
+    "id": "wide",
+    "title": "全景",
+    "subtitle": "場所を伝える",
+    "category": "scene",
+    "art": 0,
+    "color": "#afe7c6"
+  },
+  {
+    "id": "silence",
+    "title": "無音",
+    "subtitle": "間を演出",
+    "category": "scene",
+    "art": 11,
+    "color": "#e0e3ee"
+  },
+  {
+    "id": "pause",
+    "title": "間",
+    "subtitle": "あえて止める",
+    "category": "scene",
+    "art": 1,
+    "color": "#c7d5ee"
+  },
+  {
+    "id": "slow",
+    "title": "スロー",
+    "subtitle": "ゆっくり見せる",
+    "category": "scene",
+    "art": 11,
+    "color": "#aee3ff"
+  },
+  {
+    "id": "flashback",
+    "title": "回想",
+    "subtitle": "過去を見せる",
+    "category": "scene",
+    "art": 1,
+    "color": "#edc9aa"
+  },
+  {
+    "id": "impact",
+    "title": "ドーン",
+    "subtitle": "強い衝撃",
+    "category": "scene",
+    "art": 10,
+    "color": "#ffad89"
+  },
+  {
+    "id": "sparkle",
+    "title": "キラキラ",
+    "subtitle": "華やかに",
+    "category": "scene",
+    "art": 9,
+    "color": "#ffbddf"
+  },
+  {
+    "id": "shadow",
+    "title": "暗転",
+    "subtitle": "不穏に",
+    "category": "scene",
+    "art": 11,
+    "color": "#b5b1c9"
+  },
+  {
+    "id": "bigface",
+    "title": "表情アップ",
+    "subtitle": "顔が主役",
+    "category": "character",
+    "art": 2,
+    "color": "#ffb2cf"
+  },
+  {
+    "id": "tsukkomi",
+    "title": "ツッコミ",
+    "subtitle": "ひと言炸裂",
+    "category": "character",
+    "art": 8,
+    "color": "#ffe59d"
+  },
+  {
+    "id": "smile",
+    "title": "笑顔",
+    "subtitle": "幸せな表情",
+    "category": "character",
+    "art": 4,
+    "color": "#c9f0ba"
+  },
+  {
+    "id": "cry",
+    "title": "涙",
+    "subtitle": "涙の一瞬",
+    "category": "character",
+    "art": 4,
+    "color": "#a8d8fe"
+  },
+  {
+    "id": "anger",
+    "title": "怒り",
+    "subtitle": "熱い感情",
+    "category": "character",
+    "art": 3,
+    "color": "#ff9898"
+  },
+  {
+    "id": "pose",
+    "title": "決め顔",
+    "subtitle": "キメる",
+    "category": "character",
+    "art": 1,
+    "color": "#d3c7fb"
+  },
+  {
+    "id": "narration",
+    "title": "ナレーション",
+    "subtitle": "解説する",
+    "category": "character",
+    "art": 6,
+    "color": "#b6e3f5"
+  },
+  {
+    "id": "dialogue",
+    "title": "重要セリフ",
+    "subtitle": "この言葉！",
+    "category": "editing",
+    "art": 9,
+    "color": "#e3c3ff"
+  },
+  {
+    "id": "must",
+    "title": "必ず使う",
+    "subtitle": "採用優先",
+    "category": "editing",
+    "art": 2,
+    "color": "#ffe47d"
+  },
+  {
+    "id": "skip",
+    "title": "省略",
+    "subtitle": "ここは不要",
+    "category": "editing",
+    "art": 7,
+    "color": "#d5d9e4"
+  },
+  {
+    "id": "before",
+    "title": "前後も見る",
+    "subtitle": "文脈を探す",
+    "category": "editing",
+    "art": 1,
+    "color": "#b1e7d6"
+  },
+  {
+    "id": "subject",
+    "title": "主役優先",
+    "subtitle": "被写体を重視",
+    "category": "editing",
+    "art": 2,
+    "color": "#ffd8b1"
+  },
+  {
+    "id": "background",
+    "title": "背景優先",
+    "subtitle": "場所を見せる",
+    "category": "editing",
+    "art": 0,
+    "color": "#c0e9c5"
+  },
+  {
+    "id": "contrast",
+    "title": "対比",
+    "subtitle": "違いを見せる",
+    "category": "editing",
+    "art": 7,
+    "color": "#bfe5f9"
+  },
+  {
+    "id": "action",
+    "title": "動き",
+    "subtitle": "動作を強調",
+    "category": "scene",
+    "art": 8,
+    "color": "#ffc6ad"
+  },
+  {
+    "id": "taste",
+    "title": "ひと口",
+    "subtitle": "食べて反応",
+    "category": "story",
+    "art": 4,
+    "color": "#ffe9a8"
+  },
+  {
+    "id": "recipe",
+    "title": "調理工程",
+    "subtitle": "作る流れ",
+    "category": "story",
+    "art": 7,
+    "color": "#f6daae"
+  },
+  {
+    "id": "finishfood",
+    "title": "完成料理",
+    "subtitle": "出来上がり",
+    "category": "story",
+    "art": 4,
+    "color": "#f7d3a3"
+  },
+  {
+    "id": "foodzoom",
+    "title": "料理アップ",
+    "subtitle": "食材を見せる",
+    "category": "scene",
+    "art": 4,
+    "color": "#fbd59b"
+  },
+  {
+    "id": "failure",
+    "title": "失敗",
+    "subtitle": "思わぬ失敗",
+    "category": "story",
+    "art": 3,
+    "color": "#ffa0a5"
+  },
+  {
+    "id": "success",
+    "title": "成功",
+    "subtitle": "やった！",
+    "category": "story",
+    "art": 2,
+    "color": "#b4eea9"
+  },
+  {
+    "id": "challenge",
+    "title": "挑戦",
+    "subtitle": "いざチャレンジ",
+    "category": "story",
+    "art": 1,
+    "color": "#b4dffe"
+  },
+  {
+    "id": "beforeafter",
+    "title": "変化",
+    "subtitle": "前と後の違い",
+    "category": "story",
+    "art": 7,
+    "color": "#b3e8f3"
+  },
+  {
+    "id": "confession",
+    "title": "告白",
+    "subtitle": "気持ちを伝える",
+    "category": "feeling",
+    "art": 9,
+    "color": "#ffc5e5"
+  },
+  {
+    "id": "relief",
+    "title": "安堵",
+    "subtitle": "ほっとした",
+    "category": "feeling",
+    "art": 4,
+    "color": "#c8efcd"
+  },
+  {
+    "id": "frustration",
+    "title": "悔しい",
+    "subtitle": "あと少し",
+    "category": "feeling",
+    "art": 3,
+    "color": "#ffb0ad"
+  },
+  {
+    "id": "embarrass",
+    "title": "照れ",
+    "subtitle": "恥ずかしい",
+    "category": "feeling",
+    "art": 9,
+    "color": "#ffd3db"
+  },
+  {
+    "id": "awkward",
+    "title": "気まずい",
+    "subtitle": "なんとも言えない",
+    "category": "feeling",
+    "art": 11,
+    "color": "#d1d4e8"
+  },
+  {
+    "id": "inspiration",
+    "title": "ひらめき",
+    "subtitle": "ピンときた",
+    "category": "feeling",
+    "art": 6,
+    "color": "#fff0a6"
+  },
+  {
+    "id": "suspense",
+    "title": "不穏",
+    "subtitle": "何か起きそう",
+    "category": "feeling",
+    "art": 11,
+    "color": "#bfc2dc"
+  },
+  {
+    "id": "triumph",
+    "title": "達成感",
+    "subtitle": "やり遂げた",
+    "category": "feeling",
+    "art": 2,
+    "color": "#fae696"
+  },
+  {
+    "id": "hand",
+    "title": "手元",
+    "subtitle": "手の動作重視",
+    "category": "scene",
+    "art": 6,
+    "color": "#c8ddff"
+  },
+  {
+    "id": "objectzoom",
+    "title": "物アップ",
+    "subtitle": "重要な物を見せる",
+    "category": "scene",
+    "art": 7,
+    "color": "#dbd5ff"
+  },
+  {
+    "id": "panorama",
+    "title": "場所紹介",
+    "subtitle": "雰囲気を伝える",
+    "category": "scene",
+    "art": 0,
+    "color": "#aee9da"
+  },
+  {
+    "id": "montage",
+    "title": "連続動作",
+    "subtitle": "動きのつながり",
+    "category": "scene",
+    "art": 8,
+    "color": "#ffcfbc"
+  },
+  {
+    "id": "freeze",
+    "title": "決定的瞬間",
+    "subtitle": "ここで止める",
+    "category": "scene",
+    "art": 10,
+    "color": "#fff2a1"
+  },
+  {
+    "id": "split",
+    "title": "画面分割",
+    "subtitle": "二つを比較",
+    "category": "scene",
+    "art": 7,
+    "color": "#d1e7f9"
+  },
+  {
+    "id": "sweat",
+    "title": "冷や汗",
+    "subtitle": "焦りを表現",
+    "category": "scene",
+    "art": 8,
+    "color": "#c8eefa"
+  },
+  {
+    "id": "gloom",
+    "title": "落ち込み",
+    "subtitle": "暗い雰囲気",
+    "category": "scene",
+    "art": 11,
+    "color": "#d0c5e5"
+  },
+  {
+    "id": "silhouette",
+    "title": "シルエット",
+    "subtitle": "影で表す",
+    "category": "scene",
+    "art": 11,
+    "color": "#d6d6e4"
+  },
+  {
+    "id": "eye",
+    "title": "目線",
+    "subtitle": "視線の行方",
+    "category": "character",
+    "art": 2,
+    "color": "#fdd5e5"
+  },
+  {
+    "id": "gesture",
+    "title": "身振り",
+    "subtitle": "動きの意味",
+    "category": "character",
+    "art": 8,
+    "color": "#c3eaff"
+  },
+  {
+    "id": "sidekick",
+    "title": "相棒",
+    "subtitle": "一緒の人物",
+    "category": "character",
+    "art": 8,
+    "color": "#b7ebc4"
+  },
+  {
+    "id": "animal",
+    "title": "動物",
+    "subtitle": "動物の動き",
+    "category": "character",
+    "art": 4,
+    "color": "#d3f5c2"
+  },
+  {
+    "id": "crowd",
+    "title": "周囲の反応",
+    "subtitle": "みんなの表情",
+    "category": "character",
+    "art": 8,
+    "color": "#c7daff"
+  },
+  {
+    "id": "quote",
+    "title": "引用セリフ",
+    "subtitle": "発言を正確に",
+    "category": "editing",
+    "art": 9,
+    "color": "#e6c9fd"
+  },
+  {
+    "id": "timetitle",
+    "title": "時刻表示",
+    "subtitle": "時間の変化",
+    "category": "editing",
+    "art": 6,
+    "color": "#c8eff9"
+  },
+  {
+    "id": "location",
+    "title": "場所表示",
+    "subtitle": "ここはどこ？",
+    "category": "editing",
+    "art": 0,
+    "color": "#bdeee6"
+  },
+  {
+    "id": "context",
+    "title": "文脈重視",
+    "subtitle": "前後も大切",
+    "category": "editing",
+    "art": 1,
+    "color": "#f1dda9"
+  },
+  {
+    "id": "exact",
+    "title": "忠実再現",
+    "subtitle": "内容を変えない",
+    "category": "editing",
+    "art": 7,
+    "color": "#dfedbe"
+  },
+  {
+    "id": "noextra",
+    "title": "追加禁止",
+    "subtitle": "登場物を増やさない",
+    "category": "editing",
+    "art": 11,
+    "color": "#cdd7ed"
+  }
+]

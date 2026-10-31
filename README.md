@@ -44,3 +44,7 @@ Main features implemented at source-code level:
 
 ## Revenue plan (not implemented yet)
 Free iOS app / personal Cloudflare Workers Free / Google AdMob. Keep all ads **off the video editor, pin cards and generation progress screens**. Candidate placements are the completed works browser and optional rewarded decoration (not GPU quota). Integrate the AdMob iOS SDK only after creating an approved publisher account, privacy policy, ATT/consent choices and using test ad units for development.
+
+## v2.1.1 GitHub upload preparation
+- First commit to private GitHub can be done with the included upload script. The iOS code is unchanged except for a late-video-duration race fix.
+- Before submitting to App Store, set a unique bundle identifier, verify Cloudflare credentials and the account subscription tier, and perform signed iPhone tests.

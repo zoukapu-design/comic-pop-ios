@@ -1,0 +1,29 @@
+name: COMICPOP
+options:
+  minimumXcodeGenVersion: 2.40.0
+settings:
+  base:
+    SWIFT_VERSION: 5.0
+    IPHONEOS_DEPLOYMENT_TARGET: '17.0'
+    TARGETED_DEVICE_FAMILY: '1'
+    CODE_SIGN_STYLE: Automatic
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    DEVELOPMENT_TEAM: ''
+targets:
+  COMICPOP:
+    type: application
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - path: COMICPOP
+        excludes:
+          - Info.plist
+          - Resources/cards.json
+      - path: COMICPOP/Resources/cards.json
+        buildPhase: resources
+    info:
+      path: COMICPOP/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.comicpop.dev
+        GENERATE_INFOPLIST_FILE: NO

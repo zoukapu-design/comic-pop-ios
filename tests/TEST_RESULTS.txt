@@ -1,0 +1,16 @@
+COMIC POP! iOS v2.0 — Verification summary (2026-10-31)
+
+PASS: Foundation Swift model type-check and executable tests on Linux (Swift 6.2.1).
+PASS: 84 card definitions, unique IDs, four default decks.
+PASS: same-timestamp card stable sorting and preservation.
+PASS: five cards become two pages; StudioData JSON serialization.
+PASS: all SwiftUI / AVFoundation source files syntactically parsed by swiftc -frontend -parse.
+PASS: Info.plist XML, XcodeGen YAML, Codemagic YAML, AppIcon PNG verified.
+PASS: Cloudflare Workers AI HTTPS REST direct-call code present; no owner credentials or proxy URL.
+
+NOT YET TESTED:
+- XcodeGen generated .xcodeproj and Xcode iOS compilation (Mac required).
+- AVFoundation/PhotosPicker/Keychain on real iPhone.
+- Cloudflare image generation from the native app.
+- App Store Connect / TestFlight signing and distribution.
+- OAuth and AdMob (not implemented).
