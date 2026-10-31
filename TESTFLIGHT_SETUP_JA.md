@@ -1,5 +1,25 @@
 # COMIC POP! — TestFlight署名設定（2026-10-31 更新）
 
+## 2026-11-01: signed IPA生成成功 → App Store Connectアップロード
+
+Codemagic署名付きビルド **finished**、成果物 `COMICPOP.ipa` (1.64 MB) をユーザー画面で確認しました。
+
+### 次の作業
+
+1. **Codemagic Personal Account > Settings > Integrations > Developer Portal > Manage keys** に、App Store Connect APIキーが登録されているか確認する。**API key name が `comicpop-apple` である必要があります。** 違う名前ならその名前を確認してGitHub `codemagic.yaml` の `integrations.app_store_connect` を修正する。秘密鍵・Key IDなどはチャットに送らない。
+2. GitHubの新ワークフロー `ios-testflight-upload` は別の手動実行用。既存の成功した `ios-signed-ipa` は維持。
+3. Codemagic > `comic-pop-ios` > Start new build > branch `main` > Workflow **`ios-testflight-upload`** を選択する。
+4. このワークフローは署名付きIPAを作り直し、**App Store Connectへアップロードするだけ**。`submit_to_testflight: false`（beta review/グループ自動配信なし）、`submit_to_app_store: false`（App Store審査提出なし）。
+5. ビルド成功後、https://appstoreconnect.apple.com/apps でムビコマ（元COMIC POP!）のApp > TestFlight > iOS BuildsがProcessing → Ready for Testingになるのを確認。Appleの輸出コンプライアンス等の追加質問が出たら対応する。Buildの処理は非同期で時間がかかることがある。
+6. TestFlight > Internal Testingでグループを作成し、アプリにアクセス可能な自分のApple IDを内部テスターとして追加。生成されたビルドをグループに追加。iPhoneのTestFlightで招待を受けてインストール。
+
+**注意：** 新ワークフローはAppleへのアップロードを行うため、実行する前にAPI連携名 `comicpop-apple` を必ず確認する。承認なしの公開・外部テスター配信は行わない。
+
+関連公式資料:
+- https://docs.codemagic.io/yaml-publishing/app-store-connect/
+- https://developer.apple.com/jp/help/app-store-connect/test-a-beta-version/add-internal-testers/
+
+
 ## 2026-10-31: COMIC POP! の署名準備完了（登録画面で確認）
 
 - **Bundle ID**: `com.zoukapu.comicpop`
