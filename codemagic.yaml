@@ -73,12 +73,13 @@ workflows:
           assert source.count(placeholder)==1,"Expected one development Bundle ID"
           p.write_text(source.replace(placeholder,os.environ['BUNDLE_ID'].strip()),encoding="utf-8")
           PY
-          plutil -replace CFBundleVersion -string "${BUILD_NUMBER:-1}" ios/COMICPOP/Info.plist
+          # XcodeGen regenerates Info.plist. Set CFBundleVersion after generation.
           if ! command -v xcodegen >/dev/null 2>&1; then
             brew install xcodegen
           fi
           cd "$CM_BUILD_DIR/ios"
           xcodegen generate --spec project.yml
+          plutil -replace CFBundleVersion -string "${BUILD_NUMBER:-1}" COMICPOP/Info.plist
           test -f COMICPOP.xcodeproj/project.pbxproj
       - name: Apply Codemagic managed signing profiles
         script: |
@@ -138,12 +139,13 @@ workflows:
           assert source.count(placeholder)==1,"Expected one development Bundle ID"
           p.write_text(source.replace(placeholder,os.environ['BUNDLE_ID'].strip()),encoding="utf-8")
           PY
-          plutil -replace CFBundleVersion -string "${BUILD_NUMBER:-1}" ios/COMICPOP/Info.plist
+          # XcodeGen regenerates Info.plist. Set CFBundleVersion after generation.
           if ! command -v xcodegen >/dev/null 2>&1; then
             brew install xcodegen
           fi
           cd "$CM_BUILD_DIR/ios"
           xcodegen generate --spec project.yml
+          plutil -replace CFBundleVersion -string "${BUILD_NUMBER:-1}" COMICPOP/Info.plist
           test -f COMICPOP.xcodeproj/project.pbxproj
       - name: Apply Codemagic managed signing profiles
         script: |
@@ -159,6 +161,28 @@ workflows:
       - $CM_BUILD_DIR/ios/build/ios/ipa/*.ipa
       - $CM_BUILD_DIR/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+      - name: Verify IPA launch screen and iPad orientations before upload
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          python3 - <<'PY'
+          import pathlib, plistlib, zipfile
+          folder=pathlib.Path("ios/build/ios/ipa")
+          ipas=list(folder.glob("*.ipa"))
+          if len(ipas)!=1:
+              raise SystemExit(f"Expected 1 signed IPA under {folder}, got {len(ipas)}")
+          with zipfile.ZipFile(ipas[0]) as z:
+              plists=[n for n in z.namelist() if n.startswith("Payload/") and n.endswith(".app/Info.plist")]
+              assert len(plists)==1, f"Could not locate app Info.plist: {plists}"
+              info=plistlib.loads(z.read(plists[0]))
+              assert info.get("CFBundleIdentifier")=="com.zoukapu.comicpop", "Bundle ID mismatch"
+              assert info.get("UILaunchStoryboardName")=="LaunchScreen", "90475: missing launch storyboard name"
+              required={"UIInterfaceOrientationPortrait","UIInterfaceOrientationPortraitUpsideDown","UIInterfaceOrientationLandscapeLeft","UIInterfaceOrientationLandscapeRight"}
+              assert required.issubset(set(info.get("UISupportedInterfaceOrientations",[]))), "90474: missing iPad orientations"
+              assert "UIInterfaceOrientationPortrait" in info.get("UISupportedInterfaceOrientations~iphone",[]), "iPhone portrait orientation missing"
+              assert any("LaunchScreen.storyboardc/" in n for n in z.namelist()), "90475: compiled storyboard missing"
+              print("PASS: IPA launch screen storyboard, four iPad orientations, portrait iPhone, bundle ID")
+          PY
     publishing:
       app_store_connect:
         auth: integration
