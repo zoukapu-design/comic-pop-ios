@@ -99,3 +99,54 @@ workflows:
       - $CM_BUILD_DIR/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
     # No publishing block: manual signed-build verification comes first.
+
+  ios-simulator-screenshot:
+    name: COMIC POP iOS / Simulator screenshot (no Team required)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+    scripts:
+      - name: Validate Swift models and app resources
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          bash tests/run.sh
+      - name: Generate project and compile Simulator app
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR/ios"
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen generate --spec project.yml
+          xcodebuild -project COMICPOP.xcodeproj -scheme COMICPOP \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$CM_BUILD_DIR/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee "$CM_BUILD_DIR/simulator-build.log"
+      - name: Capture a static screenshot on Codemagic macOS Simulator
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          SIMULATOR_ID="$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin); v=[x for a in d["devices"].values() for x in a if x.get("isAvailable") and x.get("name","").startswith("iPhone")]; print(v[0]["udid"] if v else "")')"
+          if [ -z "$SIMULATOR_ID" ]; then
+            echo "No iPhone simulator runtime is installed on this Codemagic build machine." >&2
+            exit 1
+          fi
+          APP_PATH="$CM_BUILD_DIR/DerivedData/Build/Products/Debug-iphonesimulator/COMICPOP.app"
+          test -d "$APP_PATH"
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          xcrun simctl install "$SIMULATOR_ID" "$APP_PATH"
+          xcrun simctl launch "$SIMULATOR_ID" com.example.comicpop.dev
+          sleep 6
+          mkdir -p "$CM_BUILD_DIR/screenshots"
+          xcrun simctl io "$SIMULATOR_ID" screenshot "$CM_BUILD_DIR/screenshots/comicpop-launch.png"
+          xcrun simctl shutdown "$SIMULATOR_ID" || true
+    artifacts:
+      - $CM_BUILD_DIR/screenshots/*.png
+      - $CM_BUILD_DIR/simulator-build.log
+      - $CM_BUILD_DIR/DerivedData/Build/Products/**/*.app
+    # Static screenshots work without Codemagic's Team-only Quick launch.
+    # This workflow is manually triggered; it never uploads to App Store.
