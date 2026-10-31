@@ -23,6 +23,27 @@ targets:
         buildPhase: resources
     info:
       path: COMICPOP/Info.plist
+      # XcodeGen REGENERATES this file. Properties must be specified here,
+      # not only in a manually edited Info.plist.
+      properties:
+        CFBundleDisplayName: ムビコマ
+        CFBundleName: COMICPOP
+        CFBundleShortVersionString: 2.0.0
+        CFBundleVersion: '1'
+        LSRequiresIPhoneOS: true
+        UILaunchStoryboardName: LaunchScreen
+        # Apple 90474: iPad-compatible builds must supply all four orientations.
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # iPhone remains portrait-only in the native editor.
+        "UISupportedInterfaceOrientations~iphone":
+          - UIInterfaceOrientationPortrait
+        NSPhotoLibraryUsageDescription: 漫画化する動画を選択するために使用します。
+        NSPhotoLibraryAddUsageDescription: 生成した漫画を保存するときに使用します。
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.comicpop.dev
