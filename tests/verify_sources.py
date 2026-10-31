@@ -23,6 +23,13 @@ assert "startingSession == videoSession && startingRevision == pinsRevision" in 
 assert "data.pins=[]" in store
 assert "iOS v2.1" in ui
 
+# Check Swift's whitespace-sensitive boolean/unary-operator combinations before paid CI build time.
+# swiftc -frontend -parse alone does not flag these.
+import re
+for swift_source in src.glob("*.swift"):
+    content = swift_source.read_text(encoding="utf-8")
+    assert not re.search(r"(?:\\|\\||&&)!", content), f"Missing whitespace before ! in {swift_source.name}"
+
 ci = (root / "codemagic.yaml").read_text(encoding="utf-8")
 project = (root / "ios" / "project.yml").read_text(encoding="utf-8")
 assert "ios-unsigned-check:" in ci and "CODE_SIGNING_ALLOWED=NO build" in ci
