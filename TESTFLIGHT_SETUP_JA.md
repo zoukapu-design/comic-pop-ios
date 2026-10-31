@@ -13,7 +13,7 @@ Codemagic署名付きビルド **finished**、成果物 `COMICPOP.ipa` (1.64 MB)
 5. ビルド成功後、https://appstoreconnect.apple.com/apps でムビコマ（元COMIC POP!）のApp > TestFlight > iOS BuildsがProcessing → Ready for Testingになるのを確認。Appleの輸出コンプライアンス等の追加質問が出たら対応する。Buildの処理は非同期で時間がかかることがある。
 6. TestFlight > Internal Testingでグループを作成し、アプリにアクセス可能な自分のApple IDを内部テスターとして追加。生成されたビルドをグループに追加。iPhoneのTestFlightで招待を受けてインストール。
 
-**注意：** 新ワークフローはAppleへのアップロードを行うため、実行する前にAPI連携名 `comicpop-apple` を必ず確認する。承認なしの公開・外部テスター配信は行わない。
+**注意：** 新ワークフローはAppleへのアップロードを行うため、実行する前にAPI連携名 `Codemagic Cybernetic` を必ず確認する。承認なしの公開・外部テスター配信は行わない。
 
 関連公式資料:
 - https://docs.codemagic.io/yaml-publishing/app-store-connect/
@@ -48,7 +48,7 @@ Codemagic Personal AccountのiOS certificatesに **Cybernetic_Distribution**（p
 2. 専用APIキーを発行。名称例 `Codemagic COMIC POP`、ロール `App Manager`。
 3. Issuer ID / Key ID / .p8を保存。**.p8は秘密。GitHub・チャットに送らない。**
 4. https://codemagic.io/ で **Personal Account の設定** > Integrations > Developer Portal > Add key。
-5. 参照名 `comicpop-apple`、Issuer ID、Key ID、.p8ファイルを入力して保存。
+5. 参照名 `Codemagic Cybernetic`、Issuer ID、Key ID、.p8ファイルを入力して保存。
 
 ## 手順2. 署名用証明書
 Codemagicの **Personal Account settings > codemagic.yaml settings > Code signing identities > iOS certificates** に進む。
