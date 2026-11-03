@@ -34,6 +34,7 @@ struct PreviewPanel: Identifiable {
     // A partial AI result can only be resumed with exactly the same style and colour.
     private var generatedStyle: String?
     private var generatedColor: String?
+    private var generatedMode: String?
 
     private let fm = FileManager.default
     private let support: URL
@@ -51,9 +52,10 @@ struct PreviewPanel: Identifiable {
         )
     }
     var generatedPanelCount: Int { generated.count }
+    var generatedOffline: Bool { generatedMode == "offline" }
     func clearGenerated() {
         generated = []; pageImages = []
-        generatedStyle = nil; generatedColor = nil
+        generatedStyle = nil; generatedColor = nil; generatedMode = nil
     }
     func discardGenerated() {
         guard !isGenerating else {message = "生成中は再生成できません";return}
@@ -184,9 +186,9 @@ struct PreviewPanel: Identifiable {
         let resumable = GenerationIntegrity.canResume(
             completedIDs: generated.map(\.id), plannedIDs: pins.map(\.id),
             sameStyle: generatedStyle == style, sameColor: generatedColor == colorMode
-        )
+        ) && generatedMode == "online"
         if !resumable {clearGenerated()}
-        generatedStyle=style;generatedColor=colorMode
+        generatedStyle=style;generatedColor=colorMode;generatedMode="online"
         let startIndex=generated.count
         isGenerating=true;pageImages=[]
         defer {isGenerating=false}
@@ -226,6 +228,49 @@ struct PreviewPanel: Identifiable {
         }
         rebuildPages()
         message="全\(generated.count)コマのAI描き直しが完了。各コマを確認してください。"
+    }
+    /// Always-free trial mode: comic-style image processing happens locally.
+    /// No API key, GPU account, uploaded frames or paid service is involved.
+    func generateOffline() async {
+        guard !isGenerating else {return}
+        guard videoURL != nil else {message="動画を選択してください";return}
+        let pins=scenePlan.orderedPins
+        guard !pins.isEmpty else {message="まずカードを刺してください";return}
+        guard pins.count<=12 else {message="一度に12コマまでです";return}
+        let startingSession=videoSession
+        let startingRevision=pinsRevision
+        let style=data.style
+        let colorMode=data.colorMode
+        let resumable=GenerationIntegrity.canResume(
+            completedIDs:generated.map(\.id),plannedIDs:pins.map(\.id),
+            sameStyle:generatedStyle == style,sameColor:generatedColor == colorMode
+        ) && generatedMode == "offline"
+        if !resumable {clearGenerated()}
+        generatedStyle=style;generatedColor=colorMode;generatedMode="offline"
+        let startIndex=generated.count
+        isGenerating=true;pageImages=[]
+        defer {isGenerating=false}
+        for index in startIndex..<pins.count {
+            let pin=pins[index]
+            guard let original=snapshot(for:pin) else {
+                rebuildPages();message="元動画の\(index+1)コマ目を取得できません";return
+            }
+            message="端末内で漫画調に変換しています \(index+1)/\(pins.count)"
+            let drawing=await Task.detached(priority:.userInitiated) {
+                OfflineComicFilter.render(original,style:style,colorMode:colorMode)
+            }.value
+            guard startingSession == videoSession && startingRevision == pinsRevision &&
+                style == data.style && colorMode == data.colorMode else {
+                clearGenerated();message="編集中に元データが変わったため変換結果を破棄しました";return
+            }
+            guard let drawing else {
+                rebuildPages();message="\(generated.count)/\(pins.count)コマまで変換。残りを再試行してください";return
+            }
+            generated.append(PreviewPanel(id:pin.id,cardTitle:card(for:pin).title,
+                                          original:original,drawing:drawing,warning:nil))
+        }
+        rebuildPages()
+        message="全\(generated.count)コマを端末内で簡易漫画化しました（生成AIではありません）。"
     }
     func chooseOriginal(_ id:UUID){guard let i=generated.firstIndex(where:{$0.id==id}) else {return};generated[i].drawing=generated[i].original;generated[i].warning=nil;rebuildPages()}
     func rebuildPages(){pageImages=stride(from:0,to:generated.count,by:4).map{i in ComicRenderer.page(panels:Array(generated[i..<min(i+4,generated.count)]),title:data.workTitle.isEmpty ? "ムビコマ" : data.workTitle,pageNumber:i/4+1,total:Int(ceil(Double(generated.count)/4)))} }
