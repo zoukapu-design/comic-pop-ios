@@ -417,8 +417,16 @@ private struct MVMangaView: View {
             MVPrimaryButton(title: store.isGenerating ? "マンガを生成中…" : "マンガを生成する", icon: "sparkles", enabled: !store.isGenerating && !store.data.pins.isEmpty) {
                 confirmRun = true
             }
+            Button {
+                Task { await store.generateOffline(); previewPage = 0 }
+            } label: {
+                Label("無料でおためし生成（端末内）", systemImage: "wand.and.stars")
+                    .font(.subheadline.bold()).frame(maxWidth: .infinity).padding(10)
+            }
+            .buttonStyle(.bordered).tint(.white)
+            .disabled(store.isGenerating || store.data.pins.isEmpty)
             if store.isGenerating { ProgressView().tint(MVTheme.yellow).frame(maxWidth: .infinity) }
-            Text("自分のCloudflare Workers Free枠を使用します。接続は「設定」から行えます。")
+            Text("AI作画は自分のCloudflare Workers Free枠を使用します（設定から接続）。端末内おためし生成はAIではなく漫画調フィルターで、動画を外部送信しません。")
                 .font(.caption2).foregroundStyle(.white.opacity(0.75))
         }
     }
@@ -440,12 +448,19 @@ private struct MVMangaView: View {
                         Text("\(store.generatedPanelCount) / \(store.data.pins.count) コマ生成済み。完成まで保存はできません。")
                             .font(.subheadline).multilineTextAlignment(.center)
                         MVPrimaryButton(title: store.isGenerating ? "生成しています…" : "残りのコマを生成", icon: "arrow.clockwise", enabled: !store.isGenerating) {
-                            confirmRun = true
+                            if store.generatedOffline {
+                                Task { await store.generateOffline(); previewPage = 0 }
+                            } else {
+                                confirmRun = true
+                            }
                         }
                     }
                     .padding(13).frame(maxWidth: .infinity)
                     .background(MVTheme.panel, in: RoundedRectangle(cornerRadius: 14))
                 }
+                Text(store.generatedOffline ? "端末内・簡易漫画調（生成AIなし）" : "Cloudflare AI・漫画化結果")
+                    .font(.caption.bold()).foregroundStyle(MVTheme.yellow)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Image(uiImage: store.pageImages[min(previewPage, store.pageImages.count - 1)])
                     .resizable().scaledToFit()
                     .background(.white)
@@ -498,7 +513,7 @@ private struct MVPanelReview: View {
                             Text(panel.cardTitle).font(.headline)
                             HStack {
                                 VStack { Image(uiImage: panel.original).resizable().scaledToFit(); Text("元動画") }
-                                VStack { Image(uiImage: panel.drawing).resizable().scaledToFit(); Text("AI再描画") }
+                                VStack { Image(uiImage: panel.drawing).resizable().scaledToFit(); Text(store.generatedOffline ? "端末内漫画調" : "AI再描画") }
                             }.font(.caption).frame(height: 165)
                             if let warning = panel.warning { Text(warning).font(.caption).foregroundStyle(.orange) }
                             Button("このコマは元動画を使う") { store.chooseOriginal(panel.id) }
@@ -708,7 +723,7 @@ private struct MVSettingsView: View {
         NavigationStack {
             Form {
                 Section("無料AI画像生成") {
-                    Text("各ユーザーが自分のCloudflare Workers Freeアカウントを接続します。運営者のGPU枠は使用しません。")
+                    Text("端末内おためし生成は無料で接続不要。AIによる描き直しを利用する場合は、自分のCloudflare Workers Freeアカウントを接続します。運営者のGPU枠は使用しません。")
                         .font(.footnote)
                     TextField("Cloudflare Account ID", text: $account)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
