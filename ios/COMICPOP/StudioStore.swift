@@ -79,9 +79,15 @@ struct PreviewPanel: Identifiable {
             Task { @MainActor in self?.currentTime=time.seconds.isFinite ? time.seconds : 0 }
         }
     }
-    private func persist() {
-        do { let out=try JSONEncoder().encode(data);try out.write(to:modelURL,options:.atomic) }
-        catch {message="端末への保存に失敗しました：\(error.localizedDescription)"}
+    @discardableResult private func persist() -> Bool {
+        do {
+            let out=try JSONEncoder().encode(data)
+            try out.write(to:modelURL,options:.atomic)
+            return true
+        } catch {
+            message="端末への保存に失敗しました：\(error.localizedDescription)"
+            return false
+        }
     }
     private func loadDuration() async {
         guard let url=videoURL else { duration=0; return }
@@ -139,7 +145,10 @@ struct PreviewPanel: Identifiable {
     func removePin(_ pin:MangaPin){data.pins.removeAll{$0.id==pin.id};pinsRevision=UUID();try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile));clearGenerated();persist()}
     func clearPins(){pinsResetEpoch=UUID();pinsRevision=UUID();for p in data.pins {try? fm.removeItem(at:support.appendingPathComponent(p.snapshotFile))};data.pins=[];clearGenerated();persist()}
     func snapshot(for pin:MangaPin)->UIImage? {UIImage(contentsOfFile:support.appendingPathComponent(pin.snapshotFile).path)}
-    func card(for pin:MangaPin)->PinDefinition {catalog.first(where:{$0.id==pin.cardID}) ?? catalog[0]}
+    func card(for pin:MangaPin)->PinDefinition {
+        catalog.first(where:{$0.id==pin.cardID}) ?? catalog.first ??
+            PinDefinition(id:"unknown",title:"未登録カード",subtitle:"カード情報を確認",category:"editing",art:0,color:"#eeeeee")
+    }
     func updateStyle(_ style:String) {
         guard data.style != style else {return}
         data.style=style;data.colorMode=MangaStyles.all.first(where:{$0.id==style})?.defaultColor ?? "mono"
@@ -295,8 +304,14 @@ struct PreviewPanel: Identifiable {
         guard filenames.count == scenePlan.pages else {
             message="ページ数が一致しません";return false
         }
-        data.works.insert(SavedWork(id:UUID(),title:data.workTitle.isEmpty ? "漫画 \(Date().formatted(date:.abbreviated,time:.shortened))" : data.workTitle,files:filenames,createdAt:Date(),sceneCount:generated.count,style:data.style),at:0)
-        persist();message="全\(generated.count)コマを作品一覧に保存しました"
+        let work=SavedWork(id:UUID(),title:data.workTitle.isEmpty ? "漫画 \(Date().formatted(date:.abbreviated,time:.shortened))" : data.workTitle,files:filenames,createdAt:Date(),sceneCount:generated.count,style:data.style)
+        data.works.insert(work,at:0)
+        guard persist() else {
+            data.works.removeAll{$0.id==work.id}
+            for name in filenames {try? fm.removeItem(at:support.appendingPathComponent(name))}
+            return false
+        }
+        message="全\(generated.count)コマを作品一覧に保存しました"
         return true
     }
     func workImages(_ work:SavedWork)->[UIImage]{work.files.compactMap{UIImage(contentsOfFile:support.appendingPathComponent($0).path)}}
