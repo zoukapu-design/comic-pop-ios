@@ -224,6 +224,7 @@ private struct MVEditorView: View {
         .fileImporter(isPresented: $filePicker, allowedContentTypes: [.movie], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first { Task { await store.replaceVideo(url) } }
         }
+        .onChange(of: store.data.activeDeckID) { _, _ in selectedCardID = nil }
         .onChange(of: selectedPhoto) { _, next in
             guard let next else { return }
             Task {
@@ -239,7 +240,8 @@ private struct MVEditorView: View {
 
 private struct MVTimelineView: View {
     @ObservedObject var store: StudioStore
-    @State private var thumbnails: [UIImage] = []
+    // Keep a fixed five-slot timeline so a failed frame capture does not shift later frames.
+    @State private var thumbnails: [UIImage?] = Array(repeating: nil, count: 5)
     var body: some View {
         VStack(spacing: 4) {
             GeometryReader { geo in
@@ -247,8 +249,8 @@ private struct MVTimelineView: View {
                     RoundedRectangle(cornerRadius: 8).fill(MVTheme.panel)
                     HStack(spacing: 2) {
                         ForEach(0..<5, id: \.self) { i in
-                            if thumbnails.indices.contains(i) {
-                                Image(uiImage: thumbnails[i]).resizable().scaledToFill().frame(maxWidth: .infinity).frame(height: 49).clipped()
+                            if thumbnails.indices.contains(i), let thumb = thumbnails[i] {
+                                Image(uiImage: thumb).resizable().scaledToFill().frame(maxWidth: .infinity).frame(height: 49).clipped()
                             } else {
                                 RoundedRectangle(cornerRadius: 2).fill(MVTheme.dark.opacity(0.9))
                                     .overlay(Image(systemName: "film").foregroundStyle(.white.opacity(0.25)))
@@ -280,14 +282,14 @@ private struct MVTimelineView: View {
             }.frame(maxWidth: .infinity)
         }
         .task(id: "\(store.videoURL?.absoluteString ?? "-")|\(store.duration)") {
-            thumbnails = []
+            thumbnails = Array(repeating: nil, count: 5)
             guard let url = store.videoURL else { return }
-            var images: [UIImage] = []
+            var images: [UIImage?] = Array(repeating: nil, count: 5)
             for i in 0..<5 {
                 if Task.isCancelled { return }
                 let t = max(0, store.duration * (Double(i) + 0.5) / 5.0)
                 if let image = try? await VideoFrameService.frame(at: t, from: url) {
-                    images.append(image)
+                    images[i] = image
                 }
             }
             if store.videoURL == url { thumbnails = images }
@@ -349,7 +351,7 @@ private struct MVMangaView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text(store.pageImages.isEmpty ? "マンガ生成" : "生成結果")
+                    Text(store.pageImages.isEmpty ? "マンガ生成" : (store.hasCompleteComic ? "生成結果" : "途中まで生成"))
                         .font(.system(size: 22, weight: .heavy))
                     Spacer()
                     Text("ムビコマ").font(.caption.bold()).foregroundStyle(MVTheme.yellow)
@@ -397,7 +399,7 @@ private struct MVMangaView: View {
                                 Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(MVTheme.yellow).padding(6)
                             }
                         }
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.plain).disabled(store.isGenerating)
                 }
             }
             VStack(alignment: .leading, spacing: 12) {
@@ -426,11 +428,24 @@ private struct MVMangaView: View {
                 .foregroundStyle(MVTheme.navy).frame(maxWidth: .infinity).padding(9)
                 .background(store.data.colorMode == value ? MVTheme.yellow : .white, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(MVTheme.navy.opacity(0.22)))
-        }.buttonStyle(.plain)
+        }.buttonStyle(.plain).disabled(store.isGenerating)
     }
     private var resultView: some View {
         VStack(spacing: 14) {
             if !store.pageImages.isEmpty {
+                if !store.hasCompleteComic {
+                    VStack(spacing: 9) {
+                        Label("まだ完成していません", systemImage: "exclamationmark.triangle.fill")
+                            .font(.headline).foregroundStyle(MVTheme.yellow)
+                        Text("\(store.generatedPanelCount) / \(store.data.pins.count) コマ生成済み。完成まで保存はできません。")
+                            .font(.subheadline).multilineTextAlignment(.center)
+                        MVPrimaryButton(title: store.isGenerating ? "生成しています…" : "残りのコマを生成", icon: "arrow.clockwise", enabled: !store.isGenerating) {
+                            confirmRun = true
+                        }
+                    }
+                    .padding(13).frame(maxWidth: .infinity)
+                    .background(MVTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+                }
                 Image(uiImage: store.pageImages[min(previewPage, store.pageImages.count - 1)])
                     .resizable().scaledToFit()
                     .background(.white)
@@ -457,9 +472,11 @@ private struct MVMangaView: View {
                 }
                 HStack(spacing: 8) {
                     Button { showReview = true } label: { Label("編集", systemImage: "pencil") }
-                    Button { store.pageImages = []; store.generated = [] } label: { Label("再生成", systemImage: "arrow.clockwise") }
-                    Button { store.saveWork(); goToWorks() } label: { Label("保存・共有", systemImage: "square.and.arrow.up") }
+                    Button { store.discardGenerated(); previewPage = 0 } label: { Label("最初から再生成", systemImage: "arrow.clockwise") }
+                        .disabled(store.isGenerating)
+                    Button { if store.saveWork() { goToWorks() } } label: { Label("保存・共有", systemImage: "square.and.arrow.up") }
                         .tint(MVTheme.yellow).foregroundStyle(MVTheme.navy)
+                        .disabled(!store.hasCompleteComic)
                 }.font(.system(size: 12, weight: .bold)).buttonStyle(.borderedProminent)
                 Button("動画の編集に戻る") { goToEditor() }.font(.footnote)
             }
@@ -533,7 +550,7 @@ private struct MVCatalogView: View {
                             }
                         }
                     }
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 115))], spacing: 12) {
                         ForEach(filtered) { card in
                             Button { onSelect(card.id); dismiss() } label: {
                                 MVCardView(card: card, selected: false)
@@ -609,7 +626,7 @@ private struct MVDeckView: View {
                     Divider()
                     Text("デッキに追加するカード").font(.headline)
                     TextField("カードを検索", text: $query).textFieldStyle(.roundedBorder)
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 9) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 115))], spacing: 9) {
                         ForEach(filtered) { card in
                             Button { store.toggleDeckCard(card.id) } label: {
                                 VStack(spacing: 4) {
