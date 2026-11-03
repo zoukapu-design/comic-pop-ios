@@ -31,6 +31,9 @@ struct PreviewPanel: Identifiable {
     private var videoSession = UUID()
     private var pinsResetEpoch = UUID()
     private var pinsRevision = UUID()
+    // A partial AI result can only be resumed with exactly the same style and colour.
+    private var generatedStyle: String?
+    private var generatedColor: String?
 
     private let fm = FileManager.default
     private let support: URL
@@ -40,6 +43,21 @@ struct PreviewPanel: Identifiable {
     var selectedDeck: UserDeck? {data.decks.first(where:{$0.id == data.activeDeckID}) ?? data.decks.first}
     var cards: [PinDefinition] {catalog}
     var scenePlan: ScenePlan {ScenePlan(pins:data.pins)}
+    var hasCompleteComic: Bool {
+        let pins = scenePlan.orderedPins
+        return !isGenerating && !pins.isEmpty && generated.count == pins.count &&
+            zip(generated, pins).allSatisfy { $0.0.id == $0.1.id } &&
+            pageImages.count == scenePlan.pages
+    }
+    var generatedPanelCount: Int { generated.count }
+    func clearGenerated() {
+        generated = []; pageImages = []
+        generatedStyle = nil; generatedColor = nil
+    }
+    func discardGenerated() {
+        guard !isGenerating else {message = "生成中は再生成できません";return}
+        clearGenerated();message = "カードは残したまま生成結果をリセットしました"
+    }
 
     init() {
         support = fm.urls(for:.applicationSupportDirectory,in:.userDomainMask)[0].appendingPathComponent("COMICPOP",isDirectory:true)
@@ -84,7 +102,7 @@ struct PreviewPanel: Identifiable {
             let oldSnapshots=data.pins.map(\.snapshotFile)
             player.pause();player.replaceCurrentItem(with:AVPlayerItem(url:dest))
             data.videoFile=newName;data.videoTitle=importedURL.lastPathComponent
-            data.pins=[];generated=[];pageImages=[];duration=0;currentTime=0
+            data.pins=[];clearGenerated();duration=0;currentTime=0
             persist();await loadDuration()
             for file in oldSnapshots {try? fm.removeItem(at:support.appendingPathComponent(file))}
             if let oldVideo {try? fm.removeItem(at:support.appendingPathComponent(oldVideo))}
@@ -111,15 +129,23 @@ struct PreviewPanel: Identifiable {
             try bytes.write(to:support.appendingPathComponent(file),options:.atomic)
             data.pins.append(MangaPin(cardID:card.id,seconds:seconds,snapshotFile:file))
             pinsRevision = UUID()
-            persist();message="\(formatted(seconds)) に「\(card.title)」を挿入しました。"
+            clearGenerated() // A newly inserted card invalidates previously rendered pages.
+            persist();message="\(formatted(seconds)) に「\(card.title)」を挿入しました."
         } catch {message="その場面を保存できませんでした：\(error.localizedDescription)"}
     }
-    func removePin(_ pin:MangaPin){data.pins.removeAll{$0.id==pin.id};pinsRevision=UUID();try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile));generated=[];pageImages=[];persist()}
-    func clearPins(){pinsResetEpoch=UUID();pinsRevision=UUID();for p in data.pins {try? fm.removeItem(at:support.appendingPathComponent(p.snapshotFile))};data.pins=[];generated=[];pageImages=[];persist()}
+    func removePin(_ pin:MangaPin){data.pins.removeAll{$0.id==pin.id};pinsRevision=UUID();try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile));clearGenerated();persist()}
+    func clearPins(){pinsResetEpoch=UUID();pinsRevision=UUID();for p in data.pins {try? fm.removeItem(at:support.appendingPathComponent(p.snapshotFile))};data.pins=[];clearGenerated();persist()}
     func snapshot(for pin:MangaPin)->UIImage? {UIImage(contentsOfFile:support.appendingPathComponent(pin.snapshotFile).path)}
     func card(for pin:MangaPin)->PinDefinition {catalog.first(where:{$0.id==pin.cardID}) ?? catalog[0]}
-    func updateStyle(_ style:String) {data.style=style;data.colorMode=MangaStyles.all.first(where:{$0.id==style})?.defaultColor ?? "mono";persist()}
-    func updateColor(_ value:String){data.colorMode=value;persist()}
+    func updateStyle(_ style:String) {
+        guard data.style != style else {return}
+        data.style=style;data.colorMode=MangaStyles.all.first(where:{$0.id==style})?.defaultColor ?? "mono"
+        clearGenerated();persist()
+    }
+    func updateColor(_ value:String) {
+        guard data.colorMode != value else {return}
+        data.colorMode=value;clearGenerated();persist()
+    }
     func updateTitle(_ value:String){data.workTitle=value;titleDraft=value;persist()}
     func selectDeck(_ id:UUID) {data.activeDeckID=id;persist()}
     func addDeck(name:String){guard data.decks.count<20 else {message="デッキは最大20個です";return};let deck=UserDeck(name:String(name.prefix(24)),cardIDs:[]);data.decks.append(deck);data.activeDeckID=deck.id;persist()}
@@ -143,26 +169,39 @@ struct PreviewPanel: Identifiable {
     func generate() async {
         guard !isGenerating else {return}
         guard videoURL != nil else {message="動画を選択してください";return}
-        guard !scenePlan.orderedPins.isEmpty else {message="まずカードを刺してください";return}
-        guard scenePlan.orderedPins.count<=12 else {message="無料枠保護のため一度に12コマまでです。カードは削除していません。";return}
+        let pins=scenePlan.orderedPins
+        guard !pins.isEmpty else {message="まずカードを刺してください";return}
+        guard pins.count<=12 else {message="無料枠保護のため一度に12コマまでです。カードは削除していません。";return}
         guard confirmsFree,let token=CloudflareCredentialVault.load(),!cloudflareAccount.isEmpty else {message="自分のWorkers Freeアカウントを接続してください";return}
-        isGenerating=true;generated=[];pageImages=[]
-        defer {isGenerating=false}
         let startingSession=videoSession
         let startingRevision=pinsRevision
-        let pins=scenePlan.orderedPins
-        for (index,pin) in pins.enumerated() {
+        let style=data.style
+        let colorMode=data.colorMode
+        let account=cloudflareAccount
+        // Only skip previously completed panels when ALL of their pin IDs and
+        // generation settings still match. Do not spend free quota twice on success.
+        let resumable = !generated.isEmpty && generated.count < pins.count &&
+            generatedStyle == style && generatedColor == colorMode &&
+            zip(generated,pins).allSatisfy { $0.0.id == $0.1.id }
+        if !resumable {clearGenerated()}
+        generatedStyle=style;generatedColor=colorMode
+        let startIndex=generated.count
+        isGenerating=true;pageImages=[]
+        defer {isGenerating=false}
+        for index in startIndex..<pins.count {
+            let pin=pins[index]
             do {
                 guard let original=snapshot(for:pin) else {throw MangaError.invalidImage}
                 message="AIで描き直しています \(index+1)/\(pins.count)（ユーザーの無料枠）"
                 let card=card(for:pin)
-                // Each frame has a unique deterministic seed; no previous scene image is supplied.
                 let seed=Int(UInt32(truncatingIfNeeded:pin.id.uuidString.utf8.reduce(2166136261 as UInt32){($0 ^ UInt32($1)) &* 16777619}))
-                let image=try await CloudflareAIService.redraw(image:original,card:card,pin:pin,style:data.style,colorMode:data.colorMode,account:cloudflareAccount,token:token,seed:seed)
-                // Do not show a completed image belonging to an old video after a video switch.
-                guard startingSession == videoSession && startingRevision == pinsRevision else {
-                    message="動画またはピンカードが変更されたため、以前の生成結果を破棄しました。"
-                    generated=[];pageImages=[];return
+                let image=try await CloudflareAIService.redraw(image:original,card:card,pin:pin,style:style,colorMode:colorMode,account:account,token:token,seed:seed)
+                // An in-flight request must never revive old or differently styled results.
+                guard startingSession == videoSession && startingRevision == pinsRevision &&
+                    style == data.style && colorMode == data.colorMode else {
+                    clearGenerated()
+                    message="動画・カード・画風が変更されたため古い生成結果を破棄しました。"
+                    return
                 }
                 let warning: String? = {
                     guard let prev=generated.last else {return nil}
@@ -172,25 +211,46 @@ struct PreviewPanel: Identifiable {
                 }()
                 generated.append(PreviewPanel(id:pin.id,cardTitle:card.title,original:original,drawing:image,warning:warning))
             } catch {
-                // A failed request may complete after video/pin replacement; never revive an old page.
-                guard startingSession == videoSession && startingRevision == pinsRevision else {
-                    generated=[];pageImages=[];return
+                guard startingSession == videoSession && startingRevision == pinsRevision &&
+                    style == data.style && colorMode == data.colorMode else {
+                    clearGenerated();return
                 }
-                message="\(index)/\(pins.count)コマ作成後に停止：\(error.localizedDescription)。未生成のカードは残っています。"
-                rebuildPages();return
+                // Keep successful panels in sequence; the user can resume at the
+                // first unfinished pin without consuming quota for those panels again.
+                rebuildPages()
+                message="\(generated.count)/\(pins.count)コマまで生成。残りは再試行できます：\(error.localizedDescription)"
+                return
             }
         }
-        rebuildPages();message="全\(generated.count)コマのAI描き直しが完了。各コマを確認してください。"
+        rebuildPages()
+        message="全\(generated.count)コマのAI描き直しが完了。各コマを確認してください。"
     }
     func chooseOriginal(_ id:UUID){guard let i=generated.firstIndex(where:{$0.id==id}) else {return};generated[i].drawing=generated[i].original;generated[i].warning=nil;rebuildPages()}
     func rebuildPages(){pageImages=stride(from:0,to:generated.count,by:4).map{i in ComicRenderer.page(panels:Array(generated[i..<min(i+4,generated.count)]),title:data.workTitle.isEmpty ? "ムビコマ" : data.workTitle,pageNumber:i/4+1,total:Int(ceil(Double(generated.count)/4)))} }
-    func saveWork() {
-        guard !pageImages.isEmpty else {message="漫画が生成されていません";return}
+    @discardableResult func saveWork() -> Bool {
+        guard hasCompleteComic else {
+            message="未完成の漫画は保存できません。すべてのカードの生成を完了してください。"
+            return false
+        }
         var filenames:[String]=[]
-        for image in pageImages {guard let png=image.pngData() else {continue};let name="comic-\(UUID().uuidString).png";do{try png.write(to:support.appendingPathComponent(name));filenames.append(name)}catch{}}
-        guard !filenames.isEmpty else {message="漫画を保存できませんでした";return}
+        for image in pageImages {
+            guard let png=image.pngData() else {
+                for name in filenames {try? fm.removeItem(at:support.appendingPathComponent(name))}
+                message="漫画ページの変換に失敗しました";return false
+            }
+            let name="comic-\(UUID().uuidString).png"
+            do {try png.write(to:support.appendingPathComponent(name),options:.atomic);filenames.append(name)}
+            catch {
+                for previous in filenames {try? fm.removeItem(at:support.appendingPathComponent(previous))}
+                message="漫画の保存に失敗しました：\(error.localizedDescription)";return false
+            }
+        }
+        guard filenames.count == scenePlan.pages else {
+            message="ページ数が一致しません";return false
+        }
         data.works.insert(SavedWork(id:UUID(),title:data.workTitle.isEmpty ? "漫画 \(Date().formatted(date:.abbreviated,time:.shortened))" : data.workTitle,files:filenames,createdAt:Date(),sceneCount:generated.count,style:data.style),at:0)
-        persist();message="作品一覧に保存しました"
+        persist();message="全\(generated.count)コマを作品一覧に保存しました"
+        return true
     }
     func workImages(_ work:SavedWork)->[UIImage]{work.files.compactMap{UIImage(contentsOfFile:support.appendingPathComponent($0).path)}}
     func formatted(_ seconds:Double)->String {String(format:"%02d:%02d",Int(max(0,seconds))/60,Int(max(0,seconds))%60)}
