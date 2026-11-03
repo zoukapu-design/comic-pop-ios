@@ -312,7 +312,7 @@ private struct MVCardView: View {
         if value.contains("説明") || value.contains("料理") { return 2 }
         if value.contains("感情") || value.contains("笑") || value.contains("感動") { return 4 }
         if value.contains("転") || value.contains("場面") { return 5 }
-        if value.contains("結") || value.contains("オチ") { return 6 }
+        if value.contains("結") || value.contains("オチ") { return 15 }
         return 0
     }
     var body: some View {
