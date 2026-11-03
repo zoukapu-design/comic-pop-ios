@@ -44,10 +44,11 @@ struct PreviewPanel: Identifiable {
     var cards: [PinDefinition] {catalog}
     var scenePlan: ScenePlan {ScenePlan(pins:data.pins)}
     var hasCompleteComic: Bool {
-        let pins = scenePlan.orderedPins
-        return !isGenerating && !pins.isEmpty && generated.count == pins.count &&
-            zip(generated, pins).allSatisfy { $0.0.id == $0.1.id } &&
-            pageImages.count == scenePlan.pages
+        GenerationIntegrity.isComplete(
+            completedIDs: generated.map(\.id), plannedIDs: scenePlan.orderedPins.map(\.id),
+            pageCount: pageImages.count, expectedPageCount: scenePlan.pages,
+            isGenerating: isGenerating
+        )
     }
     var generatedPanelCount: Int { generated.count }
     func clearGenerated() {
@@ -180,9 +181,10 @@ struct PreviewPanel: Identifiable {
         let account=cloudflareAccount
         // Only skip previously completed panels when ALL of their pin IDs and
         // generation settings still match. Do not spend free quota twice on success.
-        let resumable = !generated.isEmpty && generated.count < pins.count &&
-            generatedStyle == style && generatedColor == colorMode &&
-            zip(generated,pins).allSatisfy { $0.0.id == $0.1.id }
+        let resumable = GenerationIntegrity.canResume(
+            completedIDs: generated.map(\.id), plannedIDs: pins.map(\.id),
+            sameStyle: generatedStyle == style, sameColor: generatedColor == colorMode
+        )
         if !resumable {clearGenerated()}
         generatedStyle=style;generatedColor=colorMode
         let startIndex=generated.count
