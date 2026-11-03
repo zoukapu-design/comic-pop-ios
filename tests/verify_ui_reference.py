@@ -22,6 +22,13 @@ assert "store.saveWork()" in ui
 assert "store.hasCompleteComic" in ui
 assert "store.discardGenerated()" in ui
 assert "GenerationIntegrity.isComplete" in store and "GenerationIntegrity.canResume" in store
+assert ".safeAreaInset(edge: .bottom) { cardDock }" in ui, "The card deck must remain accessible during playback"
+assert "compact: true" in ui, "Compact pinned cards are required for narrow iPhones"
+assert "generateOffline()" in ui and "func generateOffline() async" in store
+offline = (root / "ios/COMICPOP/OfflineComicFilter.swift").read_text(encoding="utf-8")
+assert 'CIFilter(name: "CIComicEffect")' in offline
+assert "URLSession" not in offline, "Offline trial must never upload user video"
+assert "generatedMode == \"offline\"" in store and 'generatedMode="online"' in store
 assert ".task(id:" in ui
 assert "ムビコマ" in app + ui + store
 assert 'title:data.workTitle.isEmpty ? "ムビコマ"' in store
