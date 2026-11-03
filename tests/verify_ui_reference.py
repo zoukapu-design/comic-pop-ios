@@ -19,6 +19,9 @@ assert "VideoPlayer(player: store.player)" in ui
 assert "await store.addPin(card:" in ui
 assert "await store.generate()" in ui
 assert "store.saveWork()" in ui
+assert "store.hasCompleteComic" in ui
+assert "store.discardGenerated()" in ui
+assert "GenerationIntegrity.isComplete" in store and "GenerationIntegrity.canResume" in store
 assert ".task(id:" in ui
 assert "ムビコマ" in app + ui + store
 assert 'title:data.workTitle.isEmpty ? "ムビコマ"' in store
