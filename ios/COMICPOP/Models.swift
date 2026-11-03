@@ -63,6 +63,7 @@ enum MangaStyles {
         ("shojo","少女漫画","fine graceful ink contours, delicate expressive shojo manga, elegant screentone","mono"),
         ("american","アメコミ","strong graphic outlines, bright flat comic primary colors, graphic halftone","color"),
         ("gag","ギャグ漫画","expressive simplified original Japanese comedy comic ink drawing","mono"),
+        ("suspense","サスペンス","noir manga suspense, ominous shadows, cinematic mystery, consistently tense ink illustration","mono"),
         ("seinen","劇画","realistic Japanese gekiga penwork, careful ink shading and fine hatch lines","mono"),
         ("daily","日常漫画","gentle warm pastel slice-of-life manga, soft clean outlines","color"),
         ("horror","ホラー漫画","striking black ink horror manga, intense shadow contrasts","mono"),
