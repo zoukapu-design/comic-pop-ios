@@ -153,36 +153,6 @@ private struct MVEditorView: View {
                 .buttonStyle(.bordered)
                 MVTimelineView(store: store)
                 HStack {
-                    Text("カードを追加").font(.headline).foregroundStyle(.white)
-                    Spacer()
-                    Button { showDeck = true } label: { Label(store.selectedDeck?.name ?? "マイデッキ", systemImage: "square.stack.3d.up") }
-                        .font(.caption.bold())
-                }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(store.selectedDeck?.cardIDs ?? [], id: \.self) { id in
-                            if let def = store.cards.first(where: { $0.id == id }) {
-                                Button { selectedCardID = def.id } label: {
-                                    MVCardView(card: def, selected: selectedCard?.id == def.id)
-                                }.buttonStyle(.plain)
-                            }
-                        }
-                        Button { showCatalog = true } label: {
-                            VStack(spacing: 8) {
-                                Image(systemName: "plus.circle.fill").font(.title)
-                                Text("全カード").font(.caption.bold())
-                            }.frame(width: 101, height: 124)
-                                .background(MVTheme.panel, in: RoundedRectangle(cornerRadius: 13))
-                        }.buttonStyle(.plain)
-                    }
-                    .padding(.vertical, 3)
-                }
-                MVPrimaryButton(title: "今の位置にカードを刺す", icon: "plus") {
-                    if let card = selectedCard { Task { await store.addPin(card: card) } }
-                }
-                .disabled(store.videoURL == nil || selectedCard == nil)
-                .opacity(store.videoURL == nil || selectedCard == nil ? 0.55 : 1)
-                HStack {
                     Label("挿入済みカード：\(store.data.pins.count)枚", systemImage: "pin.fill").font(.subheadline.bold())
                     Spacer()
                     Button("全削除", role: .destructive) { showClear = true }
@@ -216,6 +186,7 @@ private struct MVEditorView: View {
             .padding(14)
         }
         .background(MVTheme.navy)
+        .safeAreaInset(edge: .bottom) { cardDock }
         .sheet(isPresented: $showCatalog) { MVCatalogView(store: store, onSelect: { selectedCardID = $0; showCatalog = false }) }
         .sheet(isPresented: $showDeck) { MVDeckView(store: store) }
         .confirmationDialog("ピンカードをすべて削除しますか？", isPresented: $showClear) {
@@ -235,6 +206,51 @@ private struct MVEditorView: View {
                 } catch { store.message = "動画選択エラー：\(error.localizedDescription)" }
             }
         }
+    }
+    // Fixed card dock: editing video, timeline and pin history may scroll, but
+    // the selected card and insertion action remain reachable during playback.
+    private var cardDock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("カードを追加").font(.headline).foregroundStyle(.white)
+                    Spacer()
+                    Button { showDeck = true } label: { Label(store.selectedDeck?.name ?? "マイデッキ", systemImage: "square.stack.3d.up") }
+                        .font(.caption.bold())
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(store.selectedDeck?.cardIDs ?? [], id: \.self) { id in
+                            if let def = store.cards.first(where: { $0.id == id }) {
+                                Button { selectedCardID = def.id } label: {
+                                    MVCardView(card: def, selected: selectedCard?.id == def.id, compact: true)
+                                }.buttonStyle(.plain)
+                            }
+                        }
+                        Button { showCatalog = true } label: {
+                            VStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill").font(.title)
+                                Text("全カード").font(.caption2.bold())
+                            }.frame(width: 82, height: 92)
+                                .background(MVTheme.panel, in: RoundedRectangle(cornerRadius: 13))
+                        }.buttonStyle(.plain)
+                    }
+                    .padding(.vertical, 3)
+                }
+                MVPrimaryButton(title: "今の位置にカードを刺す", icon: "plus") {
+                    if let card = selectedCard { Task { await store.addPin(card: card) } }
+                }
+                .disabled(store.videoURL == nil || selectedCard == nil)
+                .opacity(store.videoURL == nil || selectedCard == nil ? 0.55 : 1)
+            if let chosen = selectedCard,
+               !(store.selectedDeck?.cardIDs.contains(chosen.id) ?? false) {
+                Label("選択中：\(chosen.title)", systemImage: "checkmark.circle.fill")
+                    .font(.caption2.bold()).foregroundStyle(MVTheme.yellow)
+            }
+        }
+        .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 5)
+        .frame(maxWidth: .infinity)
+        .background(MVTheme.dark)
+        .overlay(alignment: .top) { Rectangle().fill(MVTheme.yellow.opacity(0.55)).frame(height: 1) }
     }
 }
 
@@ -305,6 +321,7 @@ private struct MVTimelineView: View {
 private struct MVCardView: View {
     let card: PinDefinition
     let selected: Bool
+    var compact: Bool = false
     private var tile: Int {
         let value = card.title + " " + card.id
         if value.contains("驚") || value.contains("リアクション") || value.contains("反応") { return 1 }
@@ -317,11 +334,11 @@ private struct MVCardView: View {
     }
     var body: some View {
         VStack(spacing: 4) {
-            MVSprite(tile: tile).frame(height: 78).clipped().cornerRadius(8)
-            Text(card.title).font(.system(size: 13, weight: .black)).foregroundStyle(MVTheme.navy).lineLimit(1)
-            Text(card.subtitle).font(.system(size: 10)).foregroundStyle(MVTheme.navy.opacity(0.77)).lineLimit(1)
+            MVSprite(tile: tile).frame(height: compact ? 53 : 78).clipped().cornerRadius(8)
+            Text(card.title).font(.system(size: compact ? 11 : 13, weight: .black)).foregroundStyle(MVTheme.navy).lineLimit(1)
+            Text(card.subtitle).font(.system(size: compact ? 9 : 10)).foregroundStyle(MVTheme.navy.opacity(0.77)).lineLimit(1)
         }
-        .padding(6).frame(width: 112, height: 129)
+        .padding(compact ? 4 : 6).frame(width: compact ? 84 : 112, height: compact ? 96 : 129)
         .background(.white, in: RoundedRectangle(cornerRadius: 13))
         .overlay(RoundedRectangle(cornerRadius: 13).stroke(selected ? MVTheme.yellow : Color.white.opacity(0.5), lineWidth: selected ? 4 : 1))
         .shadow(color: selected ? MVTheme.yellow.opacity(0.4) : .clear, radius: 8)
