@@ -183,7 +183,7 @@ struct PreviewPanel: Identifiable {
         rebuildPages();message="全\(generated.count)コマのAI描き直しが完了。各コマを確認してください。"
     }
     func chooseOriginal(_ id:UUID){guard let i=generated.firstIndex(where:{$0.id==id}) else {return};generated[i].drawing=generated[i].original;generated[i].warning=nil;rebuildPages()}
-    func rebuildPages(){pageImages=stride(from:0,to:generated.count,by:4).map{i in ComicRenderer.page(panels:Array(generated[i..<min(i+4,generated.count)]),title:data.workTitle.isEmpty ? "COMIC POP!" : data.workTitle,pageNumber:i/4+1,total:Int(ceil(Double(generated.count)/4)))} }
+    func rebuildPages(){pageImages=stride(from:0,to:generated.count,by:4).map{i in ComicRenderer.page(panels:Array(generated[i..<min(i+4,generated.count)]),title:data.workTitle.isEmpty ? "ムビコマ" : data.workTitle,pageNumber:i/4+1,total:Int(ceil(Double(generated.count)/4)))} }
     func saveWork() {
         guard !pageImages.isEmpty else {message="漫画が生成されていません";return}
         var filenames:[String]=[]
