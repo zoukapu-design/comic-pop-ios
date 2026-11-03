@@ -54,7 +54,7 @@ enum ComicRenderer {
                     ("元場面との一致を確認" as NSString).draw(at:CGPoint(x:slot.minX+18,y:slot.maxY-37),withAttributes:[.font:UIFont.boldSystemFont(ofSize:15),.foregroundColor:UIColor.white])
                 }
             }
-            ("COMIC POP! / AI再描画・原動画との一致をご確認ください" as NSString).draw(at:CGPoint(x:30,y:1230),withAttributes:[.font:UIFont.systemFont(ofSize:15),.foregroundColor:UIColor.darkGray])
+            ("ムビコマ / AI再描画・原動画との一致をご確認ください" as NSString).draw(at:CGPoint(x:30,y:1230),withAttributes:[.font:UIFont.systemFont(ofSize:15),.foregroundColor:UIColor.darkGray])
         }
     }
 }
