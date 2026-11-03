@@ -26,5 +26,5 @@ assert "- path: COMICPOP" in project, "New SwiftUI source must be included by Xc
 m = re.search(r"static let base64 = \"\"\"(.*?)\"\"\"", art, re.S)
 assert m, "Missing in-source Rex artwork"
 jpeg = base64.b64decode("".join(m.group(1).split()), validate=True)
-assert len(jpeg) > 20000 and jpeg[:2] == b"\\xff\\xd8" and jpeg[-2:] == b"\\xff\\xd9"
+assert len(jpeg) > 20000 and jpeg[:2] == bytes.fromhex("ffd8") and jpeg[-2:] == bytes.fromhex("ffd9")
 print("PASS: MOVIKOMA native editor, Rex card art, genres, timeline, manga preview, works and settings")
