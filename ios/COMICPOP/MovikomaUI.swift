@@ -19,7 +19,7 @@ private enum MVTab: Int, CaseIterable {
         switch self { case .editor: return "編集"; case .manga: return "マンガ生成"; case .works: return "作品"; case .settings: return "設定" }
     }
     var icon: String {
-        switch self { case .editor: return "film.stack.fill"; case .manga: return "sparkles.rectangle.stack.fill"; case .works: return "books.vertical.fill"; case .settings: return "gearshape.fill" }
+        switch self { case .editor: return "film.stack.fill"; case .manga: return "sparkles"; case .works: return "books.vertical.fill"; case .settings: return "gearshape.fill" }
     }
 }
 
@@ -279,7 +279,7 @@ private struct MVTimelineView: View {
                 timelineStep("+5s", 5)
             }.frame(maxWidth: .infinity)
         }
-        .task(id: store.videoURL) {
+        .task(id: "\(store.videoURL?.absoluteString ?? "-")|\(store.duration)") {
             thumbnails = []
             guard let url = store.videoURL else { return }
             var images: [UIImage] = []
