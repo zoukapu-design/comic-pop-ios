@@ -1084,11 +1084,17 @@ V+PnqH4qIj2lHoVdhU6qpWSxErnNJHPJDKVNv3O6KVImLcDzuD6gP2QOuK7saY1wWecGJycngDXa+uzb
 llEoQUVgGSXWZKtSYyWnCfWKTsfhVMmn4LEsFxl5opBLobIGPXrRCaxgTR//2Q==
 """
     static let atlas: UIImage? = Data(base64Encoded: base64, options: .ignoreUnknownCharacters).flatMap(UIImage.init(data:))
-    static func sprite(_ index: Int) -> UIImage? {
-        guard (0..<16).contains(index), let cg = atlas?.cgImage,
+    // Decode and crop once; scrolling 84 cards must not recrop the image atlas
+    // every time SwiftUI reevaluates a card view.
+    private static let cachedSprites: [UIImage?] = (0..<16).map { index in
+        guard let cg = atlas?.cgImage,
               let tile = cg.cropping(to: CGRect(x: (index % 4) * 120, y: (index / 4) * 120, width: 120, height: 120))
         else { return nil }
         return UIImage(cgImage: tile)
+    }
+    static func sprite(_ index: Int) -> UIImage? {
+        guard cachedSprites.indices.contains(index) else { return nil }
+        return cachedSprites[index]
     }
 }
 
