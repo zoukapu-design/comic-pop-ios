@@ -35,6 +35,8 @@ struct PreviewPanel: Identifiable {
     private var generatedStyle: String?
     private var generatedColor: String?
     private var generatedMode: String?
+    private var finishingBase:[UUID:UIImage]=[:]
+    private var panelRetryCount:[UUID:Int]=[:]
 
     private let fm = FileManager.default
     private let support: URL
@@ -56,6 +58,7 @@ struct PreviewPanel: Identifiable {
     func clearGenerated() {
         generated = []; pageImages = []
         generatedStyle = nil; generatedColor = nil; generatedMode = nil
+        finishingBase.removeAll();panelRetryCount.removeAll()
     }
     func discardGenerated() {
         guard !isGenerating else {message = "生成中は再生成できません";return}
@@ -280,6 +283,78 @@ struct PreviewPanel: Identifiable {
         }
         rebuildPages()
         message="全\(generated.count)コマを端末内で簡易漫画化しました（生成AIではありません）。"
+    }
+    /// Run actual Core Image post-processing and rebuild all pages for saving.
+    /// Preserve an unfiltered baseline so moving a slider never compounds filters.
+    func applyFinishing(contrast:Double,brightness:Double,saturation:Double,sharpness:Double) {
+        guard hasCompleteComic else {message="すべてのコマ生成後に調整してください";return}
+        var finished:[UUID:UIImage]=[:]
+        for panel in generated {
+            let base=finishingBase[panel.id] ?? panel.drawing
+            guard let output=PopPageFinisher.render(base,contrast:contrast,brightness:brightness,
+                                                      saturation:saturation,sharpness:sharpness) else {
+                message="画質調整に失敗しました。元の漫画は保持しています。"
+                return
+            }
+            finishingBase[panel.id]=base
+            finished[panel.id]=output
+        }
+        for index in generated.indices {
+            if let output=finished[generated[index].id] {generated[index].drawing=output}
+        }
+        rebuildPages()
+        message="ページ全体の描線・明るさ・彩度・輪郭を調整しました。"
+    }
+
+    /// Retake one existing, ordered panel. Does not modify pins, titles or other
+    /// generated panels. Online retry consumes one additional user AI request.
+    func regeneratePanel(_ id:UUID) async {
+        guard !isGenerating else {return}
+        guard let index=generated.firstIndex(where:{$0.id==id}),
+              let pin=scenePlan.orderedPins.first(where:{$0.id==id}) else {
+            message="選択されたコマを見つけられません";return
+        }
+        let mode=generatedMode ?? "offline"
+        let style=data.style,colorMode=data.colorMode
+        let startingSession=videoSession,startingRevision=pinsRevision
+        let original=generated[index].original
+        let attempt=panelRetryCount[id,default:0]+1
+        isGenerating=true
+        defer {isGenerating=false}
+        do {
+            let updated:UIImage
+            if mode=="offline" {
+                guard let image=OfflineComicFilter.render(original,style:style,colorMode:colorMode) else {
+                    throw MangaError.invalidImage
+                }
+                updated=image
+            } else {
+                guard confirmsFree,let token=CloudflareCredentialVault.load(),
+                      !cloudflareAccount.isEmpty else {
+                    throw MangaError.credentialsMissing
+                }
+                let base=Int(UInt32(truncatingIfNeeded:id.uuidString.utf8.reduce(2166136261 as UInt32){
+                    ($0 ^ UInt32($1)) &* 16777619
+                }))
+                updated=try await CloudflareAIService.redraw(
+                    image:original,card:card(for:pin),pin:pin,style:style,colorMode:colorMode,
+                    account:cloudflareAccount,token:token,seed:base+attempt*997
+                )
+            }
+            guard startingSession==videoSession && startingRevision==pinsRevision &&
+                  style==data.style && colorMode==data.colorMode &&
+                  generated.indices.contains(index) && generated[index].id==id else {
+                message="元データが変更されたため再生成を破棄しました";return
+            }
+            panelRetryCount[id]=attempt
+            finishingBase[id]=updated
+            generated[index].drawing=updated
+            generated[index].warning=nil
+            rebuildPages()
+            message="選択コマを再生成しました。保存前に結果を確認してください。"
+        } catch {
+            message="コマ再生成に失敗しました：\(error.localizedDescription)"
+        }
     }
     func chooseOriginal(_ id:UUID){guard let i=generated.firstIndex(where:{$0.id==id}) else {return};generated[i].drawing=generated[i].original;generated[i].warning=nil;rebuildPages()}
     func rebuildPages(){pageImages=stride(from:0,to:generated.count,by:4).map{i in ComicRenderer.page(panels:Array(generated[i..<min(i+4,generated.count)]),title:data.workTitle.isEmpty ? "ムビコマ" : data.workTitle,pageNumber:i/4+1,total:Int(ceil(Double(generated.count)/4)))} }
