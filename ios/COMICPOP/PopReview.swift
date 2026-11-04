@@ -25,6 +25,24 @@ struct PopReviewScreen: View {
         ScrollView(showsIndicators:false) {
             VStack(alignment:.leading,spacing:10) {
                 hero
+                if store.generated.isEmpty {
+                    PopSurface {
+                        VStack(spacing: 10) {
+                            Image(systemName:"book.closed.fill")
+                                .font(.system(size:32))
+                                .foregroundStyle(PopColor.blue)
+                            Text("まだマンガが生成されていません")
+                                .font(.system(size:15,weight:.black))
+                            Text("編集画面でカードを挿し、画風を選んで生成してください。")
+                                .font(.system(size:12))
+                                .multilineTextAlignment(.center)
+                            PopYellowButton(title:"画風選択へ",icon:"paintbrush",action:backToStyles)
+                        }
+                        .foregroundStyle(PopColor.ink)
+                        .frame(maxWidth:.infinity)
+                        .padding(12)
+                    }
+                }
                 if !topPanels.isEmpty {
                     comparison
                     panelChooser
