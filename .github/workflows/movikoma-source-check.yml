@@ -1,0 +1,34 @@
+name: Movikoma Swift source preflight
+on:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'tests/**'
+      - '.github/workflows/movikoma-source-check.yml'
+  push:
+    branches:
+      - feat/movikoma-rex-reference-ui
+    paths:
+      - 'ios/**'
+      - 'tests/**'
+      - '.github/workflows/movikoma-source-check.yml'
+jobs:
+  source-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift parser (all iOS sources)
+        run: |
+          swiftc --version
+          for source in ios/COMICPOP/*.swift; do
+            swiftc -frontend -parse "$source"
+          done
+      - name: Run Foundation-only model and generation integrity tests
+        run: |
+          swiftc ios/COMICPOP/Models.swift tests/modelTests.swift -o /tmp/movikoma-model-tests
+          /tmp/movikoma-model-tests ios/COMICPOP/Resources/cards.json
+          swiftc ios/COMICPOP/GenerationIntegrity.swift tests/generationIntegrityTests.swift -o /tmp/movikoma-generation-tests
+          /tmp/movikoma-generation-tests
+      - name: Verify active UI and Rex assets
+        run: python3 tests/verify_ui_reference.py
