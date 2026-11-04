@@ -22,7 +22,7 @@ struct PopEditorScreen: View {
         case favourites = "お気に入り"
         case recommended = "おすすめ"
     }
-    private let featuredIDs = ["intro","slow","dramatic","tsukkomi","reveal","sad","large","punch"]
+    private let featuredIDs = ["intro","slow","dramatic","tsukkomi","idea","sad","large","punch"]
     private var favourites: Set<String> {
         Set(favouriteValue.split(separator:"|").map(String.init))
     }
@@ -318,11 +318,11 @@ struct PopEditorScreen: View {
     }
     private func tileIndex(_ id:String)->Int {
         let mapped:[String:Int]=["intro":0,"slow":1,"dramatic":2,"tsukkomi":3,
-                                  "reveal":4,"sad":5,"large":6,"punch":7]
+                                  "idea":4,"sad":5,"large":6,"punch":7]
         return mapped[id] ?? abs(id.utf8.reduce(0){($0 &* 31) &+ Int($1)})%8
     }
     private func displayTitle(_ id:String,defaultTitle:String)->String {
-        id == "reveal" ? "ひらめき" : defaultTitle
+        defaultTitle
     }
 }
 
