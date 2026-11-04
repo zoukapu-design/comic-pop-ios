@@ -3,7 +3,10 @@ import SwiftUI
 /// The actual app root: all three approved screens share one live StudioStore.
 struct MovikomaPopRootView: View {
     @StateObject private var store = StudioStore()
+    private enum Journey {case home, selectVideo, workspace}
+    @State private var journey:Journey = .home
     @State private var stage:PopStage = .editor
+    @State private var showSavedConfirmation = false
     @State private var showMenu = false
     @State private var showHelp = false
     @State private var showWorks = false
@@ -18,7 +21,7 @@ struct MovikomaPopRootView: View {
                 onHelp:{showHelp=true},
                 onExport:{
                     if store.hasCompleteComic {
-                        if store.saveWork() {showWorks=true}
+                        if store.saveWork() {showSavedConfirmation=true}
                     } else if !store.data.works.isEmpty {
                         showWorks=true
                     } else {
@@ -26,20 +29,42 @@ struct MovikomaPopRootView: View {
                     }
                 })
             Group {
-                switch stage {
-                case .editor: PopEditorScreen(store:store) {stage = .styles}
-                case .styles: PopGenreScreen(store:store,review:{stage = .review},
-                                             openSettings:{showSettings=true})
-                case .review: PopReviewScreen(store:store,backToStyles:{stage = .styles},
-                                              showWorks:{showWorks=true})
+                switch journey {
+                case .home:
+                    PopHomeScreen(store:store,
+                        chooseVideo:{journey = .selectVideo},
+                        continueEditing:{journey = .workspace;stage = .editor},
+                        openWorks:{showWorks = true},
+                        openDeck:{showDeck = true},
+                        openSettings:{showSettings = true})
+                case .selectVideo:
+                    PopVideoChooseScreen(store:store,
+                        startEditing:{journey = .workspace;stage = .editor},
+                        goBack:{journey = .home})
+                case .workspace:
+                    switch stage {
+                    case .editor:
+                        PopEditorScreen(store:store) {stage = .styles}
+                    case .styles:
+                        PopGenreScreen(store:store,review:{stage = .review},
+                                       openSettings:{showSettings=true})
+                    case .review:
+                        PopReviewScreen(store:store,backToStyles:{stage = .styles},
+                                        showWorks:{showSavedConfirmation=true})
+                    }
                 }
             }
-            .frame(maxWidth:.infinity,maxHeight:.infinity)
-            PopStepNavigation(stage:$stage)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if journey == .workspace {
+                PopStepNavigation(stage:$stage)
+            }
         }
         .background(PopBackground())
         .preferredColorScheme(.light)
         .confirmationDialog("メニュー",isPresented:$showMenu) {
+            Button("ホーム") {journey = .home}
+            Button("新しい動画を選ぶ") {journey = .selectVideo}
+            Button("カード挿入スタジオ") {journey = .workspace;stage = .editor}
             Button("作品一覧") {showWorks=true}
             Button("マイデッキ") {showDeck=true}
             Button("AI接続・設定") {showSettings=true}
@@ -56,6 +81,11 @@ struct MovikomaPopRootView: View {
             Text("先にカードを挿入して漫画を生成し、完成後に「作品に保存」してください。")
         }
         .sheet(isPresented:$showWorks) {PopWorksSheet(store:store)}
+        .sheet(isPresented:$showSavedConfirmation) {
+            PopSavedConfirmation(store:store,
+                goHome:{journey = .home},
+                goToWorks:{showWorks = true})
+        }
         .sheet(isPresented:$showSettings) {PopSettingsSheet(store:store)}
         .sheet(isPresented:$showDeck) {PopDeckSheet(store:store)}
     }
