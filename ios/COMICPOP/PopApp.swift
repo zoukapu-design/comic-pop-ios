@@ -93,143 +93,292 @@ struct MovikomaPopRootView: View {
 }
 
 /// Persistent card deck editor reachable from the editor and the top menu.
-struct PopDeckSheet:View {
-    @ObservedObject var store:StudioStore
+struct PopDeckSheet: View {
+    @ObservedObject var store: StudioStore
     @Environment(\.dismiss) private var dismiss
-    @State private var name=""
-    @State private var search=""
-    private let columns=[GridItem(.adaptive(minimum:108),spacing:7)]
-    private var filtered:[PinDefinition] {
-        store.cards.filter{
-            search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) ||
+    @State private var name = ""
+    @State private var search = ""
+    @State private var renameDraft = ""
+    @State private var showRename = false
+    @State private var showDeleteDeck = false
+    private let columns = [GridItem(.adaptive(minimum: 104), spacing: 8)]
+    private var filtered: [PinDefinition] {
+        store.cards.filter {
+            search.isEmpty ||
+            $0.title.localizedCaseInsensitiveContains(search) ||
             $0.subtitle.localizedCaseInsensitiveContains(search)
         }
     }
-    var body:some View {
+    private var selectedIDs: [String] {store.selectedDeck?.cardIDs ?? []}
+
+    var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment:.leading,spacing:12) {
-                    Text("デッキは最大20個。各デッキに12枚まで登録できます。")
-                        .font(.caption).foregroundStyle(PopColor.ink)
-                    if let selected=store.selectedDeck {
-                        HStack {
-                            Text("現在：\(selected.name)")
-                                .font(.headline)
-                                .foregroundStyle(PopColor.ink)
-                            Spacer()
-                            Button("削除",role:.destructive) {store.deleteDeck(selected.id)}
-                                .disabled(store.data.decks.count<=1)
-                        }
-                    }
-                    Picker("デッキを選ぶ",selection:Binding(
-                        get:{store.selectedDeck?.id ?? store.data.decks[0].id},
-                        set:{store.selectDeck($0)}
-                    )) {
-                        ForEach(store.data.decks) { deck in
-                            Text(deck.name).tag(deck.id)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    HStack {
-                        TextField("新しいデッキ名",text:$name)
-                            .textFieldStyle(.roundedBorder)
-                        Button("作成") {
-                            store.addDeck(name:name.isEmpty ? "新しいデッキ" : name)
-                            name=""
-                        }
-                        .disabled(store.data.decks.count>=20)
-                    }
-                    TextField("カード名から検索",text:$search)
-                        .textFieldStyle(.roundedBorder)
-                    LazyVGrid(columns:columns,spacing:10) {
-                        ForEach(filtered) { card in
-                            let active=store.selectedDeck?.cardIDs.contains(card.id) == true
-                            Button {store.toggleDeckCard(card.id)} label:{
-                                VStack(spacing:2) {
-                                    MVSprite(tile:card.art % 16)
-                                        .frame(height:76).clipped()
-                                    Text(card.title)
-                                        .font(.system(size:11,weight:.bold))
-                                        .lineLimit(1)
-                                    Image(systemName:active ? "checkmark.circle.fill" : "plus.circle")
-                                        .foregroundStyle(active ? .green : PopColor.blue)
+            ScrollView(showsIndicators:false) {
+                VStack(alignment: .leading, spacing: 12) {
+                    PopBlueTitle(icon: "square.stack.fill", title: "マイデッキ")
+                    PopSurface {
+                        VStack(alignment: .leading, spacing: 9) {
+                            Text("よく使うレックスのカードを、最大12枚まで自由に並べられます。")
+                                .font(.system(size: 11, weight: .semibold))
+                            Picker("使うデッキ", selection: Binding(
+                                get: {store.selectedDeck?.id ?? store.data.decks[0].id},
+                                set: {store.selectDeck($0)}
+                            )) {
+                                ForEach(store.data.decks) { deck in
+                                    Text(deck.name).tag(deck.id)
                                 }
+                            }
+                            .pickerStyle(.menu)
+                            HStack {
+                                Button("名前を変える") {
+                                    renameDraft=store.selectedDeck?.name ?? ""
+                                    showRename=true
+                                }
+                                .buttonStyle(.bordered)
+                                Button("デッキを削除", role: .destructive) {
+                                    showDeleteDeck=true
+                                }
+                                .disabled(store.data.decks.count <= 1)
+                                .buttonStyle(.bordered)
+                            }
+                            HStack {
+                                TextField("新しいデッキ名", text: $name)
+                                    .textFieldStyle(.roundedBorder)
+                                Button {
+                                    store.addDeck(name:name.isEmpty ? "新しいデッキ" : name)
+                                    name=""
+                                } label: {
+                                    Label("作成",systemImage:"plus")
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(PopColor.blue)
+                                .disabled(store.data.decks.count >= 20)
+                            }
+                            Text("デッキ：\(store.data.decks.count) / 20")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(PopColor.ink)
+                    }
+
+                    PopSurface {
+                        VStack(alignment:.leading,spacing:8) {
+                            HStack {
+                                Text("デッキの並び順")
+                                    .font(.system(size: 16, weight: .black, design: .rounded))
+                                Spacer()
+                                Text("\(selectedIDs.count) / 12枚")
+                                    .font(.system(size: 12, weight: .heavy))
+                            }
+                            if selectedIDs.isEmpty {
+                                Text("下のカード一覧から＋を押すと、このデッキに追加されます。")
+                                    .font(.system(size: 11))
+                            }
+                            ForEach(Array(selectedIDs.enumerated()), id: \.element) { entry in
+                                let id=entry.element
+                                let index=entry.offset
+                                if let card=store.cards.first(where:{$0.id==id}) {
+                                    HStack(spacing:8) {
+                                        PopArtwork(kind:.cards,index:cardArtworkIndex(id))
+                                            .frame(width:53,height:53)
+                                            .clipShape(RoundedRectangle(cornerRadius:9))
+                                        VStack(alignment:.leading,spacing:2) {
+                                            Text(card.title).font(.system(size:13,weight:.heavy))
+                                            Text("順番：\(index+1)")
+                                                .font(.system(size:10,weight:.medium))
+                                        }
+                                        Spacer()
+                                        Button {store.moveDeckCard(id,by:-1)} label:{
+                                            Image(systemName:"arrow.up.circle.fill")
+                                        }.disabled(index==0)
+                                        Button {store.moveDeckCard(id,by:1)} label:{
+                                            Image(systemName:"arrow.down.circle.fill")
+                                        }.disabled(index == selectedIDs.count-1)
+                                        Button(role:.destructive) {store.toggleDeckCard(id)} label:{
+                                            Image(systemName:"xmark.circle.fill")
+                                        }
+                                    }
+                                    .font(.system(size:22))
+                                    .foregroundStyle(PopColor.ink)
+                                    .padding(.vertical,3)
+                                }
+                            }
+                        }.foregroundStyle(PopColor.ink)
+                    }
+
+                    PopSurface {
+                        VStack(alignment:.leading,spacing:9) {
+                            TextField("カード名で検索",text:$search)
+                                .textFieldStyle(.roundedBorder)
+                            Text("タップで追加・解除。下の一覧をスクロールできます。")
+                                .font(.system(size:11,weight:.medium))
                                 .foregroundStyle(PopColor.ink)
-                                .padding(5)
-                                .frame(maxWidth:.infinity)
-                                .background(.white,in:RoundedRectangle(cornerRadius:11))
-                                .overlay(RoundedRectangle(cornerRadius:11)
-                                    .stroke(active ? PopColor.yellow : PopColor.edge,lineWidth:2))
-                            }.buttonStyle(.plain)
+                            LazyVGrid(columns:columns,spacing:10) {
+                                ForEach(filtered) { card in
+                                    let active=selectedIDs.contains(card.id)
+                                    Button {store.toggleDeckCard(card.id)} label:{
+                                        VStack(spacing:3) {
+                                            PopArtwork(kind:.cards,index:cardArtworkIndex(card.id))
+                                                .frame(height:76)
+                                                .clipShape(RoundedRectangle(cornerRadius:9))
+                                            Text(card.title)
+                                                .font(.system(size:11,weight:.heavy))
+                                                .lineLimit(1)
+                                            Label(active ? "登録済み" : "追加",
+                                                  systemImage:active ? "checkmark.circle.fill" : "plus.circle.fill")
+                                                .font(.system(size:10,weight:.semibold))
+                                                .foregroundStyle(active ? PopColor.blue : PopColor.ink)
+                                        }
+                                        .foregroundStyle(PopColor.ink)
+                                        .padding(5)
+                                        .frame(maxWidth:.infinity)
+                                        .background(.white,in:RoundedRectangle(cornerRadius:12))
+                                        .overlay(RoundedRectangle(cornerRadius:12)
+                                            .stroke(active ? PopColor.yellow : PopColor.edge,lineWidth:active ? 3 : 1.6))
+                                    }.buttonStyle(.plain)
+                                }
+                            }
                         }
                     }
-                }.padding()
+                }.padding(12)
             }
             .background(PopBackground())
             .navigationTitle("マイデッキ")
             .toolbar {ToolbarItem(placement:.topBarTrailing) {
                 Button("完了") {dismiss()}
             }}
+            .alert("デッキ名を変更",isPresented:$showRename) {
+                TextField("新しい名前",text:$renameDraft)
+                Button("保存") {
+                    if let deck=store.selectedDeck {store.renameDeck(deck.id,to:renameDraft)}
+                }
+                Button("キャンセル",role:.cancel){}
+            }
+            .confirmationDialog("このデッキを削除しますか？",
+                                isPresented:$showDeleteDeck,titleVisibility:.visible) {
+                Button("削除",role:.destructive) {
+                    if let id=store.selectedDeck?.id {store.deleteDeck(id)}
+                }
+                Button("キャンセル",role:.cancel){}
+            } message: {
+                Text("デッキだけを削除します。元のカード・作品は消えません。")
+            }
         }
+    }
+    private func cardArtworkIndex(_ id:String)->Int {
+        let map:[String:Int]=[
+            "intro":0,"slow":1,"dramatic":2,"tsukkomi":3,
+            "idea":4,"sad":5,"large":6,"punch":7
+        ]
+        return map[id] ?? id.utf8.reduce(0){($0 &* 31) &+ Int($1)} & 7
     }
 }
 
-struct PopWorksSheet:View {
+struct PopWorksSheet: View {
     @ObservedObject var store:StudioStore
     @Environment(\.dismiss) private var dismiss
+    @State private var pdfURL:URL?
+    @State private var showPDFShare=false
+    @State private var deleteID:UUID?
+
     var body:some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:12) {
                     if store.data.works.isEmpty {
-                        VStack(spacing:8) {
-                            Image(systemName:"books.vertical")
-                                .font(.system(size:38))
-                            Text("作品はまだありません")
-                                .font(.headline)
-                            Text("動画を選んでカードを刺し、生成した漫画を保存してください。")
-                                .font(.caption)
+                        PopSurface {
+                            VStack(spacing:12) {
+                                PopArtwork(kind:.hero).frame(height:145)
+                                    .clipShape(RoundedRectangle(cornerRadius:12))
+                                Text("作品はまだありません")
+                                    .font(.system(size:19,weight:.black))
+                                Text("動画からマンガを作り、保存するとここに並びます。")
+                                    .font(.system(size:12))
+                            }
+                            .foregroundStyle(PopColor.ink)
+                            .frame(maxWidth:.infinity).padding(14)
                         }
-                        .foregroundStyle(PopColor.ink)
-                        .frame(maxWidth:.infinity).padding(30)
                     }
                     ForEach(store.data.works) { work in
                         PopSurface {
-                            VStack(alignment:.leading,spacing:8) {
-                                Text(work.title).font(.headline)
-                                Text("\(work.sceneCount)コマ / \(work.files.count)ページ")
-                                    .font(.caption)
+                            VStack(alignment:.leading,spacing:9) {
+                                HStack(alignment:.firstTextBaseline) {
+                                    Text(work.title)
+                                        .font(.system(size:17,weight:.black,design:.rounded))
+                                    Spacer()
+                                    Text("\(work.files.count)ページ")
+                                        .font(.system(size:11,weight:.heavy))
+                                }
+                                HStack {
+                                    Text(work.createdAt.formatted(date:.abbreviated,time:.shortened))
+                                    Spacer()
+                                    Text("\(work.sceneCount)コマ")
+                                }
+                                .font(.system(size:11,weight:.medium))
                                 if let first=store.workImages(work).first {
-                                    Image(uiImage:first).resizable().scaledToFit()
+                                    Image(uiImage:first)
+                                        .resizable().scaledToFit()
                                         .frame(maxWidth:.infinity)
                                         .background(.white)
+                                        .overlay(Rectangle().stroke(PopColor.edge,lineWidth:1))
                                 }
                                 ScrollView(.horizontal,showsIndicators:false) {
-                                    HStack(spacing:9) {
-                                        ForEach(Array(work.files.enumerated()),id:\.offset) { index,file in
-                                            if let url=store.existingWorkURL(file) {
+                                    HStack(spacing:8) {
+                                        ForEach(Array(work.files.enumerated()),id:\.offset) { entry in
+                                            if let url=store.existingWorkURL(entry.element) {
                                                 ShareLink(item:url) {
-                                                    Label("\(index+1)ページを共有",systemImage:"square.and.arrow.up")
+                                                    Label("\(entry.offset+1)ページのPNG",
+                                                          systemImage:"square.and.arrow.up")
                                                         .font(.system(size:11,weight:.bold))
                                                         .foregroundStyle(PopColor.ink)
-                                                        .padding(8)
+                                                        .padding(.horizontal,11).padding(.vertical,10)
                                                         .background(PopColor.yellow,in:Capsule())
                                                 }
                                             }
                                         }
                                     }
                                 }
+                                HStack(spacing:9) {
+                                    Button {
+                                        pdfURL=store.exportPDF(work)
+                                        showPDFShare=pdfURL != nil
+                                    } label: {
+                                        Label("全ページをPDFで共有",
+                                              systemImage:"doc.richtext.fill")
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(PopColor.blue)
+                                    Spacer()
+                                    Button("削除",role:.destructive) {deleteID=work.id}
+                                        .buttonStyle(.bordered)
+                                }
+                                .font(.system(size:11,weight:.bold))
                             }
                             .foregroundStyle(PopColor.ink)
                         }
                     }
-                }.padding()
+                    Text(store.message).font(.caption).foregroundStyle(.white)
+                }.padding(12)
             }
             .background(PopBackground())
             .navigationTitle("ムビコマ作品一覧")
             .toolbar {ToolbarItem(placement:.topBarTrailing) {
                 Button("閉じる") {dismiss()}
             }}
+            .sheet(isPresented:$showPDFShare) {
+                if let pdfURL {PopFileShareSheet(files:[pdfURL])}
+            }
+            .confirmationDialog("この作品を削除しますか？",
+                                isPresented:Binding(get:{deleteID != nil},
+                                                    set:{if !$0 {deleteID=nil}}),
+                                titleVisibility:.visible) {
+                Button("作品を削除",role:.destructive) {
+                    if let id=deleteID {store.deleteWork(id)}
+                    deleteID=nil
+                }
+                Button("キャンセル",role:.cancel) {deleteID=nil}
+            } message: {
+                Text("保存済み漫画の画像も削除されます。元動画とデッキは残ります。")
+            }
         }
     }
 }
