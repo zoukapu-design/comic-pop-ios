@@ -171,16 +171,20 @@ struct PopVideoChooseScreen: View {
                             PhotosPicker(selection: $chosenPhoto, matching: .videos) {
                                 Label("ライブラリ", systemImage: "photo.on.rectangle")
                                     .frame(maxWidth: .infinity)
+                                    .frame(minHeight: 44)
+                                    .background(PopColor.yellow,
+                                                in: RoundedRectangle(cornerRadius: 12))
                             }
                             Button {importFile = true} label: {
                                 Label("ファイル", systemImage: "folder.fill")
                                     .frame(maxWidth: .infinity)
+                                    .frame(minHeight: 44)
+                                    .background(PopColor.yellow,
+                                                in: RoundedRectangle(cornerRadius: 12))
                             }
                         }
                         .font(.system(size: 12, weight: .black, design: .rounded))
                         .foregroundStyle(PopColor.ink)
-                        .padding(.vertical, 11)
-                        .background(PopColor.yellow, in: RoundedRectangle(cornerRadius: 12))
                         .buttonStyle(.plain)
                         if let url = store.videoURL {
                             if let image = thumbnail {
