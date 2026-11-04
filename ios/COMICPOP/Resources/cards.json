@@ -670,5 +670,13 @@
     "category": "editing",
     "art": 11,
     "color": "#cdd7ed"
+  },
+  {
+    "id": "idea",
+    "title": "ひらめき",
+    "subtitle": "新しい発見やアイデアの瞬間を強調",
+    "category": "story",
+    "art": 2,
+    "color": "#FFD900"
   }
 ]
