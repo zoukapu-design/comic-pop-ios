@@ -5,8 +5,8 @@ import Foundation
         let path=CommandLine.arguments[1]
         let source=try Data(contentsOf:URL(fileURLWithPath:path))
         let cards=try JSONDecoder().decode([PinDefinition].self,from:source)
-        precondition(cards.count==84,"Expected 84 cards")
-        precondition(Set(cards.map(\.id)).count==84,"Unique card IDs")
+        precondition(cards.count==85,"Expected 85 cards")
+        precondition(Set(cards.map(\.id)).count==85,"Unique card IDs")
         for deck in StudioData().decks {precondition(deck.cardIDs.allSatisfy{code in cards.contains{$0.id==code}})}
         let p1=MangaPin(cardID:"intro",seconds:1,snapshotFile:"1.jpg")
         let p2=MangaPin(cardID:"punch",seconds:1,snapshotFile:"2.jpg")
@@ -20,6 +20,6 @@ import Foundation
         let backup=try JSONEncoder().encode(StudioData())
         let restored=try JSONDecoder().decode(StudioData.self,from:backup)
         precondition(restored.decks.count==4,"Default decks persisted")
-        print("PASS: 84 unique cards, 4 decks, 5 pins/2 pages, same-timestamp stable ordering, persistence")
+        print("PASS: 85 unique cards, 4 decks, 5 pins/2 pages, same-timestamp stable ordering, persistence")
     }
 }
