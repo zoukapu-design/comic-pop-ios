@@ -63,4 +63,34 @@ m = re.search(r"static let base64 = \"\"\"(.*?)\"\"\"", art, re.S)
 assert m, "Missing in-source Rex artwork"
 jpeg = base64.b64decode("".join(m.group(1).split()), validate=True)
 assert len(jpeg) > 20000 and jpeg[:2] == bytes.fromhex("ffd8") and jpeg[-2:] == bytes.fromhex("ffd9")
+# Active production journey, not just the legacy unused SwiftUI prototype.
+journey = (root / "ios/COMICPOP/PopJourney.swift").read_text(encoding="utf-8")
+welcome = (root / "ios/COMICPOP/PopWelcome.swift").read_text(encoding="utf-8")
+settings = (root / "ios/COMICPOP/PopSettingsPanel.swift").read_text(encoding="utf-8")
+share = (root / "ios/COMICPOP/PopFileShareSheet.swift").read_text(encoding="utf-8")
+assert "PopHomeScreen(store:store" in popui and "PopVideoChooseScreen(store:store" in popui
+assert "PopSavedConfirmation(store:store" in popui and "PopWelcomeScreen" in popui
+assert "PopSettingsPanel(store:store)" in popui
+assert "pop.didSeeWelcome" in popui and "onChange(of:stage)" in popui
+assert "PopYellowButton(title: \"動画からマンガを作る\"" in journey
+assert "PhotosPicker(selection: $chosenPhoto" in journey
+assert "await store.replaceVideo(movie.url)" in journey
+assert "変更してカードをリセット" in journey
+assert "この動画で編集を始める" in journey
+assert "popStartEditing" in journey
+assert "PopArtwork(kind:.hero)" in welcome
+assert "PopYellowButton(title:\"はじめる\"" in welcome
+assert "goToWorks" in journey and "exportPDF(saved)" in journey
+assert "store.exportPDF(work)" in popui and "store.deleteWork(id)" in popui
+assert "store.moveDeckCard(id,by:-1)" in popui
+assert "func exportPDF(_ work:SavedWork)" in store
+assert "func deleteWork(_ id:UUID)" in store
+assert "isAddingPin" in editor and "isAddingPin=true" in store
+assert "importingFile" not in editor and "changeVideo" in editor
+assert "PopFileShareSheet(files:[pdfURL])" in journey and "UIActivityViewController" in share
+assert "Cloudflare" in settings and "token" in settings
+assert "生成中：" in genre and "store.generated.count" in genre
+assert "panelChooser" in review and "修正するコマを選ぶ" in review
+assert not (root / "ios/COMICPOP/Assets.xcassets/EntireReferenceScreen.imageset").exists()
+print("PASS: Rex onboarding, video picker/confirm, pin guard, deck reorder, PDF share, generated-panel editing")
 print("PASS: MOVIKOMA 3 reference-faithful native screens, real Rex sprite assets and connected interactions")
