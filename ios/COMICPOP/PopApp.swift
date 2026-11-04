@@ -87,7 +87,7 @@ struct MovikomaPopRootView: View {
                 goHome:{journey = .home},
                 goToWorks:{showWorks = true})
         }
-        .sheet(isPresented:$showSettings) {PopSettingsSheet(store:store)}
+        .sheet(isPresented:$showSettings) {PopSettingsPanel(store:store)}
         .sheet(isPresented:$showDeck) {PopDeckSheet(store:store)}
     }
 }
