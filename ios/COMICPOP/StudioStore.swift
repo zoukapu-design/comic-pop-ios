@@ -403,6 +403,56 @@ struct PreviewPanel: Identifiable {
         return true
     }
     func workImages(_ work:SavedWork)->[UIImage]{work.files.compactMap{UIImage(contentsOfFile:support.appendingPathComponent($0).path)}}
+
+    /// Export a real multi-page A4-like PDF from an already saved manga.
+    /// This has no API/GPU requirement and never changes the saved PNG pages.
+    func exportPDF(_ work:SavedWork) -> URL? {
+        let images=workImages(work)
+        guard !images.isEmpty && images.count == work.files.count else {
+            message="PDFにする漫画ページを読み込めませんでした"
+            return nil
+        }
+        let bounds=CGRect(x:0,y:0,width:595,height:842)
+        let renderer=UIGraphicsPDFRenderer(bounds:bounds)
+        let contents=renderer.pdfData { context in
+            for image in images {
+                context.beginPage()
+                let scale=min(bounds.width/max(image.size.width,1),
+                              bounds.height/max(image.size.height,1))
+                let size=CGSize(width:image.size.width*scale,height:image.size.height*scale)
+                let rect=CGRect(x:(bounds.width-size.width)/2,y:(bounds.height-size.height)/2,
+                                width:size.width,height:size.height)
+                UIColor.white.setFill()
+                UIRectFill(bounds)
+                image.draw(in:rect)
+            }
+        }
+        let url=fm.temporaryDirectory.appendingPathComponent("movikoma-\(work.id.uuidString).pdf")
+        do {
+            try contents.write(to:url,options:.atomic)
+            return url
+        } catch {
+            message="PDFの作成に失敗しました：\(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    /// Remove only a saved work and its pages; never remove the user's video,
+    /// other works, pin cards or decks.
+    @discardableResult func deleteWork(_ id:UUID) -> Bool {
+        guard let index=data.works.firstIndex(where:{$0.id==id}) else {return false}
+        let original=data.works[index]
+        data.works.remove(at:index)
+        guard persist() else {
+            data.works.insert(original,at:index)
+            return false
+        }
+        for file in original.files {
+            try? fm.removeItem(at:support.appendingPathComponent(file))
+        }
+        message="作品を削除しました"
+        return true
+    }
     func formatted(_ seconds:Double)->String {String(format:"%02d:%02d",Int(max(0,seconds))/60,Int(max(0,seconds))%60)}
 }
 
