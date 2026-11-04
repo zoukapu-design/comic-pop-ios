@@ -1,0 +1,161 @@
+import SwiftUI
+
+/// Second reference screen: genre selection, persistent consistency hints and
+/// an actual generation entry point (offline or the user's Workers Free account).
+struct PopGenreScreen: View {
+    @ObservedObject var store:StudioStore
+    var review: () -> Void
+    var openSettings: () -> Void
+    @State private var askGeneration = false
+    @AppStorage("pop.hint.character") private var characterHint = true
+    @AppStorage("pop.hint.palette") private var paletteHint = true
+    @AppStorage("pop.hint.scene") private var sceneHint = false
+    @AppStorage("pop.hint.fidelity") private var fidelityHint = false
+
+    private let genres:[(id:String,title:String)] = [
+        ("american","アメコミ系"),("shonen","熱血少年漫画"),
+        ("shojo","少女漫画"),("gag","ギャグ漫画"),
+        ("seinen","劇画・シネマ"),("horror","ホラー")
+    ]
+
+    var body: some View {
+        ScrollView(showsIndicators:false) {
+            VStack(alignment:.leading,spacing:10) {
+                hero
+                PopSurface {
+                    VStack(alignment:.leading,spacing:9) {
+                        HStack(spacing:6) {
+                            PopBlueTitle(icon:"movieclapper.fill",title:"画風 / ジャンル選択")
+                            Text("マンガの画風を\n選んでください！")
+                                .font(.system(size:10,weight:.bold,design:.rounded))
+                                .foregroundStyle(PopColor.ink)
+                                .multilineTextAlignment(.center)
+                        }
+                        LazyVGrid(columns:[GridItem(.flexible(),spacing:8),
+                                           GridItem(.flexible(),spacing:8)],spacing:9) {
+                            ForEach(genres.indices,id:\.self) { i in
+                                let genre=genres[i]
+                                Button {store.updateStyle(genre.id)} label: {
+                                    PopIllustratedCard(title:genre.title,artIndex:i,kind:.genres,
+                                                       selected:store.data.style==genre.id)
+                                }.buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                PopSurface {
+                    VStack(alignment:.leading,spacing:9) {
+                        HStack(spacing:6) {
+                            PopBlueTitle(icon:"bolt.fill",title:"統一感アップ")
+                            Text("作品の見た目をそろえる\n実験的なAI指示です")
+                                .font(.system(size:10,weight:.medium))
+                                .foregroundStyle(PopColor.ink)
+                        }
+                        HStack(spacing:4) {
+                            option("同一キャラ維持",enabled:$characterHint)
+                            option("色調を統一",enabled:$paletteHint)
+                        }
+                        HStack(spacing:4) {
+                            option("場面切替を優先",enabled:$sceneHint)
+                            option("元動画に忠実",enabled:$fidelityHint)
+                        }
+                        HStack(spacing:7) {
+                            Text("色の設定").font(.system(size:12,weight:.bold))
+                            PopPill(text:"白黒",icon:"circle.lefthalf.filled",
+                                    selected:store.data.colorMode=="mono") {
+                                store.updateColor("mono")
+                            }
+                            PopPill(text:"カラー",icon:"paintpalette",
+                                    selected:store.data.colorMode=="color") {
+                                store.updateColor("color")
+                            }
+                        }
+                        .foregroundStyle(PopColor.ink)
+                        HStack {
+                            Text("タイトル").font(.system(size:11,weight:.bold))
+                            TextField("作品タイトル（任意）",text:Binding(
+                                get:{store.titleDraft},set:{store.updateTitle($0)}
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size:12))
+                        }
+                        .foregroundStyle(PopColor.ink)
+                        Text("※チェックはAIへの画風指示です。人物一致や場面理解を保証するものではありません。")
+                            .font(.system(size:10)).foregroundStyle(PopColor.ink.opacity(0.75))
+                    }
+                }
+                PopYellowButton(title:"この画風で漫画を作る",icon:"movieclapper.fill",
+                                enabled:!store.isGenerating && !store.data.pins.isEmpty) {
+                    askGeneration=true
+                }
+                if store.isGenerating {
+                    VStack(spacing:5) {
+                        ProgressView().tint(PopColor.yellow)
+                        Text(store.message).font(.caption.bold()).foregroundStyle(.white)
+                    }.frame(maxWidth:.infinity)
+                } else {
+                    Text(store.data.pins.isEmpty ? "編集画面でカードを刺すと生成できます。" :
+                         "挿入カード：\(store.data.pins.count)枚 → \(store.scenePlan.pages)ページ。無料おためし生成はアカウント不要です。")
+                        .font(.system(size:11,weight:.medium)).foregroundStyle(.white)
+                }
+            }
+            .padding(.horizontal,10).padding(.bottom,16)
+        }
+        .confirmationDialog("漫画の生成方法を選ぶ",isPresented:$askGeneration,titleVisibility:.visible) {
+            Button("無料でおためし生成（端末内・AIなし）") {
+                Task {
+                    await store.generateOffline()
+                    if !store.pageImages.isEmpty {review()}
+                }
+            }
+            Button("Cloudflare AIで漫画化（自分の無料枠）") {
+                guard store.tokenExists && store.confirmsFree else {
+                    openSettings()
+                    return
+                }
+                Task {
+                    await store.generate()
+                    if !store.pageImages.isEmpty {review()}
+                }
+            }
+            Button("キャンセル",role:.cancel) {}
+        } message: {
+            Text("端末内では動画の実フレームを漫画風に加工。AI作画にはCloudflare設定が必要です。")
+        }
+    }
+
+    private var hero: some View {
+        ZStack(alignment:.leading) {
+            PopArtwork(kind:.hero).frame(height:135)
+                .overlay(LinearGradient(colors:[PopColor.royal.opacity(0.7),.clear],
+                                        startPoint:.leading,endPoint:.trailing))
+                .clipShape(RoundedRectangle(cornerRadius:18))
+            VStack(alignment:.leading,spacing:3) {
+                Image(systemName:"movieclapper.fill")
+                    .font(.system(size:24,weight:.black))
+                Text("画風を選ぶ")
+                    .font(.system(size:26,weight:.black,design:.rounded))
+                    .minimumScaleFactor(0.8)
+                    .shadow(color:PopColor.navy,radius:3,x:2,y:2)
+                Text("レックスとマンガを作ろう！")
+                    .font(.system(size:11,weight:.bold))
+            }
+            .foregroundStyle(PopColor.yellow).padding(15)
+        }
+        .overlay(RoundedRectangle(cornerRadius:18).stroke(PopColor.edge,lineWidth:2))
+    }
+    private func option(_ label:String,enabled:Binding<Bool>)->some View {
+        Button {enabled.wrappedValue.toggle()} label: {
+            HStack(spacing:4) {
+                Image(systemName:enabled.wrappedValue ? "checkmark.circle.fill" : "circle")
+                Text(label).font(.system(size:10,weight:.heavy,design:.rounded))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(PopColor.ink)
+            .frame(maxWidth:.infinity)
+            .padding(.vertical,9)
+            .background(enabled.wrappedValue ? PopColor.yellow : Color.white,in:Capsule())
+            .overlay(Capsule().stroke(enabled.wrappedValue ? PopColor.yellow : PopColor.edge,lineWidth:1.6))
+        }.buttonStyle(.plain)
+    }
+}
