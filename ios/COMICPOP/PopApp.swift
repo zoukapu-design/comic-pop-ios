@@ -44,7 +44,8 @@ struct MovikomaPopRootView: View {
                 case .workspace:
                     switch stage {
                     case .editor:
-                        PopEditorScreen(store:store) {stage = .styles}
+                        PopEditorScreen(store:store,proceed:{stage = .styles},
+                                        changeVideo:{journey = .selectVideo})
                     case .styles:
                         PopGenreScreen(store:store,review:{stage = .review},
                                        openSettings:{showSettings=true})
