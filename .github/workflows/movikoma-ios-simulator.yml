@@ -1,0 +1,29 @@
+name: Movikoma native iOS Simulator compile
+on:
+  push:
+    branches: [feat/movikoma-rex-reference-ui]
+    paths:
+      - '.github/workflows/movikoma-ios-simulator.yml'
+      - 'ios/COMICPOP/Pop*.swift'
+      - 'ios/COMICPOP/COMICPOPApp.swift'
+      - 'ios/COMICPOP/StudioStore.swift'
+jobs:
+  native-ios:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Xcode environment
+        run: xcodebuild -version
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then brew install xcodegen; fi
+      - name: Generate native iPhone project
+        run: cd ios && xcodegen generate --spec project.yml
+      - name: Compile unsigned iOS Simulator app
+        run: |
+          cd ios
+          xcodebuild -project COMICPOP.xcodeproj -scheme COMICPOP \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
