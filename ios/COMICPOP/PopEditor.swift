@@ -8,8 +8,7 @@ import UniformTypeIdentifiers
 struct PopEditorScreen: View {
     @ObservedObject var store: StudioStore
     var proceed: () -> Void
-    @State private var pickedVideo: PhotosPickerItem?
-    @State private var importingFile = false
+    var changeVideo: () -> Void
     @State private var fullScreen = false
     @State private var showDeck = false
     @State private var showRemoveAll = false
@@ -38,6 +37,7 @@ struct PopEditorScreen: View {
     }
     private var canInsert: Bool {
         store.videoURL != nil && card(selectedID) != nil && store.data.pins.count < 12
+            && !store.isAddingPin && !store.isGenerating
     }
 
     var body: some View {
@@ -67,26 +67,6 @@ struct PopEditorScreen: View {
                         .padding(9).background(.black.opacity(0.6),in:Capsule())
                 }
                 .foregroundStyle(.white).padding()
-            }
-        }
-        .fileImporter(isPresented:$importingFile,allowedContentTypes:[.movie],allowsMultipleSelection:false) { result in
-            switch result {
-            case .success(let urls):
-                if let url = urls.first { Task {await store.replaceVideo(url)} }
-            case .failure(let error):
-                store.message = "ファイルを読み込めません：\(error.localizedDescription)"
-            }
-        }
-        .onChange(of:pickedVideo) { _,video in
-            guard let video else {return}
-            Task {
-                do {
-                    guard let movie = try await video.loadTransferable(type:MovieImport.self) else {
-                        store.message="動画を読み込めませんでした"
-                        return
-                    }
-                    await store.replaceVideo(movie.url)
-                } catch { store.message="動画選択エラー：\(error.localizedDescription)" }
             }
         }
         .confirmationDialog("すべての挿入カードを削除しますか？",isPresented:$showRemoveAll) {
@@ -143,16 +123,15 @@ struct PopEditorScreen: View {
             }.padding(9)
         }
         .overlay(alignment:.bottomTrailing) {
-            HStack(spacing:6) {
-                PhotosPicker(selection:$pickedVideo,matching:.videos) {
-                    Label(store.videoURL == nil ? "動画を選ぶ" : "動画を変更",systemImage:"play.rectangle.on.rectangle")
-                }
-                Button {importingFile=true} label:{Image(systemName:"folder")}
+            Button(action:changeVideo) {
+                Label(store.videoURL == nil ? "動画を選ぶ" : "動画を変更",
+                      systemImage:"play.rectangle.on.rectangle")
+                    .font(.system(size:11,weight:.bold))
+                    .foregroundStyle(PopColor.ink)
+                    .padding(.horizontal,10).padding(.vertical,8)
+                    .background(PopColor.yellow,in:Capsule())
             }
-            .font(.system(size:11,weight:.bold))
-            .padding(.horizontal,9).padding(.vertical,7)
-            .foregroundStyle(PopColor.ink)
-            .background(PopColor.yellow,in:Capsule())
+            .buttonStyle(.plain)
             .padding(10)
         }
     }
@@ -232,6 +211,7 @@ struct PopEditorScreen: View {
                                                        artIndex:tileIndex(id),selected:selectedID==id)
                                 }
                                 .buttonStyle(.plain)
+                                .disabled(store.isAddingPin || store.isGenerating)
                                 .contextMenu {
                                     Button(favourites.contains(id) ? "お気に入りを解除" : "お気に入り登録",
                                            systemImage:favourites.contains(id) ? "star.slash" : "star.fill") {
@@ -244,7 +224,8 @@ struct PopEditorScreen: View {
                     }
                 }
                 HStack(spacing:8) {
-                    PopYellowButton(title:"＋ 挿入",icon:"plus",enabled:canInsert) {
+                    PopYellowButton(title:store.isAddingPin ? "挿入中…" : "＋ 挿入",
+                                    icon:"plus",enabled:canInsert) {
                         if let def=card(selectedID) {Task {await store.addPin(card:def)}}
                     }
                     VStack(alignment:.leading,spacing:3) {
@@ -301,6 +282,7 @@ struct PopEditorScreen: View {
 
     private func selectAndInsert(_ definition:PinDefinition) {
         selectedID=definition.id
+        guard !store.isAddingPin && !store.isGenerating else {return}
         guard store.videoURL != nil else {
             store.message="先に動画を選んでください"
             return
