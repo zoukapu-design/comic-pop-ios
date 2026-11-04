@@ -343,10 +343,10 @@ struct PopSavedConfirmation: View {
                             }
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack {
-                                    ForEach(Array(saved.files.enumerated()), id: \.offset) { number, file in
-                                        if let url=store.existingWorkURL(file) {
+                                    ForEach(Array(saved.files.enumerated()), id: \.offset) { entry in
+                                        if let url=store.existingWorkURL(entry.element) {
                                             ShareLink(item: url) {
-                                                Label("\(number+1)ページを共有",
+                                                Label("\(entry.offset+1)ページを共有",
                                                       systemImage: "square.and.arrow.up")
                                                     .font(.system(size: 11, weight: .bold))
                                                     .padding(9)
