@@ -9,7 +9,33 @@ ui = (root / "ios/COMICPOP/MovikomaUI.swift").read_text(encoding="utf-8")
 art = (root / "ios/COMICPOP/RexAtlas.swift").read_text(encoding="utf-8")
 store = (root / "ios/COMICPOP/StudioStore.swift").read_text(encoding="utf-8")
 project = (root / "ios/project.yml").read_text(encoding="utf-8")
-assert "WindowGroup { MovikomaRootView() }" in app
+assert "WindowGroup { MovikomaPopRootView() }" in app
+popui = (root / "ios/COMICPOP/PopApp.swift").read_text(encoding="utf-8")
+editor = (root / "ios/COMICPOP/PopEditor.swift").read_text(encoding="utf-8")
+genre = (root / "ios/COMICPOP/PopGenre.swift").read_text(encoding="utf-8")
+review = (root / "ios/COMICPOP/PopReview.swift").read_text(encoding="utf-8")
+theme = (root / "ios/COMICPOP/PopTheme.swift").read_text(encoding="utf-8")
+finisher = (root / "ios/COMICPOP/PopPageFinisher.swift").read_text(encoding="utf-8")
+assert "PopBrandHeader" in popui and "PopStepNavigation(stage:$stage)" in popui
+assert "PopEditorScreen" in popui and "PopGenreScreen" in popui and "PopReviewScreen" in popui
+assert "PopAVPlayerSurface(player:store.player)" in editor and "PopTimeline(store:store)" in editor
+assert "await store.addPin(card:def)" in editor
+assert "ForEach(Array(ids.prefix(12)).indices" in editor
+assert '"マイデッキ"' in editor and '"お気に入り"' in editor and '"おすすめ"' in editor
+assert "PopIllustratedCard" in genre and "この画風で漫画を作る" in genre
+assert "await store.generateOffline()" in genre and "await store.generate()" in genre
+assert "Cloudflare AIで漫画化" in genre
+assert "store.applyFinishing" in review and "store.regeneratePanel" in review
+assert "store.saveWork()" in review and "ShareLink(item:url)" in popui
+assert "CIColorControls" in finisher and "CISharpenLuminance" in finisher
+assert "func applyFinishing(" in store and "func regeneratePanel(" in store
+assert "PopCardAtlas" in theme and "PopGenreAtlas" in theme and "PopHero" in theme
+for asset in ("PopCardAtlas", "PopGenreAtlas", "PopHero", "PopLogo"):
+    base = root / "ios/COMICPOP/Assets.xcassets" / (asset + ".imageset")
+    assert (base / (asset + ".jpg")).is_file(), asset
+    assert (base / "Contents.json").is_file(), asset
+assert "PopBackground" in theme and "Canvas" in theme
+
 assert "MVEditorView" in ui and "MVMangaView" in ui
 assert "MVCardView" in ui and "MVTimelineView" in ui
 assert "MVCatalogView" in ui and "MVDeckView" in ui
@@ -37,4 +63,4 @@ m = re.search(r"static let base64 = \"\"\"(.*?)\"\"\"", art, re.S)
 assert m, "Missing in-source Rex artwork"
 jpeg = base64.b64decode("".join(m.group(1).split()), validate=True)
 assert len(jpeg) > 20000 and jpeg[:2] == bytes.fromhex("ffd8") and jpeg[-2:] == bytes.fromhex("ffd9")
-print("PASS: MOVIKOMA native editor, Rex card art, genres, timeline, manga preview, works and settings")
+print("PASS: MOVIKOMA 3 reference-faithful native screens, real Rex sprite assets and connected interactions")
