@@ -25,7 +25,10 @@ struct PopReviewScreen: View {
         ScrollView(showsIndicators:false) {
             VStack(alignment:.leading,spacing:10) {
                 hero
-                if !topPanels.isEmpty {comparison}
+                if !topPanels.isEmpty {
+                    comparison
+                    panelChooser
+                }
                 if !store.pageImages.isEmpty {finishedPage}
                 if !store.hasCompleteComic {
                     PopSurface(accent:true) {
@@ -157,6 +160,55 @@ struct PopReviewScreen: View {
             }
             .foregroundStyle(PopColor.ink)
             .padding(2)
+        }
+    }
+
+    // Every inserted pin must be reachable for one-panel retakes, including
+    // cards 4-12 which do not fit in the 3-frame comparison area.
+    private var panelChooser: some View {
+        PopSurface {
+            VStack(alignment:.leading,spacing:7) {
+                HStack {
+                    Text("修正するコマを選ぶ")
+                        .font(.system(size:13,weight:.black,design:.rounded))
+                    Spacer()
+                    Text("\(store.generated.count)コマ")
+                        .font(.system(size:11,weight:.bold))
+                }
+                .foregroundStyle(PopColor.ink)
+                ScrollView(.horizontal,showsIndicators:false) {
+                    HStack(spacing:7) {
+                        ForEach(Array(store.generated.enumerated()),id:\.element.id) { entry in
+                            let current=entry.element
+                            Button {selectedPanel=current.id} label: {
+                                VStack(spacing:4) {
+                                    Image(uiImage:current.drawing)
+                                        .resizable().scaledToFill()
+                                        .frame(width:84,height:63).clipped()
+                                        .clipShape(RoundedRectangle(cornerRadius:8))
+                                    Text("\(entry.offset+1). \(current.cardTitle)")
+                                        .font(.system(size:10,weight:.heavy))
+                                        .lineLimit(1).minimumScaleFactor(0.7)
+                                        .frame(width:84)
+                                }
+                                .foregroundStyle(PopColor.ink)
+                                .padding(5)
+                                .background(.white,in:RoundedRectangle(cornerRadius:10))
+                                .overlay(RoundedRectangle(cornerRadius:10)
+                                    .stroke(activePanel?.id == current.id ? PopColor.yellow : PopColor.edge,
+                                            lineWidth:activePanel?.id == current.id ? 3 : 1))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(entry.offset+1)コマ目 \(current.cardTitle) を選択")
+                        }
+                    }
+                }
+                if let current=activePanel {
+                    Label("選択中：\(current.cardTitle)",systemImage:"checkmark.circle.fill")
+                        .font(.system(size:11,weight:.heavy))
+                        .foregroundStyle(PopColor.royal)
+                }
+            }
         }
     }
 
