@@ -244,8 +244,9 @@ struct PopVideoChooseScreen: View {
         .task(id: store.videoURL?.absoluteString) {
             thumbnail = nil
             guard let url = store.videoURL else {return}
-            thumbnail = try? await VideoFrameService.frame(
+            let frame = try? await VideoFrameService.frame(
                 at: max(0, min(store.duration / 3, 1)), from: url)
+            if !Task.isCancelled && store.videoURL == url {thumbnail = frame}
         }
         .onChange(of: chosenPhoto) { _, next in
             guard let next else {return}
@@ -312,6 +313,8 @@ struct PopSavedConfirmation: View {
     let goHome: () -> Void
     let goToWorks: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var pdfURL:URL?
+    @State private var showPDFShare=false
     private var saved: SavedWork? {store.data.works.first}
     var body: some View {
         ScrollView {
@@ -357,6 +360,20 @@ struct PopSavedConfirmation: View {
                         .foregroundStyle(PopColor.ink)
                     }
                 }
+                if let saved {
+                    Button {
+                        pdfURL = store.exportPDF(saved)
+                        showPDFShare = pdfURL != nil
+                    } label: {
+                        Label("全ページをPDFで共有",systemImage:"doc.richtext")
+                            .font(.system(size:13,weight:.heavy))
+                            .frame(maxWidth:.infinity)
+                            .padding(12)
+                            .foregroundStyle(PopColor.ink)
+                            .background(.white,in:Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
                 PopYellowButton(title: "作品一覧で見る", icon: "books.vertical.fill") {
                     dismiss()
                     goToWorks()
@@ -378,5 +395,8 @@ struct PopSavedConfirmation: View {
         }
         .background(PopBackground())
         .presentationDragIndicator(.visible)
+        .sheet(isPresented:$showPDFShare) {
+            if let pdfURL {PopFileShareSheet(files:[pdfURL])}
+        }
     }
 }
