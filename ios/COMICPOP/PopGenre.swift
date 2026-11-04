@@ -89,10 +89,22 @@ struct PopGenreScreen: View {
                     askGeneration=true
                 }
                 if store.isGenerating {
-                    VStack(spacing:5) {
-                        ProgressView().tint(PopColor.yellow)
-                        Text(store.message).font(.caption.bold()).foregroundStyle(.white)
-                    }.frame(maxWidth:.infinity)
+                    VStack(alignment:.leading,spacing:8) {
+                        HStack(spacing:8) {
+                            ProgressView().tint(PopColor.yellow)
+                            Text("漫画を生成中：\(store.generated.count)/\(store.data.pins.count) コマ")
+                                .font(.system(size:13,weight:.black,design:.rounded))
+                        }
+                        Text(store.message)
+                            .font(.system(size:11,weight:.medium))
+                        Text("終了までこの画面を開いてください。まだ完成していないコマは保存されません。")
+                            .font(.system(size:10))
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    .padding(13)
+                    .background(PopColor.navy.opacity(0.72),in:RoundedRectangle(cornerRadius:12))
                 } else {
                     Text(store.data.pins.isEmpty ? "編集画面でカードを刺すと生成できます。" :
                          "挿入カード：\(store.data.pins.count)枚 → \(store.scenePlan.pages)ページ。無料おためし生成はアカウント不要です。")
@@ -120,7 +132,7 @@ struct PopGenreScreen: View {
             }
             Button("キャンセル",role:.cancel) {}
         } message: {
-            Text("端末内では動画の実フレームを漫画風に加工。AI作画にはCloudflare設定が必要です。")
+            Text("端末内は画像送信なしの漫画調加工です。AI作画は選択した動画のコマ画像を利用者自身のCloudflare APIへ送信し、利用枠を消費します。")
         }
     }
 
