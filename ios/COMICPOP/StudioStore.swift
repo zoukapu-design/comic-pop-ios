@@ -18,6 +18,7 @@ struct PreviewPanel: Identifiable {
     @Published var generated: [PreviewPanel] = []
     @Published var pageImages: [UIImage] = []
     @Published var isGenerating = false
+    @Published private(set) var isAddingPin = false
     @Published var message = "カードを刺して漫画を作ろう"
     @Published var cloudflareAccount: String = UserDefaults.standard.string(forKey:"cfAccountId") ?? ""
     @Published var isConnected = false
@@ -128,24 +129,30 @@ struct PreviewPanel: Identifiable {
     func seek(by delta:Double) {scrub(to:currentTime+delta)}
     func playPause(){player.rate>0 ? player.pause() : player.play()}
     func addPin(card:PinDefinition) async {
+        guard !isAddingPin else {return}
         guard let url=videoURL else {message="先に動画を選んでください";return}
+        guard data.pins.count < 12 else {message="挿入できるカードは一度に12枚までです";return}
+        isAddingPin=true
+        defer {isAddingPin=false}
         let seconds=currentTime
         let capturedSession=videoSession
         let capturedReset=pinsResetEpoch
         do {
             let frame=try await VideoFrameService.frame(at:seconds,from:url)
-            // AVFoundation frame extraction may finish AFTER the user selects another video or clears pins.
-            guard capturedSession == videoSession && capturedReset == pinsResetEpoch else { return }
+            // A pending frame cannot add a stale pin to a new video or cleared session.
+            guard capturedSession == videoSession && capturedReset == pinsResetEpoch else {return}
+            guard data.pins.count < 12 else {message="カードは最大12枚です";return}
             guard let bytes=VideoFrameService.compactJPEG(frame) else {throw MangaError.invalidImage}
             let file="pin-\(UUID().uuidString).jpg"
             try bytes.write(to:support.appendingPathComponent(file),options:.atomic)
             data.pins.append(MangaPin(cardID:card.id,seconds:seconds,snapshotFile:file))
             pinsRevision = UUID()
-            clearGenerated() // A newly inserted card invalidates previously rendered pages.
-            persist();message="\(formatted(seconds)) に「\(card.title)」を挿入しました."
+            clearGenerated()
+            persist()
+            message="\(formatted(seconds)) に「\(card.title)」を挿入しました"
         } catch {message="その場面を保存できませんでした：\(error.localizedDescription)"}
     }
-    func removePin(_ pin:MangaPin){data.pins.removeAll{$0.id==pin.id};pinsRevision=UUID();try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile));clearGenerated();persist()}
+    func removePin(_ pin:MangaPin){data.pins.removeAll{$0.id==pin.id};pinsResetEpoch=UUID();pinsRevision=UUID();try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile));clearGenerated();persist()}
     func clearPins(){pinsResetEpoch=UUID();pinsRevision=UUID();for p in data.pins {try? fm.removeItem(at:support.appendingPathComponent(p.snapshotFile))};data.pins=[];clearGenerated();persist()}
     func snapshot(for pin:MangaPin)->UIImage? {UIImage(contentsOfFile:support.appendingPathComponent(pin.snapshotFile).path)}
     func card(for pin:MangaPin)->PinDefinition {
@@ -154,10 +161,16 @@ struct PreviewPanel: Identifiable {
     }
     func updateStyle(_ style:String) {
         guard data.style != style else {return}
-        data.style=style;data.colorMode=MangaStyles.all.first(where:{$0.id==style})?.defaultColor ?? "mono"
+        data.style=style
+        // Preserve an explicit monochrome/colour choice when browsing genre cards.
+        if !UserDefaults.standard.bool(forKey:"pop.userChoseColor") {
+            data.colorMode=MangaStyles.all.first(where:{$0.id==style})?.defaultColor ?? "mono"
+        }
         clearGenerated();persist()
     }
     func updateColor(_ value:String) {
+        guard value=="mono" || value=="color" else {return}
+        UserDefaults.standard.set(true,forKey:"pop.userChoseColor")
         guard data.colorMode != value else {return}
         data.colorMode=value;clearGenerated();persist()
     }
