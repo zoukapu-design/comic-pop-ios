@@ -3,7 +3,8 @@ import SwiftUI
 /// The actual app root: all three approved screens share one live StudioStore.
 struct MovikomaPopRootView: View {
     @StateObject private var store = StudioStore()
-    private enum Journey {case home, selectVideo, workspace}
+    @AppStorage("pop.didSeeWelcome") private var didSeeWelcome = false
+    private enum Journey: Equatable {case home, selectVideo, workspace}
     @State private var journey:Journey = .home
     @State private var stage:PopStage = .editor
     @State private var showSavedConfirmation = false
@@ -89,6 +90,18 @@ struct MovikomaPopRootView: View {
         }
         .sheet(isPresented:$showSettings) {PopSettingsPanel(store:store)}
         .sheet(isPresented:$showDeck) {PopDeckSheet(store:store)}
+        .fullScreenCover(isPresented:Binding(
+            get:{!didSeeWelcome},
+            set:{if !$0 {didSeeWelcome=true}}
+        )) {
+            PopWelcomeScreen {didSeeWelcome=true}
+        }
+        .onChange(of:stage) { _,next in
+            if next != .editor {store.player.pause()}
+        }
+        .onChange(of:journey) { _,next in
+            if next != .workspace {store.player.pause()}
+        }
     }
 }
 
