@@ -1,12 +1,8 @@
 name: Movikoma native iOS Simulator compile
+# macOS CI is intentionally manual to preserve scarce build minutes.
+# Run once after the Ubuntu source preflight passes.
 on:
-  push:
-    branches: [feat/movikoma-rex-reference-ui]
-    paths:
-      - '.github/workflows/movikoma-ios-simulator.yml'
-      - 'ios/COMICPOP/Pop*.swift'
-      - 'ios/COMICPOP/COMICPOPApp.swift'
-      - 'ios/COMICPOP/StudioStore.swift'
+  workflow_dispatch:
 jobs:
   native-ios:
     runs-on: macos-15
