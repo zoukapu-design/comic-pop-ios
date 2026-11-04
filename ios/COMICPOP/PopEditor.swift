@@ -337,7 +337,7 @@ private struct PopAVPlayerSurface: UIViewRepresentable {
         let v=PopPlayerHost()
         v.playerLayer.player=player
         v.playerLayer.videoGravity = .resizeAspect
-        v.backgroundColor=.black
+        v.backgroundColor = .black
         return v
     }
     func updateUIView(_ v:PopPlayerHost,context:Context) {v.playerLayer.player=player}
