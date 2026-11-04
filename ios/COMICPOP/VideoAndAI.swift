@@ -93,11 +93,23 @@ struct CloudflareAIService {
         let width=aspect>=1 ? 768 : align16(768*aspect)
         let height=aspect>=1 ? align16(768/aspect) : 768
         let color=colorMode=="mono" ? "All panels use the same black and white ink and screentones, no color." : "All panels use consistent full comic color."
+        // These are preference *hints* from the UI, not measured quality scores.
+        let defaults=UserDefaults.standard
+        let character=(defaults.object(forKey:"pop.hint.character") as? Bool) ?? true
+        let palette=(defaults.object(forKey:"pop.hint.palette") as? Bool) ?? true
+        let scene=(defaults.object(forKey:"pop.hint.scene") as? Bool) ?? false
+        let fidelity=(defaults.object(forKey:"pop.hint.fidelity") as? Bool) ?? false
+        let hints=[
+            character ? "Preserve recognisable facial features and clothing of the original subject in every panel." : "",
+            palette ? "Keep a coherent ink density, line weight and limited palette throughout the page." : "",
+            scene ? "Place especially strong emphasis on actual shot changes and background transitions." : "",
+            fidelity ? "Prioritise faithful composition and object positions over dramatic embellishment." : ""
+        ].filter{!$0.isEmpty}.joined(separator:" ")
         let prompt=["IMPORTANT: redrawing reference image 0, not inventing a new scene.",
            "The reference is the absolute source of truth about subject count, clothing, objects, place, action, viewpoint, and position.",
            "Reproduce THIS precise moment and do not repeat any earlier frame or scene.",
            "No invented people or animals, no scene substitutions and no removal of major objects.",
-           MangaStyles.prompt(for:style),color,"Editorial card: \(card.title), \(card.subtitle).",pin.note,
+           MangaStyles.prompt(for:style),color,hints,"Editorial card: \(card.title), \(card.subtitle).",pin.note,
            "Professional original manga illustration, no words, captions or speech bubbles."].joined(separator:" ")
         var form=FormDataBuilder()
         form.add(name:"prompt",value:String(prompt.prefix(2400)))
