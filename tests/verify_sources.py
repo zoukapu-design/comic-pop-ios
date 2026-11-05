@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 src = root / "ios" / "COMICPOP"
 cards = json.loads((src / "Resources" / "cards.json").read_text(encoding="utf-8"))
-assert len(cards) == 84 and len({c["id"] for c in cards}) == 84
+assert len(cards) == 85 and len({c["id"] for c in cards}) == 85
 assert all(c["title"] and c["category"] for c in cards)
 
 api = (src / "VideoAndAI.swift").read_text(encoding="utf-8")
@@ -68,4 +68,4 @@ icon = (src / "Assets.xcassets" / "AppIcon.appiconset" / "app-icon.png").read_by
 assert icon[:8] == b"\x89PNG\r\n\x1a\n"
 assert struct.unpack(">II", icon[16:24]) == (1024, 1024)
 assert icon[24] == 8 and icon[25] == 2, "App Store icon must be 8-bit truecolor RGB PNG (not palette PNG or RGBA)"
-print("PASS: 84 cards, personal Cloudflare, stale-task guards, unsigned CI, plist and app icon")
+print("PASS: 85 cards, personal Cloudflare, stale-task guards, unsigned CI, plist and app icon")
