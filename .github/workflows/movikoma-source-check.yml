@@ -4,6 +4,7 @@ on:
     paths:
       - 'ios/**'
       - 'tests/**'
+      - 'codemagic.yaml'
       - '.github/workflows/movikoma-source-check.yml'
   push:
     branches:
@@ -11,6 +12,7 @@ on:
     paths:
       - 'ios/**'
       - 'tests/**'
+      - 'codemagic.yaml'
       - '.github/workflows/movikoma-source-check.yml'
 jobs:
   source-preflight:
