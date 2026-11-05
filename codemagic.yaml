@@ -1,8 +1,8 @@
 workflows:
   ios-unsigned-check:
-    name: COMIC POP iOS / Source & Simulator Build
+    name: ムビコマ iOS / コンパイル検証（署名・アップロードなし）
     instance_type: mac_mini_m2
-    max_build_duration: 60
+    max_build_duration: 35
     environment:
       xcode: latest
     scripts:
@@ -20,17 +20,36 @@ workflows:
           cd "$CM_BUILD_DIR/ios"
           xcodegen generate --spec project.yml
           test -f COMICPOP.xcodeproj/project.pbxproj
-      - name: Build unsigned iOS Simulator app
+      - name: Compile unsigned iOS Simulator app and preserve diagnostics
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR/ios"
+          set +e
           xcodebuild -project COMICPOP.xcodeproj -scheme COMICPOP \
             -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$CM_BUILD_DIR/DerivedData" \
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee "$CM_BUILD_DIR/ios-build.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          python3 - "$CM_BUILD_DIR/ios-build.log" "$CM_BUILD_DIR/ios-diagnostics.txt" <<'PY'
+          from pathlib import Path
+          import sys
+          source=Path(sys.argv[1])
+          output=Path(sys.argv[2])
+          lines=source.read_text(encoding="utf-8",errors="replace").splitlines()
+          errors=[line for line in lines if " error:" in line or "fatal error:" in line or "BUILD FAILED" in line]
+          warnings=[line for line in lines if " warning:" in line]
+          report=["ムビコマ iOS Simulator コンパイル診断",f"エラー行: {len(errors)}",f"警告行: {len(warnings)}",""]
+          report+=errors[-150:] if errors else ["Swiftコンパイラ由来のエラー行は検出されませんでした"]
+          report+=["","警告（末尾30件）",*warnings[-30:]]
+          output.write_text("\n".join(report)+"\n",encoding="utf-8")
+          print("\n".join(report[:4]))
+          PY
+          exit "$status"
     artifacts:
       - $CM_BUILD_DIR/ios-build.log
+      - $CM_BUILD_DIR/ios-diagnostics.txt
       - $CM_BUILD_DIR/DerivedData/Build/Products/**/*.app
 
   ios-signed-ipa:
