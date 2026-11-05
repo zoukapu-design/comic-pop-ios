@@ -8,6 +8,7 @@ struct MovikomaPopRootView: View {
     @State private var journey:Journey = .home
     @State private var stage:PopStage = .editor
     @State private var showSavedConfirmation = false
+    @State private var showWorksAfterSaving = false
     @State private var showMenu = false
     @State private var showHelp = false
     @State private var showWorks = false
@@ -83,10 +84,15 @@ struct MovikomaPopRootView: View {
             Text("先にカードを挿入して漫画を生成し、完成後に「作品に保存」してください。")
         }
         .sheet(isPresented:$showWorks) {PopWorksSheet(store:store)}
-        .sheet(isPresented:$showSavedConfirmation) {
+        .sheet(isPresented:$showSavedConfirmation,onDismiss:{
+            if showWorksAfterSaving {
+                showWorksAfterSaving = false
+                showWorks = true
+            }
+        }) {
             PopSavedConfirmation(store:store,
                 goHome:{journey = .home},
-                goToWorks:{showWorks = true})
+                goToWorks:{showWorksAfterSaving = true})
         }
         .sheet(isPresented:$showSettings) {PopSettingsPanel(store:store)}
         .sheet(isPresented:$showDeck) {PopDeckSheet(store:store)}
