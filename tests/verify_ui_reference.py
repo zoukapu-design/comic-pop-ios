@@ -156,6 +156,25 @@ assert "似すぎたコマを検出しました" in review
 assert "scenePlan.renderedPanelCount" in review and "scenePlan.renderedPanelCount" in genre
 assert "cardSceneGrouping" not in (root / "ios/COMICPOP/Info.plist").read_text(encoding="utf-8")
 assert "5 distinct scenes" in (root / "tests/modelTests.swift").read_text(encoding="utf-8")
+# Story-screen quality gate: the user must be able to inspect each beat
+# before image generation and correct dialogue without another image call.
+draft=(root / "ios/COMICPOP/PopStoryboardDraft.swift").read_text(encoding="utf-8")
+response_parser=(root / "ios/COMICPOP/CloudflareStoryResponse.swift").read_text(encoding="utf-8")
+assert "func prepareStoryboard() async" in store
+assert "var storyboardReady: Bool" in store
+assert "func updateStoryboardBeat(" in store
+assert "if !resumable && !preparedDraft {clearGenerated()}" in store
+assert "PopStoryboardDraft(store:store)" in genre
+assert "await store.prepareStoryboard()" in genre
+assert "この脚本で漫画の絵を描く" in draft
+assert "PopStoryboardTextEditor" in draft and "updateStoryboardBeat" in draft
+assert "popStoryboardReviewBeforeDrawing" in draft
+assert "CloudflareStoryResponse.text(from:data)" in observations
+assert "choices" in response_parser and "response" in response_parser
+assert "cloudflareStoryResponseTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+assert "seenPageData.insert(png).inserted" in store
+print("PASS: review Japanese manga screenplay before image quota, parse Cloudflare envelopes and reject duplicate saved pages")
+
 print("PASS: same-time cards combine into one comic scene, cinematic scene continuity and accurate paging")
 print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
 
