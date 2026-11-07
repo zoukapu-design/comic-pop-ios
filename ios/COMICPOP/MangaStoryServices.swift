@@ -95,21 +95,6 @@ enum MangaSpeechEvidence {
     }
 }
 
-private struct MangaCloudflareStoryEnvelope: Decodable {
-    struct Result: Decodable {let response:String?}
-    struct Failure: Decodable {let code:Int?;let message:String?}
-    let success:Bool?
-    let result:Result?
-    let errors:[Failure]?
-}
-
-private struct MangaChatCompletion: Decodable {
-    struct Choice: Decodable {
-        struct Message: Decodable {let content:String?}
-        let message:Message
-    }
-    let choices:[Choice]
-}
 private enum MangaVisualStoryError: Error {
     case unsupported
     case quota
@@ -177,12 +162,14 @@ enum MangaStoryAIService {
         request.httpBody=try JSONSerialization.data(withJSONObject:body)
         let (data,response)=try await URLSession.shared.data(for:request)
         guard let http=response as? HTTPURLResponse else {throw MangaError.badResponse}
-        let decoded=try? JSONDecoder().decode(MangaCloudflareStoryEnvelope.self,from:data)
         guard (200...299).contains(http.statusCode) else {
-            let detail=decoded?.errors?.first?.message ?? "脚本生成APIを確認してください"
+            let detail=CloudflareStoryResponse.errorMessage(from:data)
+                ?? "脚本生成APIの利用枠・権限・モデルを確認してください"
             throw MangaError.server("ストーリー作成に失敗：\(detail)（HTTP \(http.statusCode)）")
         }
-        guard let raw=decoded?.result?.response, !raw.isEmpty else {throw MangaStoryError.invalidJSON}
+        guard let raw=CloudflareStoryResponse.text(from:data),!raw.isEmpty else {
+            throw MangaStoryError.invalidJSON
+        }
         return try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
     }
 
@@ -222,8 +209,7 @@ enum MangaStoryAIService {
             throw MangaVisualStoryError.quota
         }
         guard (200...299).contains(http.statusCode),
-              let parsed=try? JSONDecoder().decode(MangaChatCompletion.self,from:data),
-              let raw=parsed.choices.first?.message.content,!raw.isEmpty else {
+              let raw=CloudflareStoryResponse.text(from:data),!raw.isEmpty else {
             throw MangaVisualStoryError.unsupported
         }
         var visual=try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
