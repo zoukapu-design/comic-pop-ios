@@ -85,7 +85,7 @@ struct CloudflareAIService {
         // Token validity is not a confirmation of the Workers Free plan or account permissions.
         return status.success == true && status.result?.status == "active"
     }
-    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int) async throws -> UIImage {
+    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="") async throws -> UIImage {
         guard let jpg=VideoFrameService.compactJPEG(image),jpg.count<700_000 else{throw MangaError.invalidImage}
         guard let url=accountURL(account),!token.isEmpty else{throw MangaError.credentialsMissing}
         let aspect=image.size.width/max(image.size.height,1)
@@ -105,12 +105,23 @@ struct CloudflareAIService {
             scene ? "Place especially strong emphasis on actual shot changes and background transitions." : "",
             fidelity ? "Prioritise faithful composition and object positions over dramatic embellishment." : ""
         ].filter{!$0.isEmpty}.joined(separator:" ")
-        let prompt=["IMPORTANT: redrawing reference image 0, not inventing a new scene.",
-           "The reference is the absolute source of truth about subject count, clothing, objects, place, action, viewpoint, and position.",
-           "Reproduce THIS precise moment and do not repeat any earlier frame or scene.",
-           "No invented people or animals, no scene substitutions and no removal of major objects.",
-           MangaStyles.prompt(for:style),color,hints,"Editorial card: \(card.title), \(card.subtitle).",pin.note,
-           "Professional original manga illustration, no words, captions or speech bubbles."].joined(separator:" ")
+        // The pin is one dramatic beat in a whole chapter. The source frame is
+        // visual evidence, not a command to copy the shot exactly.
+        let prompt=[
+            "Original cinematic JAPANESE MANGA illustration from a continuous sequential story.",
+            "Make this panel advance the story. It is NOT a still-photo filter or documentary storyboard.",
+            "Shared chapter premise: \(seriesPremise).",
+            "Current storytelling role: \(card.title) / \(card.subtitle).",
+            "Panel event: \(story?.scene ?? pin.note).",
+            "What to draw: \(story?.imagePrompt ?? pin.note).",
+            "Causal transition from prior panel: \(story?.transition ?? "continue preceding action").",
+            "Keep principal characters visibly recognizable across adjacent panels: same face, hairstyle, clothing and accessories, and believable recurring locations.",
+            "You MAY change camera angle, pose, expression, background detail and implied intermediate action to turn the scene into a compelling manga beat.",
+            "Use the input video frame as inspiration for character and setting, while the written storyboard governs narrative action.",
+            "Express card emotion strongly in character posture and faces. A reaction must respond to the previous action; final panel should pay off earlier events.",
+            MangaStyles.prompt(for:style),color,hints,
+            "ABSOLUTELY NO TEXT of ANY language, NO WORDS, NO KANJI, NO GIBBERISH GLYPHS, NO CAPTIONS, NO WATERMARKS, NO speech balloons. The app typeset Japanese speech and captions after generation."
+        ].joined(separator:" ")
         var form=FormDataBuilder()
         form.add(name:"prompt",value:String(prompt.prefix(2400)))
         form.add(name:"width",value:String(width))
