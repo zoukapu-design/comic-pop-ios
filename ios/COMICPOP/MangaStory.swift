@@ -70,7 +70,7 @@ enum MangaStoryPlanner {
             else {caption=["そのとき、思わぬ展開が。","けれど、まだ終わらない。","次の瞬間、状況が動いた。"][index%3]}
             return MangaStoryBeat(id:e.pinID,index:index+1,caption:caption,
                 dialogue:clip(e.userDialogue,35),scene:role(for:e.cardID),
-                imagePrompt:"Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
+                imagePrompt:"Shot \(index+1): \(shotHint(for:index)). Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
                 transition:index==0 ? "Opening" : "Continue directly from preceding panel")
         }
         return MangaStoryPlan(title:"動画から生まれた物語",premise:"カードから組み立てた仮の構成",beats:beats,isAIStory:false)
@@ -88,6 +88,19 @@ enum MangaStoryPlanner {
             throw MangaStoryError.missingPanels
         }
         let backup=fallback(evidence)
+        // Reject an obviously repeated draft BEFORE spending any image quota.
+        // Repeated clothing/location phrases are fine; identical consecutive
+        // action+composition and narration are not a story progression.
+        for index in 1..<draft.panels.count {
+            let a=draft.panels[index-1], b=draft.panels[index]
+            let sceneA=normalized(a.imagePrompt+" "+a.scene)
+            let sceneB=normalized(b.imagePrompt+" "+b.scene)
+            let textA=normalized(a.caption+" "+a.dialogue)
+            let textB=normalized(b.caption+" "+b.dialogue)
+            if !sceneA.isEmpty && sceneA==sceneB && textA==textB {
+                throw MangaStoryError.repetitiveScenes
+            }
+        }
         let beats=zip(draft.panels,evidence).enumerated().map { index,pair -> MangaStoryBeat in
             let (line,source)=pair
             let standard=backup.beats[index]
@@ -95,7 +108,7 @@ enum MangaStoryPlanner {
                 caption:japanese(line.caption,otherwise:standard.caption,limit:46),
                 dialogue:!source.userDialogue.isEmpty ? clip(source.userDialogue,35) : japanese(line.dialogue,otherwise:"",limit:35),
                 scene:clip(line.scene,120).isEmpty ? standard.scene : clip(line.scene,120),
-                imagePrompt:clip(line.imagePrompt,640).isEmpty ? standard.imagePrompt : clip(line.imagePrompt,640),
+                imagePrompt:"Shot \(index+1): \(shotHint(for:index)). "+(clip(line.imagePrompt,590).isEmpty ? standard.imagePrompt : clip(line.imagePrompt,590)),
                 transition:clip(line.transition,160))
         }
         return MangaStoryPlan(title:japanese(draft.title,otherwise:backup.title,limit:38),
@@ -116,6 +129,23 @@ enum MangaStoryPlanner {
         return string
     }
 
+    /// Global shot grammar encourages varied camera distances across scenes,
+    /// while the actual shot content still comes from the full-story AI.
+    private static func shotHint(for index:Int) -> String {
+        let shots=[
+            "establishing wide shot with location and protagonist",
+            "medium shot showing a clear action and spatial relation",
+            "expressive close-up of changed character emotion",
+            "dynamic cinematic angle revealing an important new event",
+            "tight reaction shot or meaningful object detail",
+            "wide payoff or aftermath with visible narrative consequence"
+        ]
+        return shots[index % shots.count]
+    }
+    private static func normalized(_ value:String)->String {
+        value.lowercased().filter{!$0.isWhitespace && !$0.isNewline}
+    }
+
     private static func japanese(_ string:String,otherwise fallback:String,limit:Int)->String {
         let value=clip(string,limit)
         let valid=value.unicodeScalars.contains { (0x3040...0x30ff).contains(Int($0.value)) || (0x3400...0x9fff).contains(Int($0.value)) }
@@ -129,11 +159,12 @@ enum MangaStoryPlanner {
 }
 
 enum MangaStoryError: LocalizedError {
-    case invalidJSON,missingPanels
+    case invalidJSON,missingPanels,repetitiveScenes
     var errorDescription:String? {
         switch self {
         case .invalidJSON:return "ストーリー案のデータを読み取れませんでした。もう一度試してください。"
-        case .missingPanels:return "ストーリー案が全カード分ありません。もう一度試してください。"
+        case .missingPanels:return "ストーリー案が全シーン分ありません。もう一度試してください。"
+        case .repetitiveScenes:return "連続コマの内容とセリフが重複しています。作画前に脚本を作り直してください。"
         }
     }
 }
