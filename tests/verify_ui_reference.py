@@ -131,6 +131,32 @@ assert "ForEach(0..<total,id:" in reader and "work.files.count" in reader
 assert "TabView(selection:$page)" in reader and "continuous" in reader
 assert "store.existingWorkURL(work.files[index])" in reader
 assert "mangaStoryTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+# Production invariant: cards describe emotions and scenes, not the
+# number of images. Several cards at the same instant make ONE scene.
+model=(root / "ios/COMICPOP/Models.swift").read_text(encoding="utf-8")
+grouping=(root / "ios/COMICPOP/CardSceneGrouping.swift").read_text(encoding="utf-8")
+vision=(root / "ios/COMICPOP/MangaSceneContactSheet.swift").read_text(encoding="utf-8")
+runner=(root / "tests/run.sh").read_text(encoding="utf-8")
+assert "let scenes:[ComicScene]" in model and "var renderPins:[MangaPin]" in model
+assert "scenes.count" in model and "CardSceneGrouping.groups" in model
+assert "sameMomentTolerance = 1.5" in grouping
+assert "CardSceneGrouping.swift" in runner
+assert "scenePlan.renderPins.map" in store and "let pins=scenePlan.renderPins" in store
+assert "combinedCard(for:pin)" in store and "let combinedTitle=" in store
+assert "combinedDirections" in story and "DRAMATIC + HORROR" in observations
+assert "MangaSceneContactSheet.jpeg" in observations
+assert "llama-4-scout-17b-16e-instruct" in observations
+assert "ai/v1/chat/completions" in observations
+assert "frames:pins.compactMap" in store
+assert "storyPlan?.beats.map" in store
+assert "repetitiveScenes" in story and "shotHint(for:index)" in story
+assert "alternateComposition:true" in store and "combinedEmotion" in ai
+assert "finishedImage=PopPageFinisher.render(" in store
+assert "似すぎたコマを検出しました" in review
+assert "scenePlan.renderedPanelCount" in review and "scenePlan.renderedPanelCount" in genre
+assert "cardSceneGrouping" not in (root / "ios/COMICPOP/Info.plist").read_text(encoding="utf-8")
+assert "5 distinct scenes" in (root / "tests/modelTests.swift").read_text(encoding="utf-8")
+print("PASS: same-time cards combine into one comic scene, cinematic scene continuity and accurate paging")
 print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
 
 print("PASS: Rex onboarding, video picker/confirm, pin guard, deck reorder, PDF share, generated-panel editing")
