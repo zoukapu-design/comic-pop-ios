@@ -69,7 +69,7 @@ struct PopReviewScreen: View {
                         VStack(alignment:.leading,spacing:8) {
                             Label("まだ漫画が完成していません",systemImage:"exclamationmark.triangle.fill")
                                 .font(.system(size:15,weight:.black))
-                            Text("\(store.generated.count)/\(store.scenePlan.orderedPins.count)コマ生成済み。未完成ページは保存できません。")
+                            Text("\(store.generated.count)/\(store.scenePlan.renderedPanelCount)シーン生成済み。未完成ページは保存できません。")
                                 .font(.caption)
                             Button("画風選択に戻って生成を再開") {backToStyles()}
                                 .buttonStyle(.borderedProminent).tint(PopColor.blue)
