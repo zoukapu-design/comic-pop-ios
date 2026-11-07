@@ -76,7 +76,10 @@ struct PreviewPanel: Identifiable {
 
     init() {
         // Story-aware generation uses audio when the user permits it.
-        UserDefaults.standard.register(defaults:["pop.story.useVoice":true])
+        UserDefaults.standard.register(defaults:[
+            "pop.story.useVoice":true,
+            "pop.story.useVisualAI":true
+        ])
         support = fm.urls(for:.applicationSupportDirectory,in:.userDomainMask)[0].appendingPathComponent("COMICPOP",isDirectory:true)
         try? fm.createDirectory(at:support,withIntermediateDirectories:true)
         let url=Bundle.main.url(forResource:"cards",withExtension:"json")
@@ -294,7 +297,9 @@ struct PreviewPanel: Identifiable {
         if online {
             message="カード全体から一つの漫画ストーリーを構成中…（個人のCloudflare枠）"
             return try await MangaStoryAIService.createPlan(
-                evidence:evidence,account:account,token:token
+                evidence:evidence,
+                frames:pins.compactMap{snapshot(for:$0)},
+                account:account,token:token
             )
         }
         return MangaStoryPlanner.fallback(evidence)
