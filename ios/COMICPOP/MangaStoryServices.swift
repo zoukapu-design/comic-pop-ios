@@ -103,11 +103,26 @@ private struct MangaCloudflareStoryEnvelope: Decodable {
     let errors:[Failure]?
 }
 
+private struct MangaChatCompletion: Decodable {
+    struct Choice: Decodable {
+        struct Message: Decodable {let content:String?}
+        let message:Message
+    }
+    let choices:[Choice]
+}
+private enum MangaVisualStoryError: Error {
+    case unsupported
+    case quota
+}
+
 /// A single, whole-story text request BEFORE individual image generation.
 /// This is the user's own Workers AI account, under the same free-tier consent.
 enum MangaStoryAIService {
     private static let model="@cf/zai-org/glm-4.7-flash"
-    static func createPlan(evidence:[MangaStoryEvidence],account:String,token:String) async throws -> MangaStoryPlan {
+    private static let visualModel="@cf/meta/llama-4-scout-17b-16e-instruct"
+    @MainActor static func createPlan(
+        evidence:[MangaStoryEvidence],frames:[UIImage],account:String,token:String
+    ) async throws -> MangaStoryPlan {
         guard account.count==32,
               account.utf8.allSatisfy({("0123456789abcdefABCDEF").utf8.contains($0)}),
               !token.isEmpty else {throw MangaError.credentialsMissing}
@@ -126,6 +141,25 @@ enum MangaStoryAIService {
         Do not omit any index. No markdown. Do not insert captions into imagePrompt.
         EVIDENCE:\n\(MangaStoryPlanner.evidenceJSON(evidence))
         """
+        // Prefer understanding the actual scene sequence, not just five
+        // isolated photo-classification tags. One scene contact sheet + one
+        // multimodal STORY call replaces the plain text-only story request.
+        // If unsupported, transparently fall back to the previous GLM path.
+        if UserDefaults.standard.object(forKey:"pop.story.useVisualAI") as? Bool != false,
+           frames.count==evidence.count,
+           let sheet=MangaSceneContactSheet.jpeg(from:frames) {
+            do {
+                return try await makeVisualStory(
+                    prompt:prompt, sheet:sheet, evidence:evidence,
+                    account:account,token:token
+                )
+            } catch MangaVisualStoryError.quota {
+                throw MangaError.server("Cloudflareの利用枠を確認してください。画像理解AIの呼出しで制限に達しました。")
+            } catch {
+                // Could be unsupported vision access or invalid structured
+                // response; the lower-cost GLM script remains available.
+            }
+        }
         let body:[String:Any]=[
             "messages":[
                 ["role":"system","content":"You are a professional Japanese manga writer and storyboard artist. Output valid JSON and coherent Japanese captions only."],
@@ -149,6 +183,49 @@ enum MangaStoryAIService {
             throw MangaError.server("ストーリー作成に失敗：\(detail)（HTTP \(http.statusCode)）")
         }
         guard let raw=decoded?.result?.response, !raw.isEmpty else {throw MangaStoryError.invalidJSON}
+        return try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
+    }
+
+    /// Uses the documented Workers AI OpenAI-compatible chat endpoint with
+    /// a data:image/jpeg URI. The generated story must still pass strict
+    /// one-scene-per-row and Japanese lettering validation.
+    private static func makeVisualStory(
+        prompt:String,sheet:Data,evidence:[MangaStoryEvidence],
+        account:String,token:String
+    ) async throws -> MangaStoryPlan {
+        guard let url=URL(string:"https://api.cloudflare.com/client/v4/accounts/\(account)/ai/v1/chat/completions") else {
+            throw MangaVisualStoryError.unsupported
+        }
+        let imageURI="data:image/jpeg;base64,"+sheet.base64EncodedString()
+        let body:[String:Any]=[
+            "model":visualModel,
+            "messages":[
+                ["role":"system","content":"You are a professional manga writer. Study every numbered video scene in the contact sheet and output a causally coherent Japanese manga screenplay in strictly valid JSON."],
+                ["role":"user","content":[
+                    ["type":"text","text":prompt+"\nThe attached contact sheet shows each scene in numbered order. Base the setting and actions on what is actually visible. Do not invent observed facts."],
+                    ["type":"image_url","image_url":["url":imageURI]]
+                ]]
+            ],
+            "temperature":0.25,
+            "max_tokens":3000,
+            "stream":false
+        ]
+        var request=URLRequest(url:url)
+        request.httpMethod="POST"
+        request.timeoutInterval=90
+        request.setValue("Bearer \(token)",forHTTPHeaderField:"Authorization")
+        request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+        request.httpBody=try JSONSerialization.data(withJSONObject:body)
+        let (data,response)=try await URLSession.shared.data(for:request)
+        guard let http=response as? HTTPURLResponse else {throw MangaVisualStoryError.unsupported}
+        if http.statusCode==429 || http.statusCode==402 {
+            throw MangaVisualStoryError.quota
+        }
+        guard (200...299).contains(http.statusCode),
+              let parsed=try? JSONDecoder().decode(MangaChatCompletion.self,from:data),
+              let raw=parsed.choices.first?.message.content,!raw.isEmpty else {
+            throw MangaVisualStoryError.unsupported
+        }
         return try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
     }
 }
