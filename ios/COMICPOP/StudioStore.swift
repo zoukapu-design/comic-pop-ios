@@ -56,7 +56,7 @@ struct PreviewPanel: Identifiable {
     var scenePlan: ScenePlan {ScenePlan(pins:data.pins)}
     var hasCompleteComic: Bool {
         GenerationIntegrity.isComplete(
-            completedIDs: generated.map(\.id), plannedIDs: scenePlan.orderedPins.map(\.id),
+            completedIDs: generated.map(\.id), plannedIDs: scenePlan.renderPins.map(\.id),
             pageCount: pageImages.count, expectedPageCount: scenePlan.pages,
             isGenerating: isGenerating
         )
@@ -274,12 +274,21 @@ struct PreviewPanel: Identifiable {
                     speechCalls+=1
                 }
             }
-            let card=card(for:pin)
+            guard let scene=scenePlan.scenes.first(where:{$0.id==pin.id}) else {
+                throw MangaStoryError.missingPanels
+            }
+            let cards=scene.pins.map{card(for:$0)}
+            let combinedTitle=cards.map(\.title).joined(separator:"＋")
+            let combinedHints=zip(scene.pins,cards).map { scenePin,card in
+                "\(card.title): \(MangaStoryPlanner.role(for:scenePin.cardID)) / \(card.subtitle)"
+            }.joined(separator:" | ")
+            let notes=scene.pins.map(\.note).filter{!$0.isEmpty}.joined(separator:" / ")
+            let userSpeech=scene.pins.map(\.dialogue).filter{!$0.isEmpty}.joined(separator:" / ")
             evidence.append(MangaStoryEvidence(
                 pinID:pin.id,seconds:pin.seconds,cardID:pin.cardID,
-                cardTitle:card.title,cardHint:card.subtitle,visual:visible,
+                cardTitle:combinedTitle,cardHint:combinedHints,visual:visible,
                 neighborVisual:neighbor,heard:speech,
-                userNote:pin.note,userDialogue:pin.dialogue
+                userNote:notes,userDialogue:userSpeech
             ))
         }
         if online {
@@ -291,10 +300,25 @@ struct PreviewPanel: Identifiable {
         return MangaStoryPlanner.fallback(evidence)
     }
 
+    /// One drawing unit per scene; every inserted card still contributes its
+    /// own emotional/narrative direction, even when timestamps coincide.
+    private func combinedCard(for pin:MangaPin) -> PinDefinition {
+        let scene=scenePlan.scenes.first(where:{$0.id==pin.id})
+        let all=scene?.pins.map{card(for:$0)} ?? [card(for:pin)]
+        let first=all[0]
+        guard all.count>1 else {return first}
+        let title=all.map(\.title).joined(separator:"＋")
+        let roles=all.map{card in
+            "\(card.title): \(card.subtitle)"
+        }.joined(separator:" / ")
+        return PinDefinition(id:first.id,title:title,subtitle:roles,
+                             category:first.category,art:first.art,color:first.color)
+    }
+
     func generate() async {
         guard !isGenerating else {return}
         guard videoURL != nil else {message="動画を選択してください";return}
-        let pins=scenePlan.orderedPins
+        let pins=scenePlan.renderPins
         guard !pins.isEmpty else {message="まずカードを刺してください";return}
         guard pins.count<=12 else {message="無料枠保護のため一度に12コマまでです。カードは削除していません。";return}
         guard confirmsFree,let token=CloudflareCredentialVault.load(),!cloudflareAccount.isEmpty else {message="自分のWorkers Freeアカウントを接続してください";return}
@@ -337,7 +361,7 @@ struct PreviewPanel: Identifiable {
             do {
                 guard let original=snapshot(for:pin) else {throw MangaError.invalidImage}
                 message="AIで描き直しています \(index+1)/\(pins.count)（ユーザーの無料枠）"
-                let card=card(for:pin)
+                let card=combinedCard(for:pin)
                 guard let beat=storyPlan?.beats.first(where:{$0.id==pin.id}) else {
                     throw MangaStoryError.missingPanels
                 }
@@ -386,7 +410,7 @@ struct PreviewPanel: Identifiable {
     func generateOffline() async {
         guard !isGenerating else {return}
         guard videoURL != nil else {message="動画を選択してください";return}
-        let pins=scenePlan.orderedPins
+        let pins=scenePlan.renderPins
         guard !pins.isEmpty else {message="まずカードを刺してください";return}
         guard pins.count<=12 else {message="一度に12コマまでです";return}
         let startingSession=videoSession
@@ -438,7 +462,7 @@ struct PreviewPanel: Identifiable {
                 clearGenerated();message="カードの脚本が不足しています";return
             }
             generated.append(PreviewPanel(
-                id:pin.id,cardTitle:card(for:pin).title,
+                id:pin.id,cardTitle:combinedCard(for:pin).title,
                 original:original,drawing:drawing,warning:nil,
                 caption:beat.caption,dialogue:beat.dialogue,
                 storyPrompt:beat.imagePrompt,storyScene:beat.scene
@@ -474,7 +498,7 @@ struct PreviewPanel: Identifiable {
     func regeneratePanel(_ id:UUID) async {
         guard !isGenerating else {return}
         guard let index=generated.firstIndex(where:{$0.id==id}),
-              let pin=scenePlan.orderedPins.first(where:{$0.id==id}) else {
+              let pin=scenePlan.renderPins.first(where:{$0.id==id}) else {
             message="選択されたコマを見つけられません";return
         }
         let mode=generatedMode ?? "offline"
@@ -500,7 +524,7 @@ struct PreviewPanel: Identifiable {
                     ($0 ^ UInt32($1)) &* 16777619
                 }))
                 updated=try await CloudflareAIService.redraw(
-                    image:original,card:card(for:pin),pin:pin,style:style,colorMode:colorMode,
+                    image:original,card:combinedCard(for:pin),pin:pin,style:style,colorMode:colorMode,
                     account:cloudflareAccount,token:token,seed:base+attempt*997,
                     story:storyPlan?.beats.first(where:{$0.id==id}),
                     seriesPremise:storyPlan?.premise ?? "",
