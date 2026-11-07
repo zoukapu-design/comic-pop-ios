@@ -352,12 +352,28 @@ struct PreviewPanel: Identifiable {
         let resumable=GenerationIntegrity.canResume(
             completedIDs:generated.map(\.id),plannedIDs:pins.map(\.id),
             sameStyle:generatedStyle == style,sameColor:generatedColor == colorMode
-        ) && generatedMode == "offline"
+        ) && generatedMode == "offline" &&
+            storyPlan?.beats.map(\.id) == pins.map(\.id)
         if !resumable {clearGenerated()}
         generatedStyle=style;generatedColor=colorMode;generatedMode="offline"
-        let startIndex=generated.count
         isGenerating=true;pageImages=[]
         defer {isGenerating=false}
+        if storyPlan == nil {
+            do {
+                let plan=try await prepareStory(pins:pins,online:false,account:"",token:"")
+                guard startingSession == videoSession && startingRevision == pinsRevision &&
+                      style == data.style && colorMode == data.colorMode else {
+                    clearGenerated();return
+                }
+                storyPlan=plan
+                storySummary=plan.premise
+                storyCreationMode="端末内のカード構成（文章AIなし）"
+            } catch {
+                clearGenerated();message="カードの構成に失敗しました：\(error.localizedDescription)"
+                return
+            }
+        }
+        let startIndex=generated.count
         for index in startIndex..<pins.count {
             let pin=pins[index]
             guard let original=snapshot(for:pin) else {
@@ -374,8 +390,15 @@ struct PreviewPanel: Identifiable {
             guard let drawing else {
                 rebuildPages();message="\(generated.count)/\(pins.count)コマまで変換。残りを再試行してください";return
             }
-            generated.append(PreviewPanel(id:pin.id,cardTitle:card(for:pin).title,
-                                          original:original,drawing:drawing,warning:nil))
+            guard let beat=storyPlan?.beats.first(where:{$0.id==pin.id}) else {
+                clearGenerated();message="カードの脚本が不足しています";return
+            }
+            generated.append(PreviewPanel(
+                id:pin.id,cardTitle:card(for:pin).title,
+                original:original,drawing:drawing,warning:nil,
+                caption:beat.caption,dialogue:beat.dialogue,
+                storyPrompt:beat.imagePrompt,storyScene:beat.scene
+            ))
         }
         rebuildPages()
         message="全\(generated.count)コマを端末内で簡易漫画化しました（生成AIではありません）。"
@@ -434,7 +457,9 @@ struct PreviewPanel: Identifiable {
                 }))
                 updated=try await CloudflareAIService.redraw(
                     image:original,card:card(for:pin),pin:pin,style:style,colorMode:colorMode,
-                    account:cloudflareAccount,token:token,seed:base+attempt*997
+                    account:cloudflareAccount,token:token,seed:base+attempt*997,
+                    story:storyPlan?.beats.first(where:{$0.id==id}),
+                    seriesPremise:storyPlan?.premise ?? ""
                 )
             }
             guard startingSession==videoSession && startingRevision==pinsRevision &&
@@ -453,7 +478,16 @@ struct PreviewPanel: Identifiable {
         }
     }
     func chooseOriginal(_ id:UUID){guard let i=generated.firstIndex(where:{$0.id==id}) else {return};finishingBase[id]=nil;generated[i].drawing=generated[i].original;generated[i].warning=nil;rebuildPages()}
-    func rebuildPages(){pageImages=stride(from:0,to:generated.count,by:4).map{i in ComicRenderer.page(panels:Array(generated[i..<min(i+4,generated.count)]),title:data.workTitle.isEmpty ? "ムビコマ" : data.workTitle,pageNumber:i/4+1,total:Int(ceil(Double(generated.count)/4)))} }
+    func rebuildPages() {
+        let title=data.workTitle.isEmpty ? (storyPlan?.title ?? "ムビコマ") : data.workTitle
+        pageImages=stride(from:0,to:generated.count,by:4).map { offset in
+            ComicRenderer.page(
+                panels:Array(generated[offset..<min(offset+4,generated.count)]),
+                title:title,pageNumber:offset/4+1,
+                total:Int(ceil(Double(generated.count)/4))
+            )
+        }
+    }
     @discardableResult func saveWork() -> Bool {
         guard hasCompleteComic else {
             message="未完成の漫画は保存できません。すべてのカードの生成を完了してください。"
@@ -475,7 +509,7 @@ struct PreviewPanel: Identifiable {
         guard filenames.count == scenePlan.pages else {
             message="ページ数が一致しません";return false
         }
-        let work=SavedWork(id:UUID(),title:data.workTitle.isEmpty ? "漫画 \(Date().formatted(date:.abbreviated,time:.shortened))" : data.workTitle,files:filenames,createdAt:Date(),sceneCount:generated.count,style:data.style)
+        let work=SavedWork(id:UUID(),title:data.workTitle.isEmpty ? (storyPlan?.title ?? "漫画 \(Date().formatted(date:.abbreviated,time:.shortened))") : data.workTitle,files:filenames,createdAt:Date(),sceneCount:generated.count,style:data.style)
         data.works.insert(work,at:0)
         guard persist() else {
             data.works.removeAll{$0.id==work.id}
