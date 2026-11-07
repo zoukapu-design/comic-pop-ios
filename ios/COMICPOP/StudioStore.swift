@@ -265,20 +265,45 @@ struct PreviewPanel: Identifiable {
         let resumable = GenerationIntegrity.canResume(
             completedIDs: generated.map(\.id), plannedIDs: pins.map(\.id),
             sameStyle: generatedStyle == style, sameColor: generatedColor == colorMode
-        ) && generatedMode == "online"
+        ) && generatedMode == "online" &&
+            storyPlan?.beats.map(\.id) == pins.map(\.id)
         if !resumable {clearGenerated()}
         generatedStyle=style;generatedColor=colorMode;generatedMode="online"
-        let startIndex=generated.count
         isGenerating=true;pageImages=[]
         defer {isGenerating=false}
+        if storyPlan == nil {
+            do {
+                let plan=try await prepareStory(pins:pins,online:true,account:account,token:token)
+                guard startingSession == videoSession && startingRevision == pinsRevision &&
+                      style == data.style && colorMode == data.colorMode else {
+                    clearGenerated();message="動画・カード・画風が変更されたため脚本を破棄しました"
+                    return
+                }
+                storyPlan=plan
+                storySummary=plan.premise
+                storyCreationMode="カード＋動画＋音声からAIが物語を構成"
+            } catch {
+                clearGenerated()
+                message="脚本の生成に失敗しました。AI作画の無料枠はまだ使っていません：\(error.localizedDescription)"
+                return
+            }
+        }
+        let startIndex=generated.count
         for index in startIndex..<pins.count {
             let pin=pins[index]
             do {
                 guard let original=snapshot(for:pin) else {throw MangaError.invalidImage}
                 message="AIで描き直しています \(index+1)/\(pins.count)（ユーザーの無料枠）"
                 let card=card(for:pin)
+                guard let beat=storyPlan?.beats.first(where:{$0.id==pin.id}) else {
+                    throw MangaStoryError.missingPanels
+                }
                 let seed=Int(UInt32(truncatingIfNeeded:pin.id.uuidString.utf8.reduce(2166136261 as UInt32){($0 ^ UInt32($1)) &* 16777619}))
-                let image=try await CloudflareAIService.redraw(image:original,card:card,pin:pin,style:style,colorMode:colorMode,account:account,token:token,seed:seed)
+                let image=try await CloudflareAIService.redraw(
+                    image:original,card:card,pin:pin,style:style,colorMode:colorMode,
+                    account:account,token:token,seed:seed,
+                    story:beat,seriesPremise:storyPlan?.premise ?? ""
+                )
                 // An in-flight request must never revive old or differently styled results.
                 guard startingSession == videoSession && startingRevision == pinsRevision &&
                     style == data.style && colorMode == data.colorMode else {
@@ -292,7 +317,11 @@ struct PreviewPanel: Identifiable {
                     let generatedDifference=ImageDifference.distance(image,prev.drawing)
                     return originalDifference>0.19 && generatedDifference<0.06 ? "元動画が変化しているのにAI絵が前コマと似ています。元画像を比較してください。" : nil
                 }()
-                generated.append(PreviewPanel(id:pin.id,cardTitle:card.title,original:original,drawing:image,warning:warning))
+                generated.append(PreviewPanel(
+                    id:pin.id,cardTitle:card.title,original:original,drawing:image,warning:warning,
+                    caption:beat.caption,dialogue:beat.dialogue,
+                    storyPrompt:beat.imagePrompt,storyScene:beat.scene
+                ))
             } catch {
                 guard startingSession == videoSession && startingRevision == pinsRevision &&
                     style == data.style && colorMode == data.colorMode else {
@@ -306,7 +335,7 @@ struct PreviewPanel: Identifiable {
             }
         }
         rebuildPages()
-        message="全\(generated.count)コマのAI描き直しが完了。各コマを確認してください。"
+        message="全\(generated.count)コマを脚本の流れに沿って漫画化しました。日本語と展開を確認してください。"
     }
     /// Always-free trial mode: comic-style image processing happens locally.
     /// No API key, GPU account, uploaded frames or paid service is involved.
