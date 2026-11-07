@@ -226,7 +226,9 @@ enum MangaStoryAIService {
               let raw=parsed.choices.first?.message.content,!raw.isEmpty else {
             throw MangaVisualStoryError.unsupported
         }
-        return try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
+        var visual=try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
+        visual.usedVisualEvidence=true
+        return visual
     }
 }
 
