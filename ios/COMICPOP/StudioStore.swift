@@ -379,14 +379,26 @@ struct PreviewPanel: Identifiable {
                     message="動画・カード・画風が変更されたため古い生成結果を破棄しました。"
                     return
                 }
+                let finishedImage:UIImage
+                if colorMode=="mono" {
+                    // Do not allow color to drift between panels when the user
+                    // explicitly selected a black-and-white comic.
+                    finishedImage=PopPageFinisher.render(
+                        image,contrast:1.05,brightness:0,saturation:0,sharpness:0.15
+                    ) ?? image
+                } else {
+                    finishedImage=image
+                }
                 let warning: String? = {
                     guard let prev=generated.last else {return nil}
-                    let originalDifference=ImageDifference.distance(original,prev.original)
-                    let generatedDifference=ImageDifference.distance(image,prev.drawing)
-                    return originalDifference>0.19 && generatedDifference<0.06 ? "元動画が変化しているのにAI絵が前コマと似ています。元画像を比較してください。" : nil
+                    let generatedDifference=ImageDifference.distance(
+                        finishedImage,prev.drawing)
+                    return generatedDifference<0.055
+                        ? "前のコマと構図が非常に似ています。別シーンならコマ単位で再生成してください。"
+                        : nil
                 }()
                 generated.append(PreviewPanel(
-                    id:pin.id,cardTitle:card.title,original:original,drawing:image,warning:warning,
+                    id:pin.id,cardTitle:card.title,original:original,drawing:finishedImage,warning:warning,
                     caption:beat.caption,dialogue:beat.dialogue,
                     storyPrompt:beat.imagePrompt,storyScene:beat.scene
                 ))
@@ -523,13 +535,19 @@ struct PreviewPanel: Identifiable {
                 let base=Int(UInt32(truncatingIfNeeded:id.uuidString.utf8.reduce(2166136261 as UInt32){
                     ($0 ^ UInt32($1)) &* 16777619
                 }))
-                updated=try await CloudflareAIService.redraw(
+                let redrawn=try await CloudflareAIService.redraw(
                     image:original,card:combinedCard(for:pin),pin:pin,style:style,colorMode:colorMode,
                     account:cloudflareAccount,token:token,seed:base+attempt*997,
                     story:storyPlan?.beats.first(where:{$0.id==id}),
                     seriesPremise:storyPlan?.premise ?? "",
-                    previousDrawing:index>0 ? generated[index-1].drawing : nil
+                    previousDrawing:index>0 ? generated[index-1].drawing : nil,
+                    alternateComposition:true
                 )
+                updated=colorMode=="mono"
+                    ? (PopPageFinisher.render(
+                        redrawn,contrast:1.05,brightness:0,saturation:0,sharpness:0.15
+                      ) ?? redrawn)
+                    : redrawn
             }
             guard startingSession==videoSession && startingRevision==pinsRevision &&
                   style==data.style && colorMode==data.colorMode &&
