@@ -116,9 +116,9 @@ enum MangaStoryAIService {
         }
         let prompt="""
         Produce a SINGLE COMPLETE Japanese manga STORY outline, not independent image descriptions.
-        Time ordered evidence is JSON. Every row is a user-inserted narrative card, and EXACTLY one manga panel MUST exist per row, in the exact same order.
+        Time ordered evidence is JSON. Every row is ONE VIDEO SCENE with one or more user-inserted cards combined. Produce EXACTLY ONE manga panel per SCENE (row), in the exact same order. Multiple directions in combinedDirections MUST be BLENDED into that same panel, NEVER drawn as separate repeated panels.
         Invent reasonable connective thoughts, character motivations and dramatic actions when needed to make a coherent manga, but stay consistent with observed location, protagonists and video speech. This is an adaptation, not a documentary.
-        Each card's "role" controls the story beat: introduce -> setup -> action -> reaction -> resolution. A reaction must answer the preceding event; a conclusion should pay off an earlier setup. No unrelated repeated portraits.
+        Each scene's card or combination controls the story beat: introduce -> setup -> action -> reaction -> resolution. A reaction must answer the preceding event; a conclusion should pay off an earlier setup. If a scene combines DRAMATIC + HORROR, make the SAME image both dramatically cinematic AND visibly frightening (e.g. anxious faces, dramatic shadows), not two almost-identical portraits. Each panel must add new meaningful story information, avoid recycled pictures or captions.
         Prefer the user's written notes/dialogue and recognizable video events. Visual classifiers are uncertain English tags, not hard facts. Never invent quoted spoken words and claim they were heard.
         Draft cohesive character/place continuity across ALL panels. Captions and dialogue MUST be natural Japanese (not romaji, symbols or nonsense), short enough for a speech bubble. imagePrompt/scene/transition must be succinct descriptive ENGLISH for an image-generation model.
         Return ONLY a JSON object with these exact keys:
