@@ -125,7 +125,10 @@ struct CloudflareAIService {
             "ABSOLUTELY NO TEXT of ANY language, NO WORDS, NO KANJI, NO GIBBERISH GLYPHS, NO CAPTIONS, NO WATERMARKS, NO speech balloons. The app typeset Japanese speech and captions after generation."
         ].joined(separator:" ")
         var form=FormDataBuilder()
-        form.add(name:"prompt",value:String(prompt.prefix(2400)))
+        // Keep the text-exclusion rule intact even when a long screenplay
+        // causes the descriptive portion to be truncated.
+        let neverText="ABSOLUTELY NO WORDS OR LETTERS OR JAPANESE CHARACTERS OR FAKE WRITING IN THE PICTURE. APP WILL TYPESET ALL JAPANESE CAPTIONS AND SPEECH."
+        form.add(name:"prompt",value:String(prompt.prefix(2400))+" "+neverText)
         form.add(name:"width",value:String(width))
         form.add(name:"height",value:String(height))
         form.add(name:"seed",value:String(seed))
