@@ -18,7 +18,21 @@ enum MangaSceneObservation {
                     .filter{$0.confidence >= 0.16}
                     .prefix(5)
                     .map{$0.identifier}
-                return labels.isEmpty ? "映像の内容を分類できません" : labels.joined(separator:", ")
+                // Original videos often have subtitles or on-screen context
+                // absent from still-image classification; read this Japanese
+                // text locally and give it to the storyline model as evidence.
+                let textRequest=VNRecognizeTextRequest()
+                textRequest.recognitionLevel = .accurate
+                textRequest.usesLanguageCorrection = true
+                textRequest.recognitionLanguages = ["ja-JP","en-US"]
+                try? VNImageRequestHandler(cgImage:source,options:[:]).perform([textRequest])
+                let recognized=(textRequest.results ?? [])
+                    .compactMap{$0.topCandidates(1).first?.string}
+                    .filter{!$0.isEmpty}
+                    .prefix(3)
+                    .joined(separator:" / ")
+                let visual=labels.isEmpty ? "映像の分類情報なし" : labels.joined(separator:", ")
+                return recognized.isEmpty ? visual : visual + " / on-screen text: " + String(recognized.prefix(115))
             } catch {return "映像の分類に失敗"}
         }.value
     }
