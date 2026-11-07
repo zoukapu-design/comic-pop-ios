@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 python3 "$ROOT/tests/normalize_app_icon.py" "$ROOT/ios/COMICPOP/Assets.xcassets/AppIcon.appiconset/app-icon.png"
 BIN="$(mktemp)"
 trap 'rm -f "$BIN"' EXIT
-swiftc "$ROOT/ios/COMICPOP/Models.swift" "$ROOT/tests/modelTests.swift" -o "$BIN"
+swiftc "$ROOT/ios/COMICPOP/CardSceneGrouping.swift" "$ROOT/ios/COMICPOP/Models.swift" "$ROOT/tests/modelTests.swift" -o "$BIN"
 "$BIN" "$ROOT/ios/COMICPOP/Resources/cards.json"
 # Validate all-pin completion, ordering, and quota-safe recovery before iOS build.
 swiftc "$ROOT/ios/COMICPOP/GenerationIntegrity.swift" "$ROOT/tests/generationIntegrityTests.swift" -o "$BIN"
