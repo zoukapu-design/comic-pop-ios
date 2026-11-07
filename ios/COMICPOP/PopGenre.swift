@@ -98,9 +98,19 @@ struct PopGenreScreen: View {
                             .font(.system(size:10)).foregroundStyle(PopColor.ink.opacity(0.75))
                     }
                 }
-                PopYellowButton(title:"この画風で漫画を作る",icon:"movieclapper.fill",
-                                enabled:!store.isGenerating && !store.data.pins.isEmpty) {
-                    askGeneration=true
+                if store.storyboardReady {
+                    PopStoryboardDraft(store:store) {
+                        Task {
+                            await store.generate()
+                            if !store.pageImages.isEmpty {review()}
+                        }
+                    }
+                } else {
+                    PopYellowButton(title:"この画風で漫画を作る",
+                                    icon:"movieclapper.fill",
+                                    enabled:!store.isGenerating && !store.data.pins.isEmpty) {
+                        askGeneration=true
+                    }
                 }
                 if store.isGenerating {
                     VStack(alignment:.leading,spacing:8) {
@@ -134,19 +144,18 @@ struct PopGenreScreen: View {
                     if !store.pageImages.isEmpty {review()}
                 }
             }
-            Button("Cloudflare AIで漫画化（自分の無料枠）") {
+            Button("Cloudflare AI：まず脚本を確認してから漫画化") {
                 guard store.tokenExists && store.confirmsFree else {
                     openSettings()
                     return
                 }
                 Task {
-                    await store.generate()
-                    if !store.pageImages.isEmpty {review()}
+                    await store.prepareStoryboard()
                 }
             }
             Button("キャンセル",role:.cancel) {}
         } message: {
-            Text("AIモードは同じ場面の複数カードを合成し、全シーンを一つの物語として構成します。高品質映像理解ONでは動画から選んだ場面の一覧画像をCloudflare AIへ送信します。脚本AI1回＋シーン数分の画像AIを利用します（非対応時の脚本再試行で増える場合あり）。無料枠を消費します。端末内モードは画像送信なしです。")
+            Text("AIモードはまず動画と複合カードから脚本を生成し、画面で確認・セリフ修正してから、別操作で漫画の絵を生成します。高品質映像理解ONでは選んだ場面の一覧画像をCloudflareへ送信します。脚本AI＋シーン数分の画像AI利用枠を消費し、非対応時の脚本再試行で増える場合があります。端末内モードは画像送信なしです。")
         }
     }
 
