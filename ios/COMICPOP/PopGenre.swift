@@ -7,6 +7,7 @@ struct PopGenreScreen: View {
     var review: () -> Void
     var openSettings: () -> Void
     @State private var askGeneration = false
+    @AppStorage("pop.story.useVoice") private var useVoice = false
     @AppStorage("pop.hint.character") private var characterHint = true
     @AppStorage("pop.hint.palette") private var paletteHint = true
     @AppStorage("pop.hint.scene") private var sceneHint = false
@@ -80,7 +81,14 @@ struct PopGenreScreen: View {
                             .font(.system(size:12))
                         }
                         .foregroundStyle(PopColor.ink)
-                        Text("※チェックはAIへの画風指示です。人物一致や場面理解を保証するものではありません。")
+                        VStack(alignment:.leading,spacing:5) {
+                            Toggle("動画の日本語音声も物語に使う",isOn:$useVoice)
+                                .font(.system(size:12,weight:.bold))
+                                .tint(PopColor.blue)
+                            Text("オンの場合、端末内の日本語音声認識の許可を求めます。音声認識不可でも動画の場面・カード・入力したメモから脚本を作ります。")
+                                .font(.system(size:10))
+                        }
+                        Text("※AI生成は先に全カードから一つのストーリーを組み立て、それに沿って各コマを描きます。設定は人物一致などを保証するものではありません。")
                             .font(.system(size:10)).foregroundStyle(PopColor.ink.opacity(0.75))
                     }
                 }
