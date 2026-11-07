@@ -100,7 +100,7 @@ struct PopGenreScreen: View {
                     VStack(alignment:.leading,spacing:8) {
                         HStack(spacing:8) {
                             ProgressView().tint(PopColor.yellow)
-                            Text("漫画を生成中：\(store.generated.count)/\(store.data.pins.count) コマ")
+                            Text("漫画を生成中：\(store.generated.count)/\(store.scenePlan.renderedPanelCount) シーン")
                                 .font(.system(size:13,weight:.black,design:.rounded))
                         }
                         Text(store.message)
@@ -115,7 +115,7 @@ struct PopGenreScreen: View {
                     .background(PopColor.navy.opacity(0.72),in:RoundedRectangle(cornerRadius:12))
                 } else {
                     Text(store.data.pins.isEmpty ? "編集画面でカードを刺すと生成できます。" :
-                         "挿入カード：\(store.data.pins.count)枚 → \(store.scenePlan.pages)ページ。無料おためし生成はアカウント不要です。")
+                         "カード\(store.data.pins.count)枚 → \(store.scenePlan.renderedPanelCount)シーン・\(store.scenePlan.pages)ページ。同じ場面の複数カードは演出を合成します。")
                         .font(.system(size:11,weight:.medium)).foregroundStyle(.white)
                 }
             }
@@ -140,7 +140,7 @@ struct PopGenreScreen: View {
             }
             Button("キャンセル",role:.cancel) {}
         } message: {
-            Text("AIモードはまず全カードの脚本を1回生成し、次にカード枚数分の画像を作ります。選択動画のコマ画像と脚本素材をあなた自身のCloudflare APIへ送信し、無料枠を消費します。端末内モードは画像送信なしの簡易版です。")
+            Text("AIモードは同じ場面のカードを組み合わせて脚本を作り、シーン数分の画像を作ります。選択動画のコマ画像と脚本素材をあなた自身のCloudflare APIへ送信し、無料枠を消費します。端末内モードは画像送信なしの簡易版です。")
         }
     }
 
