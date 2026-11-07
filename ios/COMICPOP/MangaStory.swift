@@ -54,6 +54,7 @@ enum MangaStoryPlanner {
         case "idea", "reveal": return "気付き：前の情報を新しい発見につなぐ"
         case "sad", "taste": return "感情：人物が出来事を受け止める"
         case "large", "foodzoom": return "見せ場：重要な物や動作を大きく描く"
+        case "horror", "fear": return "恐怖：人物の表情・不穏な照明・緊迫した空気を作る"
         case "punch", "ending": return "オチ・結末：展開を回収して閉じる"
         default: return "前後の場面がつながる一幕"
         }
@@ -69,7 +70,7 @@ enum MangaStoryPlanner {
             else {caption=["そのとき、思わぬ展開が。","けれど、まだ終わらない。","次の瞬間、状況が動いた。"][index%3]}
             return MangaStoryBeat(id:e.pinID,index:index+1,caption:caption,
                 dialogue:clip(e.userDialogue,35),scene:role(for:e.cardID),
-                imagePrompt:"Keep the same protagonists and setting. Story role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
+                imagePrompt:"Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
                 transition:index==0 ? "Opening" : "Continue directly from preceding panel")
         }
         return MangaStoryPlan(title:"動画から生まれた物語",premise:"カードから組み立てた仮の構成",beats:beats,isAIStory:false)
@@ -105,6 +106,7 @@ enum MangaStoryPlanner {
         let rows=evidence.enumerated().map { index,e in
             ["index":String(index+1),"time":String(format:"%.1f",e.seconds),
              "card":e.cardTitle,"role":role(for:e.cardID),
+             "combinedDirections":clip(e.cardHint,340),
              "image":clip(e.visual,140),"betweenFrames":clip(e.neighborVisual,130),
              "speech":clip(e.heard,180),"note":clip(e.userNote,160),
              "dialogue":clip(e.userDialogue,110)]
