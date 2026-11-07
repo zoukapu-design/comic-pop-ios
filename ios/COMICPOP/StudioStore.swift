@@ -667,21 +667,21 @@ struct PreviewPanel: Identifiable {
             message="未完成の漫画は保存できません。すべてのカードの生成を完了してください。"
             return false
         }
+        // Validate the ENTIRE manga before writing the first file. A failed
+        // second page can no longer leave a half-saved work on disk.
+        let encodedPages=pageImages.compactMap{$0.pngData()}
+        guard encodedPages.count==pageImages.count,
+              encodedPages.count==scenePlan.pages,
+              encodedPages.allSatisfy({!$0.isEmpty}) else {
+            message="漫画ページの生成数か画像データが不正です。生成結果を確認してください。"
+            return false
+        }
+        if let repeated=MangaPageIntegrity.firstDuplicatePage(encodedPages) {
+            message="\(repeated+1)ページ目が他のページと同じ内容です。生成を確認してから保存してください。"
+            return false
+        }
         var filenames:[String]=[]
-        var seenPageData=Set<Data>()
-        for (index,image) in pageImages.enumerated() {
-            guard let png=image.pngData() else {
-                for name in filenames {try? fm.removeItem(at:support.appendingPathComponent(name))}
-                message="漫画ページの変換に失敗しました";return false
-            }
-            // A formerly reported defect made different page numbers point at
-            // the exact same rendered content. Reject that as an incomplete
-            // manga instead of silently saving multiple identical pages.
-            guard seenPageData.insert(png).inserted else {
-                for name in filenames {try? fm.removeItem(at:support.appendingPathComponent(name))}
-                message="\(index+1)ページ目が別ページと完全に同じ画像です。ページを作り直してから保存してください。"
-                return false
-            }
+        for png in encodedPages {
             let name="comic-\(UUID().uuidString).png"
             do {try png.write(to:support.appendingPathComponent(name),options:.atomic);filenames.append(name)}
             catch {
