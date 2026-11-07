@@ -353,7 +353,9 @@ struct PreviewPanel: Identifiable {
                 }
                 storyPlan=plan
                 storySummary=plan.premise
-                storyCreationMode="カード＋動画＋音声からAIが物語を構成"
+                storyCreationMode=plan.usedVisualEvidence
+                    ? "選択した動画シーンを画像AIが理解し、カードと日本語音声で物語を構成"
+                    : "カード・字幕・日本語音声からAIが物語を構成（画像理解AIは未使用）"
             } catch {
                 clearGenerated()
                 message="脚本の生成に失敗しました。AI作画の無料枠はまだ使っていません：\(error.localizedDescription)"
