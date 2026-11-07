@@ -319,6 +319,7 @@ struct PopSavedConfirmation: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pdfURL:URL?
     @State private var showPDFShare=false
+    @State private var readingWork:SavedWork?
     private var saved: SavedWork? {store.data.works.first}
     var body: some View {
         ScrollView {
@@ -378,6 +379,12 @@ struct PopSavedConfirmation: View {
                     }
                     .buttonStyle(.plain)
                 }
+                if let saved {
+                    PopYellowButton(title:"完成した漫画を読む（全\(saved.files.count)ページ）",
+                                    icon:"book.closed.fill") {
+                        readingWork=saved
+                    }
+                }
                 PopYellowButton(title: "作品一覧で見る", icon: "books.vertical.fill") {
                     dismiss()
                     goToWorks()
@@ -401,6 +408,9 @@ struct PopSavedConfirmation: View {
         .presentationDragIndicator(.visible)
         .sheet(isPresented:$showPDFShare) {
             if let pdfURL {PopFileShareSheet(files:[pdfURL])}
+        }
+        .fullScreenCover(item:$readingWork) { work in
+            PopComicReader(store:store,work:work)
         }
     }
 }
