@@ -63,13 +63,19 @@ enum MangaSpeechEvidence {
         let request=SFSpeechURLRecognitionRequest(url:tmp)
         request.requiresOnDeviceRecognition=true
         request.shouldReportPartialResults=false
+        let gate=SpeechCompletionGate()
         return await withCheckedContinuation { continuation in
-            var done=false
-            _ = recognizer.recognitionTask(with:request) { result,error in
-                if !done && (result?.isFinal == true || error != nil) {
-                    done=true
-                    continuation.resume(returning:String((result?.bestTranscription.formattedString ?? "").prefix(140)))
+            let task=recognizer.recognitionTask(with:request) { result,error in
+                if result?.isFinal == true || error != nil {
+                    gate.finish(String((result?.bestTranscription.formattedString ?? "").prefix(140)),
+                                continuation:continuation)
                 }
+            }
+            // On some iOS builds the recognition callback never delivers a final
+            // result. A bounded timeout prevents one card from freezing manga creation.
+            DispatchQueue.global().asyncAfter(deadline:.now()+18) {
+                task.cancel()
+                gate.finish("",continuation:continuation)
             }
         }
     }
@@ -130,5 +136,17 @@ enum MangaStoryAIService {
         }
         guard let raw=decoded?.result?.response, !raw.isEmpty else {throw MangaStoryError.invalidJSON}
         return try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
+    }
+}
+
+private final class SpeechCompletionGate {
+    private let lock=NSLock()
+    private var completed=false
+    func finish(_ value:String,continuation:CheckedContinuation<String,Never>) {
+        lock.lock()
+        let first = !completed
+        if first {completed=true}
+        lock.unlock()
+        if first {continuation.resume(returning:value)}
     }
 }
