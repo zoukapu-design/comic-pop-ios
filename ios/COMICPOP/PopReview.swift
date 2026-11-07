@@ -63,6 +63,25 @@ struct PopReviewScreen: View {
                     comparison
                     panelChooser
                 }
+                if let firstRepeated=store.generated.first(where:{$0.warning != nil}) {
+                    PopSurface(accent:true) {
+                        VStack(alignment:.leading,spacing:8) {
+                            Label("似すぎたコマを検出しました",systemImage:"exclamationmark.triangle.fill")
+                                .font(.system(size:14,weight:.black,design:.rounded))
+                            Text(firstRepeated.warning ?? "前の場面とほぼ同じ画像です。")
+                                .font(.system(size:11))
+                            Text("別の場面なら「コマ単位で再生成」を選び、違う構図を試してください。自動で追加のAI利用枠は消費しません。")
+                                .font(.system(size:10))
+                            Button {
+                                selectedPanel=firstRepeated.id
+                            } label: {
+                                Label("このコマを選択",systemImage:"photo.on.rectangle")
+                                    .font(.system(size:12,weight:.heavy))
+                            }
+                            .buttonStyle(.borderedProminent).tint(PopColor.blue)
+                        }.foregroundStyle(PopColor.ink)
+                    }
+                }
                 if !store.pageImages.isEmpty {finishedPage}
                 if !store.hasCompleteComic {
                     PopSurface(accent:true) {
