@@ -13,6 +13,8 @@ struct PopComicReader: View {
     @State private var showShare = false
 
     private var total: Int {work.files.count}
+    private var expectedPages: Int {(work.sceneCount+3)/4}
+    private var missingSavedPages: Bool {total < expectedPages}
     private func image(at index: Int) -> UIImage? {
         guard work.files.indices.contains(index),
               let url=store.existingWorkURL(work.files[index]) else {return nil}
@@ -44,6 +46,15 @@ struct PopComicReader: View {
                 .padding(.horizontal,14).padding(.vertical,8)
                 .background(PopColor.paper)
 
+                if missingSavedPages {
+                    Label("この旧作品は保存済みのページが不足しています（\(total)/\(expectedPages)ページ）。不足ファイルは復元できないため、元動画から再生成してください。",
+                          systemImage:"exclamationmark.triangle.fill")
+                        .font(.system(size:11,weight:.medium))
+                        .foregroundStyle(PopColor.ink)
+                        .padding(8)
+                        .background(PopColor.yellow,in:RoundedRectangle(cornerRadius:10))
+                        .padding(.horizontal,10)
+                }
                 if total == 0 {
                     ContentUnavailableView("ページがありません",
                                            systemImage:"exclamationmark.triangle",
