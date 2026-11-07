@@ -28,6 +28,7 @@ struct MangaStoryPlan {
     let premise: String
     let beats: [MangaStoryBeat]
     let isAIStory: Bool
+    var usedVisualEvidence: Bool = false
 }
 
 private struct AIStoryDocument: Decodable {
