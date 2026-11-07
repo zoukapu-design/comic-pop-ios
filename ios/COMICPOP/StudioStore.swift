@@ -260,9 +260,20 @@ struct PreviewPanel: Identifiable {
                     neighbor=await MangaSceneObservation.describe(frame)
                 }
             }
-            let speech = speechEnabled
-                ? await MangaSpeechEvidence.around(video:movie,seconds:pin.seconds,duration:duration)
-                : ""
+            var speech = ""
+            if speechEnabled {
+                // Nearby pins share the same 10-second speech window. At most
+                // eight recognitions avoids excessive heat on older iPhones.
+                if pin.seconds - lastSpeechTime < 8 {
+                    speech = lastSpoken
+                } else if speechCalls < 8 {
+                    speech=await MangaSpeechEvidence.around(
+                        video:movie,seconds:pin.seconds,duration:duration)
+                    lastSpoken=speech
+                    lastSpeechTime=pin.seconds
+                    speechCalls+=1
+                }
+            }
             let card=card(for:pin)
             evidence.append(MangaStoryEvidence(
                 pinID:pin.id,seconds:pin.seconds,cardID:pin.cardID,
