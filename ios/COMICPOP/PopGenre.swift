@@ -8,6 +8,7 @@ struct PopGenreScreen: View {
     var openSettings: () -> Void
     @State private var askGeneration = false
     @AppStorage("pop.story.useVoice") private var useVoice = true
+    @AppStorage("pop.story.useVisualAI") private var useVisualAI = true
     @AppStorage("pop.hint.character") private var characterHint = true
     @AppStorage("pop.hint.palette") private var paletteHint = true
     @AppStorage("pop.hint.scene") private var sceneHint = false
@@ -82,6 +83,11 @@ struct PopGenreScreen: View {
                         }
                         .foregroundStyle(PopColor.ink)
                         VStack(alignment:.leading,spacing:5) {
+                            Toggle("動画のシーンをAIで理解して脚本に使う",isOn:$useVisualAI)
+                                .font(.system(size:12,weight:.bold))
+                                .tint(PopColor.blue)
+                            Text("AIモードでは、選んだ場面の一覧画像をあなたのCloudflare AIに送り、人物・行動・場面の流れを解釈します。非対応時は従来の文字情報から脚本を作ります。無料枠を使います。")
+                                .font(.system(size:10))
                             Toggle("動画の日本語音声も物語に使う",isOn:$useVoice)
                                 .font(.system(size:12,weight:.bold))
                                 .tint(PopColor.blue)
@@ -140,7 +146,7 @@ struct PopGenreScreen: View {
             }
             Button("キャンセル",role:.cancel) {}
         } message: {
-            Text("AIモードは同じ場面のカードを組み合わせて脚本を作り、シーン数分の画像を作ります。選択動画のコマ画像と脚本素材をあなた自身のCloudflare APIへ送信し、無料枠を消費します。端末内モードは画像送信なしの簡易版です。")
+            Text("AIモードは同じ場面の複数カードを合成し、全シーンを一つの物語として構成します。高品質映像理解ONでは動画から選んだ場面の一覧画像をCloudflare AIへ送信します。脚本AI1回＋シーン数分の画像AIを利用します（非対応時の脚本再試行で増える場合あり）。無料枠を消費します。端末内モードは画像送信なしです。")
         }
     }
 
