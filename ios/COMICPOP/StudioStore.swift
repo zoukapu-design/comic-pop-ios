@@ -242,6 +242,9 @@ struct PreviewPanel: Identifiable {
         if wantsSpeech && !speechEnabled {
             message="日本語音声認識は利用できないため、カードと映像から構成します"
         }
+        var lastSpoken = ""
+        var lastSpeechTime = -1000.0
+        var speechCalls = 0
         for (index,pin) in pins.enumerated() {
             guard let snap=snapshot(for:pin) else {throw MangaError.invalidImage}
             message="動画の展開とカードを分析中 \(index+1)/\(pins.count)"
