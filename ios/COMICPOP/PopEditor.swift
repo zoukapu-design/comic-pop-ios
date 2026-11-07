@@ -326,11 +326,22 @@ private struct PopAVPlayerSurface: UIViewRepresentable {
 }
 
 /// The frame strip is extracted from the actual selected video, not stock Rex art.
+/// Displays actual saved pin positions, not decorative icons. The yellow
+/// thumbnail ticks mark every stored pin; image-card markers group only pins
+/// which would overlap on a narrow phone.
 private struct PopTimeline: View {
-    @ObservedObject var store:StudioStore
-    @State private var frames:[UIImage?]=Array(repeating:nil,count:5)
-    var body:some View {
-        VStack(spacing:2) {
+    @ObservedObject var store: StudioStore
+    @State private var frames: [UIImage?] = Array(repeating:nil,count:5)
+    @State private var focusedPinID: UUID?
+    @State private var pendingCluster: TimelinePinCluster?
+
+    private var focusedPin: MangaPin? {
+        guard let focusedPinID else { return nil }
+        return store.data.pins.first(where: { $0.id == focusedPinID })
+    }
+
+    var body: some View {
+        VStack(spacing:5) {
             HStack {
                 Text(store.formatted(store.currentTime))
                 Spacer()
@@ -338,12 +349,18 @@ private struct PopTimeline: View {
             }
             .font(.system(size:10,weight:.bold,design:.monospaced))
             .foregroundStyle(.white)
+
             Slider(value:Binding(
                 get:{min(store.currentTime,max(0.01,store.duration))},
                 set:{store.scrub(to:$0)}
             ),in:0...max(0.01,store.duration))
                 .tint(PopColor.cyan)
                 .disabled(store.duration<=0)
+
+            if store.duration > 0 && !store.data.pins.isEmpty {
+                markerTrack
+            }
+
             GeometryReader { geo in
                 ZStack(alignment:.leading) {
                     HStack(spacing:2) {
@@ -352,22 +369,82 @@ private struct PopTimeline: View {
                                 if let img=frames[i] {
                                     Image(uiImage:img).resizable().scaledToFill()
                                 } else {
-                                    PopColor.royal.overlay(Image(systemName:"film").foregroundStyle(.white.opacity(0.27)))
+                                    PopColor.royal.overlay(
+                                        Image(systemName:"film").foregroundStyle(.white.opacity(0.27))
+                                    )
                                 }
                             }
                             .frame(width:(geo.size.width-8)/5,height:42)
                             .clipped().clipShape(RoundedRectangle(cornerRadius:5))
                         }
                     }
+
+                    // A thin tick marks EVERY individual card at its exact time,
+                    // even when the larger cards above are grouped for legibility.
                     ForEach(store.scenePlan.orderedPins) { pin in
-                        Rectangle().fill(PopColor.yellow).frame(width:2,height:42)
-                            .offset(x:CGFloat(pin.seconds/max(0.01,store.duration))*geo.size.width)
+                        Rectangle().fill(PopColor.yellow)
+                            .frame(width:2,height:42)
+                            .offset(x:CGFloat(max(0,min(1,pin.seconds/max(0.01,store.duration)))) *
+                                    max(0,geo.size.width-2))
                     }
-                    Rectangle().fill(PopColor.yellow).frame(width:3,height:46)
-                        .offset(x:CGFloat(store.currentTime/max(0.01,store.duration))*max(0,geo.size.width-3))
+                    Rectangle().fill(PopColor.yellow)
+                        .frame(width:3,height:46)
+                        .offset(x:CGFloat(max(0,min(1,store.currentTime/max(0.01,store.duration)))) *
+                                max(0,geo.size.width-3))
                 }
             }
             .frame(height:44)
+
+            if let pin=focusedPin {
+                HStack(spacing:6) {
+                    Image(systemName:"bookmark.fill").foregroundStyle(PopColor.yellow)
+                    Text("\(store.formatted(pin.seconds)) に「\(store.card(for:pin).title)」")
+                        .font(.system(size:11,weight:.heavy,design:.rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Spacer(minLength:4)
+                    Button {
+                        store.removePin(pin)
+                        focusedPinID = nil
+                    } label: {
+                        Label("削除",systemImage:"trash")
+                            .font(.system(size:11,weight:.bold))
+                    }
+                    .accessibilityLabel("\(store.card(for:pin).title) の挿入カードを削除")
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal,9).padding(.vertical,8)
+                .background(PopColor.navy.opacity(0.86),
+                            in:RoundedRectangle(cornerRadius:10))
+                .overlay(RoundedRectangle(cornerRadius:10)
+                    .stroke(PopColor.edge.opacity(0.8),lineWidth:1))
+            }
+        }
+        .confirmationDialog(
+            "この位置に挿入したカード",
+            isPresented:Binding(
+                get:{pendingCluster != nil},
+                set:{if !$0 {pendingCluster = nil}}
+            ),
+            titleVisibility:.visible
+        ) {
+            if let group=pendingCluster {
+                ForEach(group.points) { point in
+                    if let pin=store.data.pins.first(where:{$0.id == point.id}) {
+                        Button("\(store.formatted(pin.seconds)) · \(store.card(for:pin).title)") {
+                            jump(to:pin)
+                            pendingCluster = nil
+                        }
+                    }
+                }
+            }
+            Button("キャンセル",role:.cancel) {pendingCluster=nil}
+        } message: {
+            Text("見たいカードを選ぶと、挿入した動画の位置に移動します。")
+        }
+        .onChange(of:store.videoURL?.absoluteString) { _,_ in
+            focusedPinID = nil
+            pendingCluster = nil
         }
         .task(id:store.videoURL?.absoluteString ?? "-") {
             frames=Array(repeating:nil,count:5)
@@ -381,6 +458,97 @@ private struct PopTimeline: View {
                 result[i]=try? await VideoFrameService.frame(at:at,from:url)
             }
             if store.videoURL==url {frames=result}
+        }
+    }
+
+    private var markerTrack: some View {
+        GeometryReader { geo in
+            let points=store.scenePlan.orderedPins.map {
+                TimelinePinPoint(id:$0.id,seconds:$0.seconds)
+            }
+            let clusters=TimelinePinLayout.clusters(
+                points:points,duration:store.duration,width:Double(geo.size.width)
+            )
+
+            ZStack(alignment:.topLeading) {
+                ForEach(clusters) { group in
+                    if let first=group.points.first,
+                       let pin=store.data.pins.first(where:{$0.id == first.id}) {
+                        Button {
+                            if group.count == 1 {
+                                jump(to:pin)
+                            } else {
+                                pendingCluster = group
+                            }
+                        } label: {
+                            VStack(spacing:1) {
+                                ZStack(alignment:.topTrailing) {
+                                    PopArtwork(kind:.cards,index:artIndex(for:pin))
+                                        .frame(width:27,height:25)
+                                        .clipShape(RoundedRectangle(cornerRadius:5))
+                                    if group.count > 1 {
+                                        Text("\(group.count)")
+                                            .font(.system(size:9,weight:.black,design:.rounded))
+                                            .foregroundStyle(PopColor.ink)
+                                            .frame(minWidth:15,minHeight:15)
+                                            .background(PopColor.yellow,in:Circle())
+                                            .overlay(Circle().stroke(.white,lineWidth:1))
+                                            .offset(x:8,y:-4)
+                                    }
+                                }
+                                Text(group.count > 1
+                                     ? "\(group.count)枚"
+                                     : store.card(for:pin).title)
+                                    .font(.system(size:9,weight:.black,design:.rounded))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.65)
+                                    .foregroundStyle(PopColor.ink)
+                                    .frame(width:44)
+                                Image(systemName:"arrowtriangle.down.fill")
+                                    .font(.system(size:7,weight:.heavy))
+                                    .foregroundStyle(PopColor.yellow)
+                            }
+                            .padding(.top,3)
+                            .frame(width:48,height:50)
+                            .background(.white,in:RoundedRectangle(cornerRadius:9))
+                            .overlay(RoundedRectangle(cornerRadius:9)
+                                .stroke(focusedPinID == pin.id ? PopColor.yellow : PopColor.edge,
+                                        lineWidth:focusedPinID == pin.id ? 3 : 1.6))
+                            .shadow(color:PopColor.navy.opacity(0.3),radius:3,y:1)
+                        }
+                        .buttonStyle(.plain)
+                        .position(x:CGFloat(group.centerX),y:26)
+                        .accessibilityLabel(
+                            group.count > 1
+                                ? "\(store.formatted(pin.seconds)) 付近にカード\(group.count)枚。タップして選択"
+                                : "\(store.formatted(pin.seconds)) に\(store.card(for:pin).title)。タップで動画へ移動"
+                        )
+                        .accessibilityIdentifier("timelinePinMarker")
+                    }
+                }
+            }
+            .frame(height:52)
+        }
+        .frame(height:52)
+        .accessibilityIdentifier("timelineInsertedCardMarkers")
+    }
+
+    private func jump(to pin:MangaPin) {
+        store.scrub(to:pin.seconds)
+        focusedPinID=pin.id
+    }
+
+    private func artIndex(for pin:MangaPin)->Int {
+        switch pin.cardID {
+        case "intro":return 0
+        case "slow":return 1
+        case "dramatic":return 2
+        case "tsukkomi":return 3
+        case "idea":return 4
+        case "sad":return 5
+        case "large":return 6
+        case "punch", "ending":return 7
+        default:return max(0,store.card(for:pin).art) % 8
         }
     }
 }
