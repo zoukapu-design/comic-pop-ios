@@ -96,9 +96,9 @@ enum MangaStoryPlanner {
             let a=draft.panels[index-1], b=draft.panels[index]
             let sceneA=normalized(a.imagePrompt+" "+a.scene)
             let sceneB=normalized(b.imagePrompt+" "+b.scene)
-            let textA=normalized(a.caption+" "+a.dialogue)
-            let textB=normalized(b.caption+" "+b.dialogue)
-            if !sceneA.isEmpty && sceneA==sceneB && textA==textB {
+            // Two different captions do not make the same picture into a new
+            // scene. Require an action or composition change in the storyboard.
+            if !sceneA.isEmpty && sceneA==sceneB {
                 throw MangaStoryError.repetitiveScenes
             }
         }
