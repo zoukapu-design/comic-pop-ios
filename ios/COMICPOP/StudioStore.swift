@@ -310,6 +310,7 @@ struct PreviewPanel: Identifiable {
             return try await MangaStoryAIService.createPlan(
                 evidence:evidence,
                 frames:pins.compactMap{snapshot(for:$0)},
+                video:movie,duration:duration,
                 account:account,token:token
             )
         }
