@@ -85,7 +85,7 @@ struct CloudflareAIService {
         // Token validity is not a confirmation of the Workers Free plan or account permissions.
         return status.success == true && status.result?.status == "active"
     }
-    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="") async throws -> UIImage {
+    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="",previousDrawing:UIImage?=nil) async throws -> UIImage {
         guard let jpg=VideoFrameService.compactJPEG(image),jpg.count<700_000 else{throw MangaError.invalidImage}
         guard let url=accountURL(account),!token.isEmpty else{throw MangaError.credentialsMissing}
         let aspect=image.size.width/max(image.size.height,1)
@@ -117,7 +117,9 @@ struct CloudflareAIService {
             "Causal transition from prior panel: \(story?.transition ?? "continue preceding action").",
             "Keep principal characters visibly recognizable across adjacent panels: same face, hairstyle, clothing and accessories, and believable recurring locations.",
             "You MAY change camera angle, pose, expression, background detail and implied intermediate action to turn the scene into a compelling manga beat.",
-            "Use the input video frame as inspiration for character and setting, while the written storyboard governs narrative action.",
+            "Input image 0 is the CURRENT video reference: use its people, place and relevant action as the scene inspiration.",
+            "When image 1 is provided, it is the PREVIOUS FINISHED MANGA PANEL. Transfer ONLY character identity, clothing and drawing style from it; do NOT duplicate its pose, background composition or storyline beat.",
+            "The written storyboard governs the NEW action and camera angle in this panel. Let the comic progress rather than drawing two near-identical pictures.",
             "Express card emotion strongly in character posture and faces. A reaction must respond to the previous action; final panel should pay off earlier events.",
             MangaStyles.prompt(for:style),color,hints,
             "ABSOLUTELY NO TEXT of ANY language, NO WORDS, NO KANJI, NO GIBBERISH GLYPHS, NO CAPTIONS, NO WATERMARKS, NO speech balloons. The app typeset Japanese speech and captions after generation."
@@ -129,6 +131,11 @@ struct CloudflareAIService {
         form.add(name:"seed",value:String(seed))
         form.add(name:"guidance",value:"4.5")
         form.addJPEG(name:"input_image_0",bytes:jpg)
+        if let previousDrawing,
+           let continuityJPEG=VideoFrameService.compactJPEG(previousDrawing),
+           continuityJPEG.count<700_000 {
+            form.addJPEG(name:"input_image_1",bytes:continuityJPEG)
+        }
         form.finish()
         var request=URLRequest(url:url)
         request.httpMethod="POST"
