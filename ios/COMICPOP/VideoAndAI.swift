@@ -85,7 +85,7 @@ struct CloudflareAIService {
         // Token validity is not a confirmation of the Workers Free plan or account permissions.
         return status.success == true && status.result?.status == "active"
     }
-    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="",previousDrawing:UIImage?=nil) async throws -> UIImage {
+    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="",previousDrawing:UIImage?=nil,alternateComposition:Bool=false) async throws -> UIImage {
         guard let jpg=VideoFrameService.compactJPEG(image),jpg.count<700_000 else{throw MangaError.invalidImage}
         guard let url=accountURL(account),!token.isEmpty else{throw MangaError.credentialsMissing}
         let aspect=image.size.width/max(image.size.height,1)
@@ -107,8 +107,16 @@ struct CloudflareAIService {
         ].filter{!$0.isEmpty}.joined(separator:" ")
         // The pin is one dramatic beat in a whole chapter. The source frame is
         // visual evidence, not a command to copy the shot exactly.
+        let alternate=alternateComposition
+            ? "THIS IS A RETAKE BECAUSE THE LAST COMPOSITION WAS TOO SIMILAR. Use a very DIFFERENT camera distance and angle, clearer emotion and different character posing, while keeping story beats, characters and clothing consistent."
+            : "Produce a different meaningful event and camera framing from the preceding scene; never reuse its composition."
+        let combinedEmotion=card.title.contains("＋")
+            ? "CRITICAL: all emotional cards \(card.title) belong to ONE SAME VIDEO MOMENT. Blend ALL effects in ONE illustration. Dramatic + Horror means an ominous, high-stakes manga scene, NOT two pictures."
+            : "Express the requested narrative card naturally in this one illustration."
         let prompt=[
             "Original cinematic JAPANESE MANGA illustration from a continuous sequential story.",
+            combinedEmotion,alternate,
+            MangaStyles.prompt(for:style),color,
             "Make this panel advance the story. It is NOT a still-photo filter or documentary storyboard.",
             "Shared chapter premise: \(seriesPremise).",
             "Current storytelling role: \(card.title) / \(card.subtitle).",
@@ -121,7 +129,7 @@ struct CloudflareAIService {
             "When image 1 is provided, it is the PREVIOUS FINISHED MANGA PANEL. Transfer ONLY character identity, clothing and drawing style from it; do NOT duplicate its pose, background composition or storyline beat.",
             "The written storyboard governs the NEW action and camera angle in this panel. Let the comic progress rather than drawing two near-identical pictures.",
             "Express card emotion strongly in character posture and faces. A reaction must respond to the previous action; final panel should pay off earlier events.",
-            MangaStyles.prompt(for:style),color,hints,
+            hints,
             "ABSOLUTELY NO TEXT of ANY language, NO WORDS, NO KANJI, NO GIBBERISH GLYPHS, NO CAPTIONS, NO WATERMARKS, NO speech balloons. The app typeset Japanese speech and captions after generation."
         ].joined(separator:" ")
         var form=FormDataBuilder()
