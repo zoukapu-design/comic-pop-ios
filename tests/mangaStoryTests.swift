@@ -58,6 +58,22 @@ import Foundation
             preconditionFailure("duplicated adjacent panels must be rejected")
         } catch MangaStoryError.repetitiveScenes {}
         precondition(MangaStoryPlanner.role(for:"horror").contains("恐怖"))
+        // Combined cards are ONE story row with multiple directions.
+        let combined=MangaStoryEvidence(
+            pinID:UUID(),seconds:45,cardID:"dramatic",
+            cardTitle:"ドラマティック＋恐怖",
+            cardHint:"ドラマティック: 強い山場 | 恐怖: 恐ろしい反応",
+            visual:"person in a noodle kitchen",neighborVisual:"",
+            heard:"",userNote:"急に怖い出来事が発生",
+            userDialogue:"えっ、何！？"
+        )
+        let single=MangaStoryPlanner.fallback([combined])
+        precondition(single.beats.count==1)
+        precondition(single.beats[0].imagePrompt.contains("ドラマティック"))
+        precondition(single.beats[0].imagePrompt.contains("恐怖"))
+        precondition(single.beats[0].dialogue=="えっ、何！？")
+        precondition(MangaStoryPlanner.evidenceJSON([combined])
+                     .contains("combinedDirections"))
         let source=MangaStoryPlanner.evidenceJSON(inputs)
         precondition(source.contains("陶" ) == false || source.contains("card"))
         precondition(source.contains("粘土を回し始める"))
