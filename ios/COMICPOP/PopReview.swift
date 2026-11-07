@@ -10,6 +10,7 @@ struct PopReviewScreen: View {
     @State private var selectedPanel:UUID?
     @State private var fullScreen = false
     @State private var confirmRegenerate = false
+    @State private var editingLettering:PreviewPanel?
     @State private var contrast = 1.05
     @State private var brightness = 0.0
     @State private var saturation = 1.0
@@ -44,6 +45,21 @@ struct PopReviewScreen: View {
                     }
                 }
                 if !topPanels.isEmpty {
+                    if !store.storySummary.isEmpty {
+                        PopSurface {
+                            VStack(alignment:.leading,spacing:5) {
+                                Text("今回の漫画ストーリー")
+                                    .font(.system(size:13,weight:.black,design:.rounded))
+                                Text(store.storySummary)
+                                    .font(.system(size:12))
+                                Text(store.storyCreationMode)
+                                    .font(.system(size:10,weight:.medium))
+                                    .foregroundStyle(PopColor.royal)
+                            }
+                            .frame(maxWidth:.infinity,alignment:.leading)
+                            .foregroundStyle(PopColor.ink)
+                        }
+                    }
                     comparison
                     panelChooser
                 }
@@ -95,6 +111,9 @@ struct PopReviewScreen: View {
                         .padding().background(.black.opacity(0.6),in:Capsule())
                 }.padding()
             }
+        }
+        .sheet(item:$editingLettering) { panel in
+            PopPanelLetteringSheet(store:store,panel:panel)
         }
         .confirmationDialog("選んだコマを再生成しますか？",isPresented:$confirmRegenerate) {
             Button(store.generatedOffline ? "端末内で再加工" : "Cloudflare AIで再生成") {
@@ -283,6 +302,20 @@ struct PopReviewScreen: View {
             control("明るさ",value:$brightness,range:(-0.2)...0.2,format:{Int(($0+0.2)*250)})
             control("彩度",value:$saturation,range:0.0...1.6,format:{Int($0*100)})
             control("輪郭強調",value:$sharpness,range:0.0...1.5,format:{Int($0*100)})
+            Button {if let panel=activePanel {editingLettering=panel}} label:{
+                VStack(spacing:2) {
+                    Image(systemName:"text.bubble.fill")
+                    Text("日本語の\nセリフを編集")
+                        .multilineTextAlignment(.center)
+                }
+                .font(.system(size:11,weight:.heavy,design:.rounded))
+                .foregroundStyle(PopColor.ink)
+                .frame(maxWidth:.infinity).padding(.vertical,7)
+                .background(.white,in:RoundedRectangle(cornerRadius:10))
+                .overlay(RoundedRectangle(cornerRadius:10)
+                    .stroke(PopColor.edge,lineWidth:1.5))
+            }
+            .disabled(store.isGenerating || activePanel == nil)
             Button {confirmRegenerate=true} label:{
                 VStack(spacing:2) {
                     Image(systemName:"arrow.clockwise")
