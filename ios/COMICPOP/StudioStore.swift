@@ -75,6 +75,8 @@ struct PreviewPanel: Identifiable {
     }
 
     init() {
+        // Story-aware generation uses audio when the user permits it.
+        UserDefaults.standard.register(defaults:["pop.story.useVoice":true])
         support = fm.urls(for:.applicationSupportDirectory,in:.userDomainMask)[0].appendingPathComponent("COMICPOP",isDirectory:true)
         try? fm.createDirectory(at:support,withIntermediateDirectories:true)
         let url=Bundle.main.url(forResource:"cards",withExtension:"json")
