@@ -43,6 +43,7 @@ targets:
           - UIInterfaceOrientationPortrait
         NSPhotoLibraryUsageDescription: 漫画化する動画を選択するために使用します。
         NSPhotoLibraryAddUsageDescription: 生成した漫画を保存するときに使用します。
+        NSSpeechRecognitionUsageDescription: 動画内の日本語のセリフを端末内で認識し、漫画のストーリー作りに役立てます。音声認識は任意です。
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
