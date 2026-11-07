@@ -19,6 +19,17 @@ finisher = (root / "ios/COMICPOP/PopPageFinisher.swift").read_text(encoding="utf
 assert "PopBrandHeader" in popui and "PopStepNavigation(stage:$stage)" in popui
 assert "PopEditorScreen" in popui and "PopGenreScreen" in popui and "PopReviewScreen" in popui
 assert "PopAVPlayerSurface(player:store.player)" in editor and "PopTimeline(store:store)" in editor
+# Every inserted card must appear at the correct time on the *live* editor bar.
+markers = (root / "ios/COMICPOP/TimelinePinLayout.swift").read_text(encoding="utf-8")
+assert 'timelineInsertedCardMarkers' in editor
+assert 'timelinePinMarker' in editor
+assert 'TimelinePinLayout.clusters' in editor and 'store.scenePlan.orderedPins.map' in editor
+assert 'store.scrub(to:pin.seconds)' in editor, "A marker must jump to its real video time"
+assert 'pendingCluster = group' in editor and 'group.count > 1' in editor
+assert 'group.points' in editor and 'MangaPin' in editor
+assert 'TimelinePinPoint' in markers and 'struct TimelinePinCluster' in markers
+assert 'pending.append(point)' in markers and 'centerX' in markers
+
 assert "await store.addPin(card:def)" in editor
 assert "ForEach(Array(ids.prefix(12)).indices" in editor
 assert '"マイデッキ"' in editor and '"お気に入り"' in editor and '"おすすめ"' in editor
