@@ -7,7 +7,7 @@ struct PopGenreScreen: View {
     var review: () -> Void
     var openSettings: () -> Void
     @State private var askGeneration = false
-    @AppStorage("pop.story.useVoice") private var useVoice = false
+    @AppStorage("pop.story.useVoice") private var useVoice = true
     @AppStorage("pop.hint.character") private var characterHint = true
     @AppStorage("pop.hint.palette") private var paletteHint = true
     @AppStorage("pop.hint.scene") private var sceneHint = false
