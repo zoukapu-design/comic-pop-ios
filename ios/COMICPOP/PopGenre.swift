@@ -140,7 +140,7 @@ struct PopGenreScreen: View {
             }
             Button("キャンセル",role:.cancel) {}
         } message: {
-            Text("端末内は画像送信なしの漫画調加工です。AI作画は選択した動画のコマ画像を利用者自身のCloudflare APIへ送信し、利用枠を消費します。")
+            Text("AIモードはまず全カードの脚本を1回生成し、次にカード枚数分の画像を作ります。選択動画のコマ画像と脚本素材をあなた自身のCloudflare APIへ送信し、無料枠を消費します。端末内モードは画像送信なしの簡易版です。")
         }
     }
 
