@@ -11,6 +11,9 @@ swiftc "$ROOT/ios/COMICPOP/CardSceneGrouping.swift" "$ROOT/ios/COMICPOP/Models.s
 # Validate all-pin completion, ordering, and quota-safe recovery before iOS build.
 swiftc "$ROOT/ios/COMICPOP/GenerationIntegrity.swift" "$ROOT/tests/generationIntegrityTests.swift" -o "$BIN"
 "$BIN"
+# Every stored comic page must have distinct nonempty PNG content.
+swiftc "$ROOT/ios/COMICPOP/MangaPageIntegrity.swift" "$ROOT/tests/mangaPageIntegrityTests.swift" -o "$BIN"
+"$BIN"
 # Pure-Foundation Cloudflare text envelope regression (no network and no credits).
 swiftc "$ROOT/ios/COMICPOP/CloudflareStoryResponse.swift" "$ROOT/tests/cloudflareStoryResponseTests.swift" -o "$BIN"
 "$BIN"
