@@ -106,7 +106,8 @@ enum MangaStoryAIService {
     private static let model="@cf/zai-org/glm-4.7-flash"
     private static let visualModel="@cf/meta/llama-4-scout-17b-16e-instruct"
     @MainActor static func createPlan(
-        evidence:[MangaStoryEvidence],frames:[UIImage],account:String,token:String
+        evidence:[MangaStoryEvidence],frames:[UIImage],
+        video:URL,duration:Double,account:String,token:String
     ) async throws -> MangaStoryPlan {
         guard account.count==32,
               account.utf8.allSatisfy({("0123456789abcdefABCDEF").utf8.contains($0)}),
@@ -116,6 +117,7 @@ enum MangaStoryAIService {
         }
         let prompt="""
         Produce a SINGLE COMPLETE Japanese manga STORY outline, not independent image descriptions.
+        The visual contact sheet (if present) shows THREE frames per story scene, one row per scene: BEFORE | CARD MOMENT | AFTER. Analyze actual action changes, not merely still-image labels. Keep the scene order unchanged.
         Time ordered evidence is JSON. Every row is ONE VIDEO SCENE with one or more user-inserted cards combined. Produce EXACTLY ONE manga panel per SCENE (row), in the exact same order. Multiple directions in combinedDirections MUST be BLENDED into that same panel, NEVER drawn as separate repeated panels.
         Invent reasonable connective thoughts, character motivations and dramatic actions when needed to make a coherent manga, but stay consistent with observed location, protagonists and video speech. This is an adaptation, not a documentary.
         Each scene's card or combination controls the story beat: introduce -> setup -> action -> reaction -> resolution. A reaction must answer the preceding event; a conclusion should pay off an earlier setup. If a scene combines DRAMATIC + HORROR, make the SAME image both dramatically cinematic AND visibly frightening (e.g. anxious faces, dramatic shadows), not two almost-identical portraits. Each panel must add new meaningful story information, avoid recycled pictures or captions.
@@ -131,18 +133,45 @@ enum MangaStoryAIService {
         // multimodal STORY call replaces the plain text-only story request.
         // If unsupported, transparently fall back to the previous GLM path.
         if UserDefaults.standard.object(forKey:"pop.story.useVisualAI") as? Bool != false,
-           frames.count==evidence.count,
-           let sheet=MangaSceneContactSheet.jpeg(from:frames) {
-            do {
-                return try await makeVisualStory(
-                    prompt:prompt, sheet:sheet, evidence:evidence,
-                    account:account,token:token
-                )
-            } catch MangaVisualStoryError.quota {
+           frames.count==evidence.count {
+            // Read motion around the pin time. The text-only fallback avoids
+            // any extra video analysis if the user disables visual AI.
+            var triples:[[UIImage]]=[]
+            for index in evidence.indices {
+                let now=evidence[index].seconds
+                let low=max(0,(index>0 ? evidence[index-1].seconds+0.2 : 0))
+                let high=max(now,min(duration-0.15,
+                    index+1<evidence.count ? evidence[index+1].seconds-0.2 : duration-0.15))
+                let beforeTime=max(low,now-2)
+                let afterTime=min(high,now+2)
+                let before:UIImage
+                let after:UIImage
+                if beforeTime < now-0.15 {
+                    before=(try? await VideoFrameService.frame(
+                        at:beforeTime,from:video)) ?? frames[index]
+                } else {
+                    before=frames[index]
+                }
+                if afterTime > now+0.15 {
+                    after=(try? await VideoFrameService.frame(
+                        at:afterTime,from:video)) ?? frames[index]
+                } else {
+                    after=frames[index]
+                }
+                triples.append([before,frames[index],after])
+            }
+            if let sheet=MangaSceneContactSheet.motionJPEG(from:triples) {
+                do {
+                    return try await makeVisualStory(
+                        prompt:prompt, sheet:sheet, evidence:evidence,
+                        account:account,token:token
+                    )
+                } catch MangaVisualStoryError.quota {
                 throw MangaError.server("Cloudflareの利用枠を確認してください。画像理解AIの呼出しで制限に達しました。")
-            } catch {
-                // Could be unsupported vision access or invalid structured
-                // response; the lower-cost GLM script remains available.
+                } catch {
+                    // Could be unsupported vision access or invalid structured
+                    // response; the lower-cost GLM script remains available.
+                }
             }
         }
         let body:[String:Any]=[
@@ -184,6 +213,7 @@ enum MangaStoryAIService {
             throw MangaVisualStoryError.unsupported
         }
         let imageURI="data:image/jpeg;base64,"+sheet.base64EncodedString()
+        // A contact-sheet row represents one user-selected scene and its motion.
         let body:[String:Any]=[
             "model":visualModel,
             "messages":[
