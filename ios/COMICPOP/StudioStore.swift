@@ -345,7 +345,8 @@ struct PreviewPanel: Identifiable {
                 let image=try await CloudflareAIService.redraw(
                     image:original,card:card,pin:pin,style:style,colorMode:colorMode,
                     account:account,token:token,seed:seed,
-                    story:beat,seriesPremise:storyPlan?.premise ?? ""
+                    story:beat,seriesPremise:storyPlan?.premise ?? "",
+                    previousDrawing:generated.last?.drawing
                 )
                 // An in-flight request must never revive old or differently styled results.
                 guard startingSession == videoSession && startingRevision == pinsRevision &&
@@ -502,7 +503,8 @@ struct PreviewPanel: Identifiable {
                     image:original,card:card(for:pin),pin:pin,style:style,colorMode:colorMode,
                     account:cloudflareAccount,token:token,seed:base+attempt*997,
                     story:storyPlan?.beats.first(where:{$0.id==id}),
-                    seriesPremise:storyPlan?.premise ?? ""
+                    seriesPremise:storyPlan?.premise ?? "",
+                    previousDrawing:index>0 ? generated[index-1].drawing : nil
                 )
             }
             guard startingSession==videoSession && startingRevision==pinsRevision &&
