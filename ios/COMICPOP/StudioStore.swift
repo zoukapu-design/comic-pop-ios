@@ -9,6 +9,10 @@ struct PreviewPanel: Identifiable {
     let original: UIImage
     var drawing: UIImage
     var warning: String?
+    var caption: String = ""
+    var dialogue: String = ""
+    var storyPrompt: String = ""
+    var storyScene: String = ""
 }
 
 @MainActor final class StudioStore: ObservableObject {
@@ -20,6 +24,8 @@ struct PreviewPanel: Identifiable {
     @Published var isGenerating = false
     @Published private(set) var isAddingPin = false
     @Published var message = "カードを刺して漫画を作ろう"
+    @Published private(set) var storySummary: String = ""
+    @Published private(set) var storyCreationMode: String = ""
     @Published var cloudflareAccount: String = UserDefaults.standard.string(forKey:"cfAccountId") ?? ""
     @Published var isConnected = false
     @Published var confirmsFree = false
@@ -36,6 +42,7 @@ struct PreviewPanel: Identifiable {
     private var generatedStyle: String?
     private var generatedColor: String?
     private var generatedMode: String?
+    private var storyPlan: MangaStoryPlan?
     private var finishingBase:[UUID:UIImage]=[:]
     private var panelRetryCount:[UUID:Int]=[:]
 
@@ -59,6 +66,7 @@ struct PreviewPanel: Identifiable {
     func clearGenerated() {
         generated = []; pageImages = []
         generatedStyle = nil; generatedColor = nil; generatedMode = nil
+        storyPlan = nil;storySummary = "";storyCreationMode = ""
         finishingBase.removeAll();panelRetryCount.removeAll()
     }
     func discardGenerated() {
@@ -194,6 +202,52 @@ struct PreviewPanel: Identifiable {
         } catch {message="接続失敗：\(error.localizedDescription)"}
     }
     func disconnect(){CloudflareCredentialVault.remove();isConnected=false;message="個人GPU接続を解除しました"}
+    /// Gather evidence around EACH timestamp and build ONE continuous script
+    /// before any cloud image calls. Existing user cards remain the story skeleton.
+    private func prepareStory(pins:[MangaPin],online:Bool,
+                              account:String,token:String) async throws -> MangaStoryPlan {
+        guard let movie=videoURL else {throw MangaError.noVideo}
+        var evidence:[MangaStoryEvidence]=[]
+        let wantsSpeech=UserDefaults.standard.bool(forKey:"pop.story.useVoice")
+        let speechEnabled=wantsSpeech ? await MangaSpeechEvidence.permission() : false
+        if wantsSpeech && !speechEnabled {
+            message="日本語音声認識は利用できないため、カードと映像から構成します"
+        }
+        for (index,pin) in pins.enumerated() {
+            guard let snap=snapshot(for:pin) else {throw MangaError.invalidImage}
+            message="動画の展開とカードを分析中 \(index+1)/\(pins.count)"
+            let visible=await MangaSceneObservation.describe(snap)
+            // One contextual midpoint helps distinguish an event transition
+            // from an isolated still frame, without processing the entire movie.
+            var neighbor=""
+            if index>0 {
+                let before=pins[index-1].seconds
+                let middle=(before+pin.seconds)*0.5
+                if pin.seconds-before>=1,
+                   let frame=try? await VideoFrameService.frame(at:middle,from:movie) {
+                    neighbor=await MangaSceneObservation.describe(frame)
+                }
+            }
+            let speech = speechEnabled
+                ? await MangaSpeechEvidence.around(video:movie,seconds:pin.seconds,duration:duration)
+                : ""
+            let card=card(for:pin)
+            evidence.append(MangaStoryEvidence(
+                pinID:pin.id,seconds:pin.seconds,cardID:pin.cardID,
+                cardTitle:card.title,cardHint:card.subtitle,visual:visible,
+                neighborVisual:neighbor,heard:speech,
+                userNote:pin.note,userDialogue:pin.dialogue
+            ))
+        }
+        if online {
+            message="カード全体から一つの漫画ストーリーを構成中…（個人のCloudflare枠）"
+            return try await MangaStoryAIService.createPlan(
+                evidence:evidence,account:account,token:token
+            )
+        }
+        return MangaStoryPlanner.fallback(evidence)
+    }
+
     func generate() async {
         guard !isGenerating else {return}
         guard videoURL != nil else {message="動画を選択してください";return}
