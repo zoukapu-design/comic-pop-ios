@@ -61,6 +61,17 @@ struct PreviewPanel: Identifiable {
             isGenerating: isGenerating
         )
     }
+    /// A screenplay is ready for review BEFORE paying for all image calls.
+    var storyboardReady: Bool {
+        generated.isEmpty && !isGenerating && generatedMode == "online" &&
+        generatedStyle == data.style && generatedColor == data.colorMode &&
+        storyPlan?.beats.map(\.id) == scenePlan.renderPins.map(\.id)
+    }
+    var storyboardBeats:[MangaStoryBeat] {
+        guard storyboardReady else {return []}
+        return storyPlan?.beats ?? []
+    }
+
     var generatedPanelCount: Int { generated.count }
     var generatedOffline: Bool { generatedMode == "offline" }
     func clearGenerated() {
@@ -320,6 +331,70 @@ struct PreviewPanel: Identifiable {
                              category:first.category,art:first.art,color:first.color)
     }
 
+    /// First step of AI creation: spend text/vision inference only, then
+    /// let the user review the coherent Japanese chapter BEFORE image calls.
+    func prepareStoryboard() async {
+        guard !isGenerating else {return}
+        guard videoURL != nil else {message="動画を選択してください";return}
+        guard generated.isEmpty else {
+            message="生成した絵を残すには先に作品として保存してください"
+            return
+        }
+        let pins=scenePlan.renderPins
+        guard !pins.isEmpty else {message="編集画面でカードを挿してください";return}
+        guard confirmsFree,let token=CloudflareCredentialVault.load(),
+              !cloudflareAccount.isEmpty else {
+            message="Cloudflareの無料枠を確認してAIアカウントを接続してください"
+            return
+        }
+        let capturedSession=videoSession
+        let capturedRevision=pinsRevision
+        let style=data.style,color=data.colorMode,account=cloudflareAccount
+        isGenerating=true
+        defer {isGenerating=false}
+        do {
+            let plan=try await prepareStory(pins:pins,online:true,account:account,token:token)
+            guard capturedSession == videoSession &&
+                  capturedRevision == pinsRevision &&
+                  data.style == style && data.colorMode == color else {
+                clearGenerated()
+                message="動画・カード・画風が変わったため、古い脚本は破棄しました"
+                return
+            }
+            storyPlan=plan
+            generatedStyle=style
+            generatedColor=color
+            generatedMode="online"
+            storySummary=plan.premise
+            storyCreationMode=plan.usedVisualEvidence
+                ? "動画の各シーンを画像AIが確認して脚本を作成"
+                : "カード・字幕・音声の文字情報から脚本を作成"
+            message="脚本ができました。各シーンの展開・日本語を確認し、納得してから作画してください。"
+        } catch {
+            message="脚本の作成に失敗しました。以前の脚本は残しました：\(error.localizedDescription)"
+        }
+    }
+
+    /// Only pre-render story text is editable here. Changes cannot silently
+    /// affect an already generated manga or incur extra Cloudflare quota.
+    func updateStoryboardBeat(_ id:UUID,caption:String,dialogue:String) {
+        guard !isGenerating,generated.isEmpty,let plan=storyPlan,
+              let index=plan.beats.firstIndex(where:{$0.id==id}) else {return}
+        var beats=plan.beats
+        let old=beats[index]
+        beats[index]=MangaStoryBeat(
+            id:old.id,index:old.index,
+            caption:String(caption.prefix(100)),
+            dialogue:String(dialogue.prefix(80)),
+            scene:old.scene,imagePrompt:old.imagePrompt,transition:old.transition
+        )
+        storyPlan=MangaStoryPlan(
+            title:plan.title,premise:plan.premise,beats:beats,
+            isAIStory:plan.isAIStory,usedVisualEvidence:plan.usedVisualEvidence
+        )
+        message="脚本の日本語を修正しました。画像生成の追加消費はありません。"
+    }
+
     func generate() async {
         guard !isGenerating else {return}
         guard videoURL != nil else {message="動画を選択してください";return}
@@ -339,7 +414,11 @@ struct PreviewPanel: Identifiable {
             sameStyle: generatedStyle == style, sameColor: generatedColor == colorMode
         ) && generatedMode == "online" &&
             storyPlan?.beats.map(\.id) == pins.map(\.id)
-        if !resumable {clearGenerated()}
+        let preparedDraft=generated.isEmpty &&
+            storyPlan?.beats.map(\.id)==pins.map(\.id) &&
+            generatedStyle==style && generatedColor==colorMode &&
+            generatedMode=="online"
+        if !resumable && !preparedDraft {clearGenerated()}
         generatedStyle=style;generatedColor=colorMode;generatedMode="online"
         isGenerating=true;pageImages=[]
         defer {isGenerating=false}
