@@ -103,5 +103,35 @@ assert "Cloudflare" in settings and "token" in settings
 assert "生成中：" in genre and "store.generated.count" in genre
 assert "panelChooser" in review and "修正するコマを選ぶ" in review
 assert not (root / "ios/COMICPOP/Assets.xcassets/EntireReferenceScreen.imageset").exists()
+
+# 2026-11-08: story must be planned before image calls, lettered by UIKit
+# and every SavedWork file must be reachable from an actual reading screen.
+story=(root / "ios/COMICPOP/MangaStory.swift").read_text(encoding="utf-8")
+observations=(root / "ios/COMICPOP/MangaStoryServices.swift").read_text(encoding="utf-8")
+lettering=(root / "ios/COMICPOP/ComicRenderer.swift").read_text(encoding="utf-8")
+reader=(root / "ios/COMICPOP/PopComicReader.swift").read_text(encoding="utf-8")
+story_forms=(root / "ios/COMICPOP/PopStoryEditing.swift").read_text(encoding="utf-8")
+ai=(root / "ios/COMICPOP/VideoAndAI.swift").read_text(encoding="utf-8")
+assert "MangaStoryPlanner.decodeAIStory" in observations
+assert "MangaStoryAIService.createPlan" in store
+assert "prepareStory(pins:pins,online:true" in store
+assert "CloudflareAIService.redraw(" in store and "story:beat" in store
+assert "story?.imagePrompt" in ai and "seriesPremise" in ai
+assert "absolute source of truth" not in ai
+assert "MangaSpeechEvidence" in observations and "requiresOnDeviceRecognition=true" in observations
+assert "VNRecognizeTextRequest" in observations and "ja-JP" in observations
+assert "pop.story.useVoice" in genre and "NSSpeechRecognitionUsageDescription" in project
+assert 'panel.caption' in lettering and 'panel.dialogue' in lettering
+assert "usesLineFragmentOrigin" in lettering and "Japanese" in lettering
+assert "PopPinStorySheet" in editor and "updatePinStory" in store
+assert "PopPanelLetteringSheet" in review and "updatePanelText" in store
+assert "PopComicReader(store:store,work:work)" in popui
+assert "fullScreenCover(item:$readingWork)" in popui
+assert "ForEach(0..<total,id:" in reader and "work.files.count" in reader
+assert "TabView(selection:$page)" in reader and "continuous" in reader
+assert "store.existingWorkURL(work.files[index])" in reader
+assert "mangaStoryTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
+
 print("PASS: Rex onboarding, video picker/confirm, pin guard, deck reorder, PDF share, generated-panel editing")
 print("PASS: MOVIKOMA 3 reference-faithful native screens, real Rex sprite assets and connected interactions")
