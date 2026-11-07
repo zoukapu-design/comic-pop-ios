@@ -74,15 +74,42 @@ enum MangaStyles {
     static func prompt(for id:String) -> String { all.first(where:{$0.id==id})?.prompt ?? all[0].prompt }
 }
 
+/// One comic scene may combine multiple narrative/emotion cards at one moment.
+struct ComicScene: Identifiable, Equatable {
+    let pins:[MangaPin]
+    var id:UUID {pins[0].id}
+    var lead:MangaPin {pins[0]}
+    var seconds:Double {pins[0].seconds}
+    var cardIDs:[String] {pins.map(\.cardID)}
+    var pinIDs:[UUID] {pins.map(\.id)}
+}
+
 struct ScenePlan: Equatable {
+    /// All inserted cards stay in their precise time order, including duplicates.
     let orderedPins: [MangaPin]
-    let pages: Int
-    let panelsPerPage: Int
-    init(pins: [MangaPin], panelsPerPage: Int = 4) {
-        self.panelsPerPage = max(1,panelsPerPage)
-        self.orderedPins = pins.enumerated().sorted { a,b in
-            a.element.seconds == b.element.seconds ? a.offset < b.offset : a.element.seconds < b.element.seconds
+    /// The actual drawing units. Multiple cards at the same moment are ONE unit.
+    let scenes:[ComicScene]
+    let pages:Int
+    let panelsPerPage:Int
+    var renderPins:[MangaPin] {scenes.map(\.lead)}
+    var renderedPanelCount:Int {scenes.count}
+    var combinedCardCount:Int {max(0,orderedPins.count-scenes.count)}
+
+    init(pins:[MangaPin],panelsPerPage:Int=4) {
+        self.panelsPerPage=max(1,panelsPerPage)
+        let sorted=pins.enumerated().sorted { a,b in
+            a.element.seconds == b.element.seconds
+                ? a.offset < b.offset
+                : a.element.seconds < b.element.seconds
         }.map(\.element)
-        self.pages = Int(ceil(Double(pins.count)/Double(self.panelsPerPage)))
+        orderedPins=sorted
+        let byID=Dictionary(uniqueKeysWithValues:sorted.map{($0.id,$0)})
+        let groups=CardSceneGrouping.groups(sorted.map{
+            TimedCardRef(id:$0.id,seconds:$0.seconds)
+        })
+        scenes=groups.map { ids in
+            ComicScene(pins:ids.compactMap{byID[$0]})
+        }.filter{!$0.pins.isEmpty}
+        pages=(scenes.count+self.panelsPerPage-1)/self.panelsPerPage
     }
 }
