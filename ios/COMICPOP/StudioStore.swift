@@ -160,6 +160,33 @@ struct PreviewPanel: Identifiable {
             message="\(formatted(seconds)) に「\(card.title)」を挿入しました"
         } catch {message="その場面を保存できませんでした：\(error.localizedDescription)"}
     }
+    /// User notes and dialogue are stronger evidence than automatically
+    /// inferred actions and are included in the whole-series story script.
+    func updatePinStory(_ id:UUID,note:String,dialogue:String) {
+        guard !isGenerating else {message="漫画生成中はカードを編集できません";return}
+        guard let index=data.pins.firstIndex(where:{$0.id==id}) else {return}
+        let cleanNote=String(note.prefix(260))
+        let cleanDialogue=String(dialogue.prefix(160))
+        guard data.pins[index].note != cleanNote ||
+              data.pins[index].dialogue != cleanDialogue else {return}
+        data.pins[index].note=cleanNote
+        data.pins[index].dialogue=cleanDialogue
+        pinsRevision=UUID()
+        clearGenerated()
+        persist()
+        message="カードの物語メモとセリフを保存しました"
+    }
+
+    /// Edits Japanese lettering without another paid image-generation call.
+    func updatePanelText(_ id:UUID,caption:String,dialogue:String) {
+        guard !isGenerating else {message="生成中はセリフを変更できません";return}
+        guard let index=generated.firstIndex(where:{$0.id==id}) else {return}
+        generated[index].caption=String(caption.prefix(100))
+        generated[index].dialogue=String(dialogue.prefix(80))
+        rebuildPages()
+        message="日本語のセリフ・ナレーションを修正しました"
+    }
+
     func removePin(_ pin:MangaPin){data.pins.removeAll{$0.id==pin.id};pinsResetEpoch=UUID();pinsRevision=UUID();try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile));clearGenerated();persist()}
     func clearPins(){pinsResetEpoch=UUID();pinsRevision=UUID();for p in data.pins {try? fm.removeItem(at:support.appendingPathComponent(p.snapshotFile))};data.pins=[];clearGenerated();persist()}
     func snapshot(for pin:MangaPin)->UIImage? {UIImage(contentsOfFile:support.appendingPathComponent(pin.snapshotFile).path)}
