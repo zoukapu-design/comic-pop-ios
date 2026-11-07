@@ -21,9 +21,9 @@ import Foundation
         precondition(!fallback.isAIStory)
         precondition(MangaStoryPlanner.role(for:"punch").contains("オチ"))
         let beats=(1...5).map { index in
-            ["index":index,"caption":"そんな中、展開が変わった。",
-             "dialogue":"これはどうなる？","scene":"pottery studio",
-             "imagePrompt":"draw the pottery scene with rising tension",
+            ["index":index,"caption":"そして展開が動いた\(index)。",
+             "dialogue":"これはどうなる？","scene":"pottery studio beat \(index)",
+             "imagePrompt":"draw the pottery scene moment \(index), changing camera distance",
              "transition":"this follows the previous action"] as [String:Any]
         }
         let json=try JSONSerialization.data(withJSONObject:["title":"陶芸初挑戦","premise":"最初は順調だったが、最後に大逆転が待っていた。","panels":beats])
@@ -41,6 +41,23 @@ import Foundation
            _=try MangaStoryPlanner.decodeAIStory(String(decoding:missing,as:UTF8.self),evidence:inputs)
            preconditionFailure("missing beat cannot be accepted")
         } catch MangaStoryError.missingPanels {}
+        // An AI text model that repeats identical actions and narration for
+        // consecutive scenes must be rejected before wasting image GPU quota.
+        let repeated=try JSONSerialization.data(withJSONObject:[
+            "title":"陶芸の物語","premise":"成長する物語",
+            "panels":(1...5).map { index in
+                ["index":index,"caption":"毎回まったく同じ展開。",
+                 "dialogue":"同じセリフ","scene":"same repeated pose",
+                 "imagePrompt":"exact same repeated image",
+                 "transition":"none"] as [String:Any]
+            }
+        ])
+        do {
+            _=try MangaStoryPlanner.decodeAIStory(
+                String(decoding:repeated,as:UTF8.self),evidence:inputs)
+            preconditionFailure("duplicated adjacent panels must be rejected")
+        } catch MangaStoryError.repetitiveScenes {}
+        precondition(MangaStoryPlanner.role(for:"horror").contains("恐怖"))
         let source=MangaStoryPlanner.evidenceJSON(inputs)
         precondition(source.contains("陶" ) == false || source.contains("card"))
         precondition(source.contains("粘土を回し始める"))
