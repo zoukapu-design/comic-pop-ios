@@ -1,0 +1,134 @@
+import AVFoundation
+import Foundation
+import Speech
+import UIKit
+import Vision
+
+/// Uses Apple's device-side Vision framework to identify visual context.
+/// This is evidence, not a caption that the model may treat as a certain fact.
+enum MangaSceneObservation {
+    static func describe(_ image: UIImage) async -> String {
+        await Task.detached(priority:.utility) {
+            guard let source=image.cgImage else {return "映像情報なし"}
+            let request=VNClassifyImageRequest()
+            request.usesCPUOnly=true
+            do {
+                try VNImageRequestHandler(cgImage:source,options:[:]).perform([request])
+                let labels=(request.results ?? [])
+                    .filter{$0.confidence >= 0.16}
+                    .prefix(5)
+                    .map{$0.identifier}
+                return labels.isEmpty ? "映像の内容を分類できません" : labels.joined(separator:", ")
+            } catch {return "映像の分類に失敗"}
+        }.value
+    }
+}
+
+/// Optional, on-device Japanese speech around user-inserted timestamps.
+/// No user audio is sent to Cloudflare or Apple servers by this service.
+enum MangaSpeechEvidence {
+    static func permission() async -> Bool {
+        let status=SFSpeechRecognizer.authorizationStatus()
+        if status == .authorized {return true}
+        if status == .denied || status == .restricted {return false}
+        return await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning:status == .authorized)
+            }
+        }
+    }
+
+    static func around(video:URL,seconds:Double,duration:Double) async -> String {
+        guard let recognizer=SFSpeechRecognizer(locale:Locale(identifier:"ja-JP")),
+              recognizer.supportsOnDeviceRecognition,recognizer.isAvailable else {return ""}
+        let start=max(0,seconds-5)
+        let length=max(0.1,min(10,max(0,duration-start)))
+        let tmp=FileManager.default.temporaryDirectory
+            .appendingPathComponent("movikoma-speech-\(UUID().uuidString).m4a")
+        defer {try? FileManager.default.removeItem(at:tmp)}
+        let asset=AVURLAsset(url:video)
+        guard let exporter=AVAssetExportSession(asset:asset,presetName:AVAssetExportPresetAppleM4A) else {
+            return ""
+        }
+        exporter.outputURL=tmp
+        exporter.outputFileType = .m4a
+        exporter.timeRange=CMTimeRange(start:CMTime(seconds:start,preferredTimescale:600),
+                                        duration:CMTime(seconds:length,preferredTimescale:600))
+        let exported=await withCheckedContinuation { (continuation:CheckedContinuation<Bool,Never>) in
+            exporter.exportAsynchronously {
+                continuation.resume(returning:exporter.status == .completed)
+            }
+        }
+        guard exported else {return ""}
+        let request=SFSpeechURLRecognitionRequest(url:tmp)
+        request.requiresOnDeviceRecognition=true
+        request.shouldReportPartialResults=false
+        return await withCheckedContinuation { continuation in
+            var done=false
+            _ = recognizer.recognitionTask(with:request) { result,error in
+                if !done && (result?.isFinal == true || error != nil) {
+                    done=true
+                    continuation.resume(returning:String((result?.bestTranscription.formattedString ?? "").prefix(140)))
+                }
+            }
+        }
+    }
+}
+
+private struct MangaCloudflareStoryEnvelope: Decodable {
+    struct Result: Decodable {let response:String?}
+    struct Failure: Decodable {let code:Int?;let message:String?}
+    let success:Bool?
+    let result:Result?
+    let errors:[Failure]?
+}
+
+/// A single, whole-story text request BEFORE individual image generation.
+/// This is the user's own Workers AI account, under the same free-tier consent.
+enum MangaStoryAIService {
+    private static let model="@cf/zai-org/glm-4.7-flash"
+    static func createPlan(evidence:[MangaStoryEvidence],account:String,token:String) async throws -> MangaStoryPlan {
+        guard account.count==32,
+              account.utf8.allSatisfy({("0123456789abcdefABCDEF").utf8.contains($0)}),
+              !token.isEmpty else {throw MangaError.credentialsMissing}
+        guard let url=URL(string:"https://api.cloudflare.com/client/v4/accounts/\(account)/ai/run/\(model)") else {
+            throw MangaError.credentialsMissing
+        }
+        let prompt="""
+        Produce a SINGLE COMPLETE Japanese manga STORY outline, not independent image descriptions.
+        Time ordered evidence is JSON. Every row is a user-inserted narrative card, and EXACTLY one manga panel MUST exist per row, in the exact same order.
+        Invent reasonable connective thoughts, character motivations and dramatic actions when needed to make a coherent manga, but stay consistent with observed location, protagonists and video speech. This is an adaptation, not a documentary.
+        Each card's "role" controls the story beat: introduce -> setup -> action -> reaction -> resolution. A reaction must answer the preceding event; a conclusion should pay off an earlier setup. No unrelated repeated portraits.
+        Prefer the user's written notes/dialogue and recognizable video events. Visual classifiers are uncertain English tags, not hard facts. Never invent quoted spoken words and claim they were heard.
+        Draft cohesive character/place continuity across ALL panels. Captions and dialogue MUST be natural Japanese (not romaji, symbols or nonsense), short enough for a speech bubble. imagePrompt/scene/transition must be succinct descriptive ENGLISH for an image-generation model.
+        Return ONLY a JSON object with these exact keys:
+        {"title":"日本語タイトル","premise":"日本語で全体の物語を一文","panels":[{"index":1,"caption":"短い日本語ナレーション","dialogue":"自然な日本語の一言、または空文字列","scene":"English scene summary","imagePrompt":"English detailed new manga illustration with coherent characters, location, action, expression, composition","transition":"English causal connection from prior panel"}]}
+        Do not omit any index. No markdown. Do not insert captions into imagePrompt.
+        EVIDENCE:\n\(MangaStoryPlanner.evidenceJSON(evidence))
+        """
+        let body:[String:Any]=[
+            "messages":[
+                ["role":"system","content":"You are a professional Japanese manga writer and storyboard artist. Output valid JSON and coherent Japanese captions only."],
+                ["role":"user","content":prompt]
+            ],
+            "temperature":0.5,
+            "max_completion_tokens":3200,
+            "stream":false
+        ]
+        var request=URLRequest(url:url)
+        request.httpMethod="POST"
+        request.timeoutInterval=90
+        request.setValue("Bearer \(token)",forHTTPHeaderField:"Authorization")
+        request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+        request.httpBody=try JSONSerialization.data(withJSONObject:body)
+        let (data,response)=try await URLSession.shared.data(for:request)
+        guard let http=response as? HTTPURLResponse else {throw MangaError.badResponse}
+        let decoded=try? JSONDecoder().decode(MangaCloudflareStoryEnvelope.self,from:data)
+        guard (200...299).contains(http.statusCode) else {
+            let detail=decoded?.errors?.first?.message ?? "脚本生成APIを確認してください"
+            throw MangaError.server("ストーリー作成に失敗：\(detail)（HTTP \(http.statusCode)）")
+        }
+        guard let raw=decoded?.result?.response, !raw.isEmpty else {throw MangaStoryError.invalidJSON}
+        return try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
+    }
+}
