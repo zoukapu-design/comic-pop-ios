@@ -84,11 +84,11 @@ enum ComicRenderer {
 
                 // Editorial beat chip remains separate from the narrative.
                 let chip=CGRect(x:slot.minX+11,y:slot.minY+10,
-                                width:min(slot.width-22,155),height:30)
+                                width:min(slot.width-22,max(155,CGFloat(panel.cardTitle.count)*16+55)),height:30)
                 let shape=UIBezierPath(roundedRect:chip,cornerRadius:7)
                 UIColor(red:1,green:0.86,blue:0.1,alpha:1).setFill()
                 shape.fill()
-                ("\(pageNumber == 1 ? index+1 : (pageNumber-1)*4+index+1) · \(panel.cardTitle)" as NSString)
+                ("\((pageNumber-1)*4+index+1) · \(panel.cardTitle)" as NSString)
                     .draw(in:chip.insetBy(dx:7,dy:4),withAttributes:[
                         .font:UIFont.boldSystemFont(ofSize:15),
                         .foregroundColor:UIColor.black
