@@ -12,6 +12,7 @@ struct PopEditorScreen: View {
     @State private var fullScreen = false
     @State private var showDeck = false
     @State private var showRemoveAll = false
+    @State private var editingPin:MangaPin?
     @State private var cardGroup: CardGroup = .recommended
     @State private var selectedID = "intro"
     @AppStorage("pop.favorite.cardIDs") private var favouriteValue = ""
@@ -58,6 +59,9 @@ struct PopEditorScreen: View {
             .padding(.horizontal,10).padding(.bottom,12)
         }
         .sheet(isPresented:$showDeck) { PopDeckSheet(store:store) }
+        .sheet(item:$editingPin) { pin in
+            PopPinStorySheet(store:store,pin:pin)
+        }
         .fullScreenCover(isPresented:$fullScreen) {
             ZStack(alignment:.topTrailing) {
                 Color.black.ignoresSafeArea()
@@ -269,6 +273,10 @@ struct PopEditorScreen: View {
                         Button {store.scrub(to:pin.seconds)} label:{
                             Image(systemName:"play.circle.fill")
                         }
+                        Button {editingPin=pin} label:{
+                            Image(systemName:"pencil.line")
+                        }
+                        .accessibilityLabel("カードのストーリーとセリフを指定")
                         Button(role:.destructive) {store.removePin(pin)} label:{
                             Image(systemName:"trash")
                         }
