@@ -498,7 +498,7 @@ private struct PopTimeline: View {
                                 }
                                 Text(group.count > 1
                                      ? "\(group.count)枚"
-                                     : store.card(for:pin).title)
+                                     : shortName(for:pin))
                                     .font(.system(size:9,weight:.black,design:.rounded))
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.65)
@@ -536,6 +536,18 @@ private struct PopTimeline: View {
     private func jump(to pin:MangaPin) {
         store.scrub(to:pin.seconds)
         focusedPinID=pin.id
+    }
+
+    /// The marker itself is intentionally short on iPhone; the full name is
+    /// available by tapping the marker or in the inserted-card list.
+    private func shortName(for pin:MangaPin) -> String {
+        switch pin.cardID {
+        case "dramatic":return "ドラマ"
+        case "tsukkomi":return "ツッコミ"
+        case "idea":return "ひらめき"
+        case "sad":return "しんみり"
+        default:return String(store.card(for:pin).title.prefix(4))
+        }
     }
 
     private func artIndex(for pin:MangaPin)->Int {
