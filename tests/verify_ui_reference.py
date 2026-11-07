@@ -172,7 +172,11 @@ assert "popStoryboardReviewBeforeDrawing" in draft
 assert "CloudflareStoryResponse.text(from:data)" in observations
 assert "choices" in response_parser and "response" in response_parser
 assert "cloudflareStoryResponseTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
-assert "seenPageData.insert(png).inserted" in store
+assert "MangaPageIntegrity.firstDuplicatePage(encodedPages)" in store
+assert "mangaPageIntegrityTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+assert "PopStoryboardDraft(store:store)" in genre
+assert "MangaSceneContactSheet.motionJPEG" in observations
+assert "video:movie,duration:duration" in store
 print("PASS: review Japanese manga screenplay before image quota, parse Cloudflare envelopes and reject duplicate saved pages")
 
 print("PASS: same-time cards combine into one comic scene, cinematic scene continuity and accurate paging")
