@@ -298,6 +298,7 @@ struct PopWorksSheet: View {
     @State private var pdfURL:URL?
     @State private var showPDFShare=false
     @State private var deleteID:UUID?
+    @State private var readingWork:SavedWork?
 
     var body:some View {
         NavigationStack {
@@ -334,11 +335,15 @@ struct PopWorksSheet: View {
                                 }
                                 .font(.system(size:11,weight:.medium))
                                 if let first=store.workImages(work).first {
-                                    Image(uiImage:first)
-                                        .resizable().scaledToFit()
-                                        .frame(maxWidth:.infinity)
-                                        .background(.white)
-                                        .overlay(Rectangle().stroke(PopColor.edge,lineWidth:1))
+                                    Button {readingWork=work} label: {
+                                        Image(uiImage:first)
+                                            .resizable().scaledToFit()
+                                            .frame(maxWidth:.infinity)
+                                            .background(.white)
+                                            .overlay(Rectangle().stroke(PopColor.edge,lineWidth:1))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("\(work.title)の漫画を最初から読む")
                                 }
                                 ScrollView(.horizontal,showsIndicators:false) {
                                     HStack(spacing:8) {
@@ -355,6 +360,10 @@ struct PopWorksSheet: View {
                                             }
                                         }
                                     }
+                                }
+                                PopYellowButton(title:"漫画を読む（全\(work.files.count)ページ）",
+                                                icon:"book.closed.fill") {
+                                    readingWork=work
                                 }
                                 HStack(spacing:9) {
                                     Button {
@@ -383,6 +392,9 @@ struct PopWorksSheet: View {
             .toolbar {ToolbarItem(placement:.topBarTrailing) {
                 Button("閉じる") {dismiss()}
             }}
+            .fullScreenCover(item:$readingWork) { work in
+                PopComicReader(store:store,work:work)
+            }
             .sheet(isPresented:$showPDFShare) {
                 if let pdfURL {PopFileShareSheet(files:[pdfURL])}
             }
