@@ -45,7 +45,7 @@ struct PopStoryboardDraft: View {
                                 .foregroundStyle(PopColor.ink)
                             Spacer()
                             Button {editingBeat=beat} label: {
-                                Label("セリフ修正",systemImage:"pencil")
+                                Label("シーン修正",systemImage:"pencil")
                                     .font(.system(size:10,weight:.bold))
                             }
                             .buttonStyle(.bordered)
@@ -61,6 +61,11 @@ struct PopStoryboardDraft: View {
                             }
                             .font(.system(size:12,weight:.semibold))
                             .foregroundStyle(PopColor.ink)
+                        }
+                        if !beat.userVisualDirection.isEmpty {
+                            Label("作画指示：\(beat.userVisualDirection)",systemImage:"paintbrush.fill")
+                                .font(.system(size:11,weight:.medium))
+                                .foregroundStyle(PopColor.royal)
                         }
                     }
                     .padding(10)
@@ -88,8 +93,9 @@ struct PopStoryboardDraft: View {
             }
         }
         .sheet(item:$editingBeat) { beat in
-            PopStoryboardTextEditor(beat:beat) { caption,dialogue in
-                store.updateStoryboardBeat(beat.id,caption:caption,dialogue:dialogue)
+            PopStoryboardTextEditor(beat:beat) { caption,dialogue,direction in
+                store.updateStoryboardBeat(beat.id,caption:caption,dialogue:dialogue,
+                                           visualDirection:direction)
             }
         }
         .confirmationDialog("脚本を再作成しますか？",
@@ -108,16 +114,18 @@ struct PopStoryboardDraft: View {
 
 private struct PopStoryboardTextEditor:View {
     let beat:MangaStoryBeat
-    let onSave:(String,String)->Void
+    let onSave:(String,String,String)->Void
     @Environment(\.dismiss) private var dismiss
     @State private var caption:String
     @State private var dialogue:String
+    @State private var visualDirection:String
 
-    init(beat:MangaStoryBeat,onSave:@escaping (String,String)->Void) {
+    init(beat:MangaStoryBeat,onSave:@escaping (String,String,String)->Void) {
         self.beat=beat
         self.onSave=onSave
         _caption=State(initialValue:beat.caption)
         _dialogue=State(initialValue:beat.dialogue)
+        _visualDirection=State(initialValue:beat.userVisualDirection)
     }
 
     var body:some View {
@@ -125,7 +133,7 @@ private struct PopStoryboardTextEditor:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:13) {
                     PopBlueTitle(icon:"text.bubble.fill",
-                                 title:"シーン\(beat.index)の日本語を修正")
+                                 title:"シーン\(beat.index)の展開とセリフを修正")
                     PopSurface {
                         VStack(alignment:.leading,spacing:10) {
                             Text("ナレーション").font(.system(size:13,weight:.black))
@@ -140,10 +148,19 @@ private struct PopStoryboardTextEditor:View {
                                 .scrollContentBackground(.hidden)
                                 .padding(6)
                                 .background(.white,in:RoundedRectangle(cornerRadius:9))
-                            Text("この修正で画像生成回数は増えません。登場人物の行動を変えたい場合は、編集画面のカードメモで指定してから脚本を作り直してください。")
+                            Text("このシーンで何が起きる？ どのように描いてほしい？")
+                                .font(.system(size:13,weight:.black))
+                            TextEditor(text:$visualDirection)
+                                .frame(minHeight:110)
+                                .scrollContentBackground(.hidden)
+                                .padding(6)
+                                .background(.white,in:RoundedRectangle(cornerRadius:9))
+                            Text("例：「そば打ちが失敗しそうになった瞬間。主人公の青ざめた顔を大きく、背景は不穏な集中線で。ドラマティックと恐怖を同時に表現」")
+                                .font(.system(size:11,weight:.medium))
+                            Text("この指示はAIの元の脚本より優先します。セリフと描画指示の編集だけなら画像生成回数は増えません。")
                                 .font(.system(size:11))
                             PopYellowButton(title:"脚本に反映",icon:"checkmark") {
-                                onSave(caption,dialogue)
+                                onSave(caption,dialogue,visualDirection)
                                 dismiss()
                             }
                         }
@@ -153,7 +170,7 @@ private struct PopStoryboardTextEditor:View {
                 .padding(12)
             }
             .background(PopBackground())
-            .navigationTitle("日本語の脚本を編集")
+            .navigationTitle("展開・日本語を編集")
             .toolbar {
                 ToolbarItem(placement:.topBarTrailing) {
                     Button("閉じる") {dismiss()}
