@@ -543,7 +543,8 @@ struct PreviewPanel: Identifiable {
             plotDescriptionJP:String(plotDescription.prefix(130)),
             userVisualDirection:String(visualDirection.prefix(320)),
             narrativeDutyJP:old.narrativeDutyJP,
-            causalLinkJP:old.index==1 ? "" : String(causalLink.prefix(110))
+            causalLinkJP:old.index==1 ? "" : String(causalLink.prefix(110)),
+            userSceneNoteJP:old.userSceneNoteJP
         )
         storyPlan=MangaStoryPlan(
             title:plan.title,premise:plan.premise,beats:beats,
