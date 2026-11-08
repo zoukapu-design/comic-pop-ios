@@ -189,6 +189,13 @@ assert "choices" in response_parser and "response" in response_parser
 assert "cloudflareStoryResponseTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "MangaPageIntegrity.firstDuplicatePage(encodedPages)" in store
 assert "MangaArtworkUniqueness.firstUnintendedDuplicate(visualComparisons)" in store
+assert "MangaArtworkUniqueness.firstUnintendedSimilarity(comparisons)" in store
+assert "private func refreshArtworkSimilarityWarnings()" in store
+assert "コマ\\(match.earlier+1)" in store
+assert store.count("refreshArtworkSimilarityWarnings()") >= 5
+artSimilarity=(root / "ios/COMICPOP/MangaArtworkUniqueness.swift").read_text(encoding="utf-8")
+assert "similarReviewThreshold" in artSimilarity
+assert "firstUnintendedSimilarity" in artSimilarity
 assert "mangaArtworkUniquenessTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert 'otherwise:source.userNote.isEmpty' in story
 assert "mangaPageIntegrityTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
