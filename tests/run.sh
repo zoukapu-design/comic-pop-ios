@@ -24,7 +24,9 @@ swiftc "$ROOT/ios/COMICPOP/TimelinePinLayout.swift" "$ROOT/tests/timelinePinLayo
 swiftc "$ROOT/ios/COMICPOP/MangaStoryQualityAudit.swift" "$ROOT/tests/mangaStoryQualityAuditTests.swift" -o "$BIN"
 "$BIN"
 # Verify exactly one story beat per inserted card and natural Japanese captions.
-swiftc "$ROOT/ios/COMICPOP/MangaStory.swift" "$ROOT/tests/mangaStoryTests.swift" -o "$BIN"
+swiftc "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" "$ROOT/tests/mangaStoryTests.swift" -o "$BIN"
+"$BIN"
+swiftc "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" "$ROOT/tests/mangaNarrativeDirectorTests.swift" -o "$BIN"
 "$BIN"
 for source in "$ROOT"/ios/COMICPOP/*.swift; do swiftc -frontend -parse "$source"; done
 python3 "$ROOT/tests/verify_sources.py"
