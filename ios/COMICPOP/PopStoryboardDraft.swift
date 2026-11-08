@@ -98,9 +98,9 @@ struct PopStoryboardDraft: View {
             }
         }
         .sheet(item:$editingBeat) { beat in
-            PopStoryboardTextEditor(beat:beat) { caption,dialogue,direction in
+            PopStoryboardTextEditor(beat:beat) { plot,caption,dialogue,direction in
                 store.updateStoryboardBeat(beat.id,caption:caption,dialogue:dialogue,
-                                           visualDirection:direction)
+                                           plotDescription:plot,visualDirection:direction)
             }
         }
         .confirmationDialog("脚本を再作成しますか？",
@@ -119,15 +119,17 @@ struct PopStoryboardDraft: View {
 
 private struct PopStoryboardTextEditor:View {
     let beat:MangaStoryBeat
-    let onSave:(String,String,String)->Void
+    let onSave:(String,String,String,String)->Void
     @Environment(\.dismiss) private var dismiss
+    @State private var plotDescription:String
     @State private var caption:String
     @State private var dialogue:String
     @State private var visualDirection:String
 
-    init(beat:MangaStoryBeat,onSave:@escaping (String,String,String)->Void) {
+    init(beat:MangaStoryBeat,onSave:@escaping (String,String,String,String)->Void) {
         self.beat=beat
         self.onSave=onSave
+        _plotDescription=State(initialValue:beat.plotDescriptionJP)
         _caption=State(initialValue:beat.caption)
         _dialogue=State(initialValue:beat.dialogue)
         _visualDirection=State(initialValue:beat.userVisualDirection)
@@ -141,6 +143,15 @@ private struct PopStoryboardTextEditor:View {
                                  title:"シーン\(beat.index)の展開とセリフを修正")
                     PopSurface {
                         VStack(alignment:.leading,spacing:10) {
+                            Text("このコマで起きる出来事（ストーリー）")
+                                .font(.system(size:13,weight:.black))
+                            TextEditor(text:$plotDescription)
+                                .frame(minHeight:100)
+                                .scrollContentBackground(.hidden)
+                                .padding(6)
+                                .background(.white,in:RoundedRectangle(cornerRadius:9))
+                            Text("セリフとは別に、人物の行動と事件の結果を具体的に記入してください。")
+                                .font(.system(size:11))
                             Text("ナレーション").font(.system(size:13,weight:.black))
                             TextEditor(text:$caption)
                                 .frame(minHeight:100)
@@ -165,7 +176,7 @@ private struct PopStoryboardTextEditor:View {
                             Text("この指示はAIの元の脚本より優先します。セリフと描画指示の編集だけなら画像生成回数は増えません。")
                                 .font(.system(size:11))
                             PopYellowButton(title:"脚本に反映",icon:"checkmark") {
-                                onSave(caption,dialogue,visualDirection)
+                                onSave(plotDescription,caption,dialogue,visualDirection)
                                 dismiss()
                             }
                         }
