@@ -15,6 +15,19 @@ import Foundation
         ]
         precondition(MangaArtworkUniqueness.firstUnintendedDuplicate(similar)==nil,
                      "Different compositions must not be hard-blocked")
+        let review=MangaArtworkUniqueness.firstUnintendedSimilarity(comparisons)
+        precondition(review?.earlier==0 && review?.later==4,
+                     "Panel 5 must warn if artwork resembles page 1")
+        precondition(MangaArtworkUniqueness.firstUnintendedSimilarity(similar)?.later==3,
+                     "Near-identical frames should warn without blocking the save")
+        let varied=[
+            MangaArtworkComparison(earlier:0,later:4,distance:0.17,intentionalReprise:false)
+        ]
+        precondition(MangaArtworkUniqueness.firstUnintendedSimilarity(varied)==nil,
+                     "Clearly different manga scenes must not be warned")
+        precondition(MangaArtworkUniqueness.firstUnintendedSimilarity([
+            MangaArtworkComparison(earlier:0,later:4,distance:0.0,intentionalReprise:true)
+        ])==nil,"Explicit flashbacks must remain allowed")
         let allowed=[
             MangaArtworkComparison(earlier:0,later:3,distance:0,intentionalReprise:true)
         ]
