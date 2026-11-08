@@ -276,12 +276,14 @@ struct PreviewPanel: Identifiable {
             return
         }
         guard data.style != style else {return}
-        data.style=style
+        var candidate=data
+        candidate.style=style
         // Preserve an explicit monochrome/colour choice when browsing genre cards.
         if !UserDefaults.standard.bool(forKey:"pop.userChoseColor") {
-            data.colorMode=MangaStyles.all.first(where:{$0.id==style})?.defaultColor ?? "mono"
+            candidate.colorMode=MangaStyles.all.first(where:{$0.id==style})?.defaultColor ?? "mono"
         }
-        clearGenerated();persist()
+        guard commit(candidate) else {return}
+        clearGenerated()
     }
     func updateColor(_ value:String) {
         guard !isGenerating else {
@@ -289,11 +291,25 @@ struct PreviewPanel: Identifiable {
             return
         }
         guard value=="mono" || value=="color" else {return}
+        guard data.colorMode != value else {
+            UserDefaults.standard.set(true,forKey:"pop.userChoseColor")
+            return
+        }
+        var candidate=data
+        candidate.colorMode=value
+        guard commit(candidate) else {return}
         UserDefaults.standard.set(true,forKey:"pop.userChoseColor")
-        guard data.colorMode != value else {return}
-        data.colorMode=value;clearGenerated();persist()
+        clearGenerated()
     }
-    func updateTitle(_ value:String){data.workTitle=value;titleDraft=value;persist()}
+    func updateTitle(_ value:String){
+        guard !isGenerating else {message="漫画生成中はタイトルを変更できません";return}
+        var candidate=data
+        candidate.workTitle=String(value.prefix(80))
+        guard commit(candidate) else {return}
+        titleDraft=data.workTitle
+        // Keep the title printed inside each page consistent with metadata.
+        if !generated.isEmpty {rebuildPages()}
+    }
     func selectDeck(_ id:UUID) {data.activeDeckID=id;persist()}
     func addDeck(name:String){guard data.decks.count<20 else {message="デッキは最大20個です";return};let deck=UserDeck(name:String(name.prefix(24)),cardIDs:[]);data.decks.append(deck);data.activeDeckID=deck.id;persist()}
     func renameDeck(_ id:UUID,to name:String){guard let i=data.decks.firstIndex(where:{$0.id==id}) else {return};data.decks[i].name=String(name.prefix(24));persist()}
@@ -419,6 +435,10 @@ struct PreviewPanel: Identifiable {
             message="現在のAIモードは12シーンまでです（カードは統合前なら12枚を超えても構いません）。脚本生成前に場面を絞ってください。"
             return
         }
+        guard !storyboardReady else {
+            message="脚本は作成済みです。内容を確認してから作画してください。作り直す場合は生成結果をリセットしてください。"
+            return
+        }
         guard confirmsFree,let token=CloudflareCredentialVault.load(),
               !cloudflareAccount.isEmpty else {
             message="Cloudflareの無料枠を確認してAIアカウントを接続してください"
@@ -491,6 +511,13 @@ struct PreviewPanel: Identifiable {
         let style=data.style
         let colorMode=data.colorMode
         let account=cloudflareAccount
+        // Never start twelve paid image calls again on an already completed
+        // chapter. For a new full rendering, the user must explicitly reset.
+        guard !(hasCompleteComic && generatedMode == "online" &&
+                generatedStyle == style && generatedColor == colorMode) else {
+            message="AI漫画はすでに完成しています。修正したいコマだけ再生成するか、生成結果を明示的にリセットしてください。"
+            return
+        }
         // Only skip previously completed panels when ALL of their pin IDs and
         // generation settings still match. Do not spend free quota twice on success.
         let resumable = GenerationIntegrity.canResume(
