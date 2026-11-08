@@ -125,14 +125,24 @@ enum MangaStoryPlanner {
         let beats=zip(draft.panels,evidence).enumerated().map { index,pair -> MangaStoryBeat in
             let (line,source)=pair
             let standard=backup.beats[index]
+            // Rejecting pseudo-Japanese must never silently replace it with
+            // an unrelated dramatic cliché that was not observed in the video.
+            // Keep trusted user notes / recognized speech when available;
+            // otherwise leave text empty for the storyboard review.
+            let trustedCaption = !source.userNote.isEmpty
+                ? clip(source.userNote,46)
+                : (!source.heard.isEmpty ? clip(source.heard,46) : "")
             return MangaStoryBeat(id:source.pinID,index:index+1,
-                caption:japanese(line.caption,otherwise:standard.caption,limit:46),
+                caption:japanese(line.caption,otherwise:trustedCaption,limit:46),
                 dialogue:!source.userDialogue.isEmpty ? clip(source.userDialogue,35) : japanese(line.dialogue,otherwise:"",limit:35),
                 scene:clip(line.scene,120).isEmpty ? standard.scene : clip(line.scene,120),
                 imagePrompt:"Shot \(index+1): \(shotHint(for:index)). "+(clip(line.imagePrompt,590).isEmpty ? standard.imagePrompt : clip(line.imagePrompt,590)),
                 transition:clip(line.transition,160),
-                plotDescriptionJP:japanese(line.plotDescriptionJP ?? "",
-                    otherwise:standard.plotDescriptionJP,limit:100),
+                plotDescriptionJP:japanese(
+                    line.plotDescriptionJP ?? "",
+                    otherwise:source.userNote.isEmpty
+                        ? "" : clip(source.userNote,100),
+                    limit:100),
                 narrativeDutyJP:cues[index].role.japanese,
                 causalLinkJP:index==0 ? "" : japanese(
                     line.causalLinkJP ?? "",otherwise:"",limit:110))
