@@ -173,6 +173,12 @@ struct PreviewPanel: Identifiable {
             let frame=try await VideoFrameService.frame(at:seconds,from:url)
             // A pending frame cannot add a stale pin to a new video or cleared session.
             guard capturedSession == videoSession && capturedReset == pinsResetEpoch else {return}
+            // Frame extraction can finish while the user starts AI generation.
+            // Do not append a late pin and invalidate already paid AI calls.
+            guard !isGenerating else {
+                message="漫画生成が始まったため、処理中のカード追加は見送りました。"
+                return
+            }
             guard data.pins.count < 12 else {message="カードは最大12枚です";return}
             guard let bytes=VideoFrameService.compactJPEG(frame) else {throw MangaError.invalidImage}
             let file="pin-\(UUID().uuidString).jpg"
