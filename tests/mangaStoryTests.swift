@@ -41,6 +41,14 @@ import Foundation
             cardHint:"緊張",visual:"unclassified frame",neighborVisual:"",
             heard:"",userNote:"",userDialogue:""
         )
+        let evidenceFree=MangaStoryPlanner.fallback([noEvidence])
+        precondition(evidenceFree.beats.count==1)
+        precondition(evidenceFree.beats[0].caption.isEmpty,
+                     "Offline manga must not invent narration without user notes or speech")
+        precondition(evidenceFree.beats[0].plotDescriptionJP.isEmpty,
+                     "Narrative duty is not factual evidence of an event")
+        precondition(evidenceFree.beats[0].narrativeDutyJP=="一場面の見せ場",
+                     "The emotional card still retains its stylistic intent")
         let missingPlotJSON=try JSONSerialization.data(withJSONObject:[
             "title":"出来事","premise":"緊張が走る",
             "panels":[[
