@@ -30,10 +30,29 @@ import Foundation
         ])
         precondition(noEnding.last?.role == .openEnding,
                      "Do not invent a successful ending from unobserved footage")
+        // Food/process clips need a real action arc, not generic emotions.
+        let cooking=[
+            evidence("challenge",0),
+            evidence("recipe",10),
+            evidence("failure",20),
+            evidence("reaction",30),
+            evidence("finishfood",40)
+        ]
+        let foodRoles=MangaNarrativeDirector.cues(for:cooking).map(\.role)
+        precondition(foodRoles==[.introduction,.development,.crisis,
+                                .reaction,.payoff])
+        let constraints=MangaNarrativeDirector.cues(for:[
+            evidence("intro",0),
+            evidence("exact",20,ids:["dramatic","exact","noextra","quote","must"])
+        ])
+        precondition(constraints[1].evidenceRestrictions.contains("勝手に追加しない"))
+        precondition(constraints[1].evidenceRestrictions.contains("引用セリフ"))
+        precondition(constraints[1].evidenceRestrictions.contains("必ず"))
         let json=MangaStoryPlanner.evidenceJSON(scenes)
         precondition(json.contains("storyFunction"))
         precondition(json.contains("connectionToPrevious"))
         precondition(json.contains("suggestedShot"))
+        precondition(json.contains("evidenceRestrictions"))
         precondition(json.contains("dramatic"))
         precondition(json.contains("horror"))
         let fallback=MangaStoryPlanner.fallback(scenes)
