@@ -85,7 +85,7 @@ enum MangaStoryPlanner {
             else {caption=["そのとき、思わぬ展開が。","けれど、まだ終わらない。","次の瞬間、状況が動いた。"][index%3]}
             return MangaStoryBeat(id:e.pinID,index:index+1,caption:caption,
                 dialogue:clip(e.userDialogue,35),scene:role(for:e.cardID),
-                imagePrompt:"Shot \(index+1): \(cue.role.imageComposition). \(shotHint(for:index)). Story duty: \(cue.role.narrativeRequirement). Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
+                imagePrompt:"Shot \(index+1): \(cue.role.imageComposition). \(shotHint(for:index)). Story duty: \(cue.role.narrativeRequirement). Constraints: \(cue.evidenceRestrictions). Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
                 transition:index==0 ? "Opening" : "Continue directly from preceding panel",
                 plotDescriptionJP:clip(e.userNote.isEmpty
                     ? cue.role.narrativeRequirement
@@ -154,6 +154,7 @@ enum MangaStoryPlanner {
                 "storyFunction":cue.role.rawValue,
                 "storyFunctionJP":cue.role.japanese,
                 "storyDuty":cue.role.narrativeRequirement,
+                "evidenceRestrictions":cue.evidenceRestrictions,
                 "connectionToPrevious":cue.causalDuty,
                 "suggestedShot":cue.role.imageComposition,
                 "isCombinedMoment":cue.isCombinedMoment,
