@@ -113,12 +113,13 @@ struct CloudflareAIService {
         let combinedEmotion=card.title.contains("＋")
             ? "CRITICAL: all emotional cards \(card.title) belong to ONE SAME VIDEO MOMENT. Blend ALL effects in ONE illustration. Dramatic + Horror means an ominous, high-stakes manga scene, NOT two pictures."
             : "Express the requested narrative card naturally in this one illustration."
+        let approvedDirection=story?.userVisualDirection ?? ""
         let prompt=[
             "Original cinematic JAPANESE MANGA illustration from a continuous sequential story.",
             combinedEmotion,alternate,
-            story?.userVisualDirection.isEmpty == false
-                ? "HIGHEST PRIORITY USER APPROVED ACTION/COMPOSITION: \(story!.userVisualDirection). Follow this as the intended plot action, emotion, shot angle and visual storytelling. The input photograph is only a visual reference."
-                : "",
+            approvedDirection.isEmpty
+                ? ""
+                : "HIGHEST PRIORITY USER APPROVED ACTION/COMPOSITION: \(approvedDirection). Follow this as the intended plot action, emotion, shot angle and visual storytelling. The input photograph is only a visual reference.",
             MangaStyles.prompt(for:style),color,
             "Make this panel advance the story. It is NOT a still-photo filter or documentary storyboard.",
             "Shared chapter premise: \(seriesPremise).",
