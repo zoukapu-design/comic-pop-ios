@@ -31,6 +31,9 @@ struct MangaStoryBeat: Identifiable {
     var narrativeDutyJP: String = ""
     /// How the event is caused by, or reacts to, the previous scene.
     var causalLinkJP: String = ""
+    /// Original user-authored card notes, separate from the AI's visible action.
+    /// Notes can express emotions/motives and must not be mislabelled as motion.
+    var userSceneNoteJP: String = ""
 }
 
 struct MangaStoryPlan {
@@ -93,7 +96,8 @@ enum MangaStoryPlanner {
                 // Keep the factual scene description empty without a note.
                 plotDescriptionJP:clip(e.userNote,100),
                 narrativeDutyJP:cue.role.japanese,
-                causalLinkJP:"")
+                causalLinkJP:"",
+                userSceneNoteJP:clip(e.userNote,160))
         }
         return MangaStoryPlan(title:"動画から生まれた物語",premise:"カードから組み立てた仮の構成",beats:beats,isAIStory:false)
     }
@@ -140,15 +144,18 @@ enum MangaStoryPlanner {
                 scene:clip(line.scene,120).isEmpty ? standard.scene : clip(line.scene,120),
                 imagePrompt:"Shot \(index+1): \(shotHint(for:index)). "+(clip(line.imagePrompt,590).isEmpty ? standard.imagePrompt : clip(line.imagePrompt,590)),
                 transition:clip(line.transition,160),
-                // The user's pinned description is a hard story constraint.
-                // An AI-generated, valid Japanese sentence may still contradict
-                // the actual event explicitly entered by the user.
-                plotDescriptionJP:source.userNote.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty
-                    ? japanese(line.plotDescriptionJP ?? "",otherwise:"",limit:100)
-                    : clip(source.userNote,100),
+                // AI describes visible action, while the user's card notes
+                // remain separate, higher-priority creative constraints.
+                // A note such as "怖い" is not a literal physical action.
+                plotDescriptionJP:japanese(
+                    line.plotDescriptionJP ?? "",
+                    otherwise:source.userNote.isEmpty
+                        ? "" : clip(source.userNote,100),
+                    limit:100),
                 narrativeDutyJP:cues[index].role.japanese,
                 causalLinkJP:index==0 ? "" : japanese(
-                    line.causalLinkJP ?? "",otherwise:"",limit:110))
+                    line.causalLinkJP ?? "",otherwise:"",limit:110),
+                userSceneNoteJP:clip(source.userNote,160))
         }
         return MangaStoryPlan(title:japanese(draft.title,otherwise:backup.title,limit:38),
             premise:japanese(draft.premise,otherwise:backup.premise,limit:145),beats:beats,isAIStory:true)
