@@ -9,7 +9,7 @@ enum MangaCardFusion {
             return "ONE SINGLE VIDEO MOMENT, ONE manga illustration. Blend DRAMATIC and HORROR: a high-stakes event, striking cinematic perspective, visible fear and ominous lighting. The same event must not become two near-identical panels."
         }
         if ids.count>1 {
-            return "ONE SINGLE VIDEO MOMENT, ONE manga illustration. Combine ONLY these inserted cards: \(title). Their actual direction is: \(subtitle). Do not introduce unrelated horror, sadness, danger, comedy or success not requested by these cards or supported by the video/story."
+            return "ONE SINGLE VIDEO MOMENT, ONE manga illustration. Combine ONLY these inserted cards: \(title). Their actual direction is: \(subtitle). Any new action or emotion must come from these cards or directly from the video/story, not from examples of unrelated card combinations."
         }
         return "Express ONLY this inserted card in the scene: \(title), \(subtitle). Other unrelated emotional effects are not requested."
     }
