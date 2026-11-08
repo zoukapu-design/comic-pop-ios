@@ -140,11 +140,12 @@ enum MangaStoryPlanner {
                 scene:clip(line.scene,120).isEmpty ? standard.scene : clip(line.scene,120),
                 imagePrompt:"Shot \(index+1): \(shotHint(for:index)). "+(clip(line.imagePrompt,590).isEmpty ? standard.imagePrompt : clip(line.imagePrompt,590)),
                 transition:clip(line.transition,160),
-                plotDescriptionJP:japanese(
-                    line.plotDescriptionJP ?? "",
-                    otherwise:source.userNote.isEmpty
-                        ? "" : clip(source.userNote,100),
-                    limit:100),
+                // The user's pinned description is a hard story constraint.
+                // An AI-generated, valid Japanese sentence may still contradict
+                // the actual event explicitly entered by the user.
+                plotDescriptionJP:source.userNote.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty
+                    ? japanese(line.plotDescriptionJP ?? "",otherwise:"",limit:100)
+                    : clip(source.userNote,100),
                 narrativeDutyJP:cues[index].role.japanese,
                 causalLinkJP:index==0 ? "" : japanese(
                     line.causalLinkJP ?? "",otherwise:"",limit:110))
