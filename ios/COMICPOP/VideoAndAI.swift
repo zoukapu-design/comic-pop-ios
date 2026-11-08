@@ -85,7 +85,7 @@ struct CloudflareAIService {
         // Token validity is not a confirmation of the Workers Free plan or account permissions.
         return status.success == true && status.result?.status == "active"
     }
-    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="",previousDrawing:UIImage?=nil,alternateComposition:Bool=false) async throws -> UIImage {
+    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="",previousDrawing:UIImage?=nil,alternateComposition:Bool=false,combinedCardIDs:[String]=[]) async throws -> UIImage {
         guard let jpg=VideoFrameService.compactJPEG(image),jpg.count<700_000 else{throw MangaError.invalidImage}
         guard let url=accountURL(account),!token.isEmpty else{throw MangaError.credentialsMissing}
         let aspect=image.size.width/max(image.size.height,1)
@@ -110,9 +110,16 @@ struct CloudflareAIService {
         let alternate=alternateComposition
             ? "THIS IS A RETAKE BECAUSE THE LAST COMPOSITION WAS TOO SIMILAR. Use a very DIFFERENT camera distance and angle, clearer emotion and different character posing, while keeping story beats, characters and clothing consistent."
             : "Produce a different meaningful event and camera framing from the preceding scene; never reuse its composition."
-        let combinedEmotion=card.title.contains("＋")
-            ? "CRITICAL: all emotional cards \(card.title) belong to ONE SAME VIDEO MOMENT. Blend ALL effects in ONE illustration. Dramatic + Horror means an ominous, high-stakes manga scene, NOT two pictures."
-            : "Express the requested narrative card naturally in this one illustration."
+        let joinedIDs=Set(combinedCardIDs.isEmpty ? [pin.cardID] : combinedCardIDs)
+        let combinedEmotion:String
+        if joinedIDs.count>1 && joinedIDs.contains("dramatic") &&
+           joinedIDs.contains("horror") {
+            combinedEmotion="ONE SAME SCENE: blend DRAMATIC plus HORROR. Show one consequential dramatic event with tension, fearful emotion, striking perspective and ominous lighting. Do not produce separate duplicate scenes."
+        } else if joinedIDs.count>1 {
+            combinedEmotion="ONE SAME SCENE with ALL these simultaneous cards: \(card.title). Blend their actual meanings: \(card.subtitle). Do NOT add horror, danger, sadness or invented events unless requested by those cards or supported by the story."
+        } else {
+            combinedEmotion="Express ONLY the selected card: \(card.title), \(card.subtitle). Do not add unrelated emotions."
+        }
         let approvedDirection=story?.userVisualDirection ?? ""
         let plotAction=String((story?.plotDescriptionJP ?? pin.note).prefix(150))
         let plannedIllustration=String((story?.imagePrompt ?? pin.note).prefix(540))
