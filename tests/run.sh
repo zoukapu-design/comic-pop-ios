@@ -11,6 +11,10 @@ swiftc "$ROOT/ios/COMICPOP/CardSceneGrouping.swift" "$ROOT/ios/COMICPOP/Models.s
 # Validate all-pin completion, ordering, and quota-safe recovery before iOS build.
 swiftc "$ROOT/ios/COMICPOP/GenerationIntegrity.swift" "$ROOT/tests/generationIntegrityTests.swift" -o "$BIN"
 "$BIN"
+# The genre screen must open an already completed manga without rerunning AI,
+# and resume only missing panels after a partial failure.
+swiftc "$ROOT/ios/COMICPOP/MangaGenerationRoute.swift" "$ROOT/tests/mangaGenerationRouteTests.swift" -o "$BIN"
+"$BIN"
 # Verify emotional card fusion does not inject horror into unrelated scenes.
 swiftc "$ROOT/ios/COMICPOP/MangaCardFusion.swift" "$ROOT/tests/mangaCardFusionTests.swift" -o "$BIN"
 "$BIN"
