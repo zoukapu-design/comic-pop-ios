@@ -151,6 +151,11 @@ assert "frames:pins.compactMap" in store
 assert "storyPlan?.beats.map" in store
 assert "repetitiveScenes" in story and "shotHint(for:index)" in story
 assert "alternateComposition:true" in store and "combinedEmotion" in ai
+fusion=(root / "ios/COMICPOP/MangaCardFusion.swift").read_text(encoding="utf-8")
+assert "MangaCardFusion.instruction(" in ai
+assert "combinedCardIDs:" in store and "scenePlan.scenes.first(where:" in store
+assert "MangaCardFusion" in fusion and "joinedIDs" not in fusion
+assert "mangaCardFusionTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "finishedImage=PopPageFinisher.render(" in store
 assert "似すぎたコマを検出しました" in review
 assert "scenePlan.renderedPanelCount" in review and "scenePlan.renderedPanelCount" in genre
