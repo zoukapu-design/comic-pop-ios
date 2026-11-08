@@ -22,6 +22,29 @@ import Foundation
         let empty=StoryReviewScene(index:1,plot:"",caption:"",
                                     imagePrompt:"",transition:"")
         precondition(MangaStoryQualityAudit.warnings(for:[empty]).count==2)
+        let missingLink=StoryReviewScene(
+            index:2,plot:"そばを切り始めた",caption:"続き",
+            imagePrompt:"closeup of moving knife",transition:"after setup",
+            narrativeRole:"展開・状況の変化",
+            causalLink:"",requiresCausalLink:true
+        )
+        let linkage=MangaStoryQualityAudit.warnings(for:[first,missingLink])
+        precondition(linkage.count==1 && linkage[0].message.contains("つながる"))
+        let repairedLink=StoryReviewScene(
+            index:2,plot:"そばを切り始めた",caption:"続き",
+            imagePrompt:"closeup of moving knife",transition:"after setup",
+            narrativeRole:"展開・状況の変化",
+            causalLink:"生地を伸ばし終わったので包丁を持った",
+            requiresCausalLink:true
+        )
+        precondition(MangaStoryQualityAudit.warnings(for:[first,repairedLink]).isEmpty)
+        let generic=StoryReviewScene(
+            index:1,plot:"そのとき、思わぬ展開が！",caption:"",
+            imagePrompt:"dramatic panel",transition:"",
+            narrativeRole:"展開・状況の変化"
+        )
+        precondition(MangaStoryQualityAudit.warnings(for:[generic]).count==1,
+                     "Vague placeholder plot must be flagged, not treated as a full story")
         print("PASS: screenplay missing action, duplicated plot, duplicated composition and user correction")
     }
 }
