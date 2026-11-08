@@ -82,3 +82,13 @@
 - 正確に同じ絵の保存は従来の厳しい閾値（0.004）で防ぎ、**類似警告は0.055で任意の再生成を案内するだけ**。アプリが勝手に追加のCloudflare画像生成枠を使わない。
 - `tests/mangaCardFusionTests.swift` と `tests/mangaArtworkUniquenessTests.swift` にケースを追加。ローカル **Swift 6.2.1** で両方の独立テストをコンパイル・実行してPASS。
 - 残る検証：本物の動画とCloudflareアカウントによる脚本・作画エンドツーエンド品質、iOSアプリの全体コンパイル。GitHub Actionsは直近ジョブの実行時間0ms・stepsなしで失敗しており、Swiftソース由来とはまだ断定できない。
+
+
+## 2026-11-08 23時台：3枚参照による人物・絵柄の長期一貫性
+- `MangaReferencePolicy.swift` を新設。1コマ目：動画フレーム1枚、2コマ目：動画＋1コマ目、3コマ目以降：**動画＋直前の漫画＋最初の漫画**。同じ画像を重複して送らない。
+- `VideoAndAI.swift` からCloudflare `@cf/black-forest-labs/flux-2-klein-4b` に `input_image_2` を追加する。Cloudflare公式では最大4参照画像に対応し、すべての入力画像は512×512未満。アプリ側の縮小JPEGルーチンを再利用。
+- 追加の参照画像は人物の外見・線の質・画風を安定させる目的に限定し、**最初のコマのポーズ・背景・出来事を真似しない**よう画像生成プロンプトの先頭付近へ指定。
+- `StudioStore.generate()` と `regeneratePanel()` が同じ参照ポリシーを適用。カード演出を1つのシーンへ合成する処理は維持。
+- `tests/mangaReferencePolicyTests.swift` を `tests/run.sh` に追加。Swift 6.2.1 Linuxで、1/2/3/5/12コマ目の参照配列が期待どおりかコンパイル・実行しPASS。
+- `tests/verify_ui_reference.py` へ、画像3・参照ポリシー・初回/再生成への接続検査を追加。
+- これは設計/実装と純Swift単体テストの成果であり、**Cloudflareでの実画像生成による人物一貫性の改善は未実証**。
