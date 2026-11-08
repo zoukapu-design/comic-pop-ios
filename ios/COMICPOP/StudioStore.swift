@@ -107,15 +107,22 @@ struct PreviewPanel: Identifiable {
             Task { @MainActor in self?.currentTime=time.seconds.isFinite ? time.seconds : 0 }
         }
     }
-    @discardableResult private func persist() -> Bool {
+    @discardableResult private func persist(_ snapshot: StudioData? = nil) -> Bool {
         do {
-            let out=try JSONEncoder().encode(data)
+            let out=try JSONEncoder().encode(snapshot ?? data)
             try out.write(to:modelURL,options:.atomic)
             return true
         } catch {
             message="端末への保存に失敗しました：\(error.localizedDescription)"
             return false
         }
+    }
+    /// Publish the editor change only after its durable, atomic JSON write
+    /// succeeds. Failed saves must not make the displayed pins diverge from disk.
+    @discardableResult private func commit(_ candidate: StudioData) -> Bool {
+        guard persist(candidate) else {return false}
+        data=candidate
+        return true
     }
     private func loadDuration() async {
         guard let url=videoURL else { duration=0; return }
@@ -193,11 +200,17 @@ struct PreviewPanel: Identifiable {
             guard data.pins.count < 12 else {message="カードは最大12枚です";return}
             guard let bytes=VideoFrameService.compactJPEG(frame) else {throw MangaError.invalidImage}
             let file="pin-\(UUID().uuidString).jpg"
-            try bytes.write(to:support.appendingPathComponent(file),options:.atomic)
-            data.pins.append(MangaPin(cardID:card.id,seconds:seconds,snapshotFile:file))
+            let snapshotURL=support.appendingPathComponent(file)
+            try bytes.write(to:snapshotURL,options:.atomic)
+            var candidate=data
+            candidate.pins.append(MangaPin(cardID:card.id,seconds:seconds,snapshotFile:file))
+            guard commit(candidate) else {
+                // Never leave an orphan JPEG for a pin absent from saved JSON.
+                try? fm.removeItem(at:snapshotURL)
+                return
+            }
             pinsRevision = UUID()
             clearGenerated()
-            persist()
             message="\(formatted(seconds)) に「\(card.title)」を挿入しました"
         } catch {message="その場面を保存できませんでした：\(error.localizedDescription)"}
     }
@@ -210,11 +223,12 @@ struct PreviewPanel: Identifiable {
         let cleanDialogue=String(dialogue.prefix(160))
         guard data.pins[index].note != cleanNote ||
               data.pins[index].dialogue != cleanDialogue else {return}
-        data.pins[index].note=cleanNote
-        data.pins[index].dialogue=cleanDialogue
+        var candidate=data
+        candidate.pins[index].note=cleanNote
+        candidate.pins[index].dialogue=cleanDialogue
+        guard commit(candidate) else {return}
         pinsRevision=UUID()
         clearGenerated()
-        persist()
         message="カードの物語メモとセリフを保存しました"
     }
 
@@ -230,15 +244,26 @@ struct PreviewPanel: Identifiable {
 
     func removePin(_ pin:MangaPin){
         guard !isGenerating else {message="漫画生成中はカードを削除できません";return}
-        data.pins.removeAll{$0.id==pin.id};pinsResetEpoch=UUID();pinsRevision=UUID()
-        try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile))
-        clearGenerated();persist()
+        guard let existing=data.pins.first(where:{$0.id==pin.id}) else {return}
+        var candidate=data
+        candidate.pins.removeAll{$0.id==existing.id}
+        // Commit first: if disk write fails, both the pin and JPEG remain.
+        guard commit(candidate) else {return}
+        pinsResetEpoch=UUID();pinsRevision=UUID()
+        clearGenerated()
+        try? fm.removeItem(at:support.appendingPathComponent(existing.snapshotFile))
+        message="カードを削除しました"
     }
     func clearPins(){
         guard !isGenerating else {message="漫画生成中はカードを全削除できません";return}
+        let oldSnapshots=data.pins.map(\.snapshotFile)
+        var candidate=data
+        candidate.pins=[]
+        guard commit(candidate) else {return}
         pinsResetEpoch=UUID();pinsRevision=UUID()
-        for p in data.pins {try? fm.removeItem(at:support.appendingPathComponent(p.snapshotFile))}
-        data.pins=[];clearGenerated();persist()
+        clearGenerated()
+        for file in oldSnapshots {try? fm.removeItem(at:support.appendingPathComponent(file))}
+        message="カードを全削除しました"
     }
     func snapshot(for pin:MangaPin)->UIImage? {UIImage(contentsOfFile:support.appendingPathComponent(pin.snapshotFile).path)}
     func card(for pin:MangaPin)->PinDefinition {
