@@ -135,16 +135,27 @@ struct PreviewPanel: Identifiable {
             let newName="video-\(UUID().uuidString).\(importedURL.pathExtension.isEmpty ? "mov" : importedURL.pathExtension)"
             let dest=support.appendingPathComponent(newName)
             try fm.copyItem(at:importedURL,to:dest)
-            // The previous pins and their snapshots belong to the previous video only.
+            // Commit the NEW video and empty timeline to disk BEFORE deleting
+            // old source/snapshot files. An interrupted or failed write must
+            // not permanently destroy the user's previous editing session.
+            let oldData=data
+            let oldVideo=data.videoFile
+            let oldSnapshots=data.pins.map(\.snapshotFile)
+            data.videoFile=newName
+            data.videoTitle=importedURL.lastPathComponent
+            data.pins=[]
+            guard persist() else {
+                data=oldData
+                try? fm.removeItem(at:dest)
+                return
+            }
             videoSession = UUID()
             pinsResetEpoch = UUID()
             pinsRevision = UUID()
-            let oldVideo=data.videoFile
-            let oldSnapshots=data.pins.map(\.snapshotFile)
-            player.pause();player.replaceCurrentItem(with:AVPlayerItem(url:dest))
-            data.videoFile=newName;data.videoTitle=importedURL.lastPathComponent
-            data.pins=[];clearGenerated();duration=0;currentTime=0
-            persist();await loadDuration()
+            player.pause()
+            player.replaceCurrentItem(with:AVPlayerItem(url:dest))
+            clearGenerated();duration=0;currentTime=0
+            await loadDuration()
             for file in oldSnapshots {try? fm.removeItem(at:support.appendingPathComponent(file))}
             if let oldVideo {try? fm.removeItem(at:support.appendingPathComponent(oldVideo))}
             message="動画を変更しました。以前のピンカードは削除しました（マイデッキと作品は保持）。"
