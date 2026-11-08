@@ -51,6 +51,11 @@ struct PopStoryboardDraft: View {
                             .buttonStyle(.bordered)
                             .tint(PopColor.blue)
                         }
+                        if !beat.plotDescriptionJP.isEmpty {
+                            Text("このコマの出来事：\(beat.plotDescriptionJP)")
+                                .font(.system(size:12,weight:.heavy))
+                                .foregroundStyle(PopColor.royal)
+                        }
                         Text(beat.caption.isEmpty ? "（ナレーションなし）" : beat.caption)
                             .font(.system(size:12,weight:.medium))
                             .foregroundStyle(PopColor.ink)
