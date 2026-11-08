@@ -11,7 +11,7 @@ struct PopGenreScreen: View {
     @AppStorage("pop.story.useVisualAI") private var useVisualAI = true
     @AppStorage("pop.hint.character") private var characterHint = true
     @AppStorage("pop.hint.palette") private var paletteHint = true
-    @AppStorage("pop.hint.scene") private var sceneHint = false
+    @AppStorage("pop.hint.scene") private var sceneHint = true
     @AppStorage("pop.hint.fidelity") private var fidelityHint = false
 
     private let genres:[(id:String,title:String)] = [
