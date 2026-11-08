@@ -90,6 +90,8 @@ struct PopGenreScreen: View {
                             ))
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size:12))
+                            .submitLabel(.done)
+                            .onSubmit {store.refreshPageTitle()}
                         }
                         .foregroundStyle(PopColor.ink)
                         VStack(alignment:.leading,spacing:5) {
@@ -218,6 +220,7 @@ struct PopGenreScreen: View {
         } message: {
             Text("AIモードはまず動画と複合カードから脚本を生成し、画面で確認・セリフ修正してから、別操作で漫画の絵を生成します。高品質映像理解ONでは選んだ場面の一覧画像をCloudflareへ送信します。脚本AI＋シーン数分の画像AI利用枠を消費し、非対応時の脚本再試行で増える場合があります。端末内モードは画像送信なしです。")
         }
+        .onDisappear {store.refreshPageTitle()}
     }
 
     private var hero: some View {
