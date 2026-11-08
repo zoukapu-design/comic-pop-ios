@@ -21,6 +21,8 @@ struct MangaStoryBeat: Identifiable {
     let scene: String
     let imagePrompt: String
     let transition: String
+    /// Explicit user instructions for how the scene should be drawn.
+    var userVisualDirection: String = ""
 }
 
 struct MangaStoryPlan {
