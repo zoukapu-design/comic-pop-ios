@@ -97,7 +97,7 @@ struct CloudflareAIService {
         let defaults=UserDefaults.standard
         let character=(defaults.object(forKey:"pop.hint.character") as? Bool) ?? true
         let palette=(defaults.object(forKey:"pop.hint.palette") as? Bool) ?? true
-        let scene=(defaults.object(forKey:"pop.hint.scene") as? Bool) ?? false
+        let scene=(defaults.object(forKey:"pop.hint.scene") as? Bool) ?? true
         let fidelity=(defaults.object(forKey:"pop.hint.fidelity") as? Bool) ?? false
         let hints=[
             character ? "Preserve recognisable facial features and clothing of the original subject in every panel." : "",
