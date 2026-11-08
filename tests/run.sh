@@ -14,6 +14,9 @@ swiftc "$ROOT/ios/COMICPOP/GenerationIntegrity.swift" "$ROOT/tests/generationInt
 # Verify emotional card fusion does not inject horror into unrelated scenes.
 swiftc "$ROOT/ios/COMICPOP/MangaCardFusion.swift" "$ROOT/tests/mangaCardFusionTests.swift" -o "$BIN"
 "$BIN"
+# Pick prior and stable opening artwork references without duplicate images.
+swiftc "$ROOT/ios/COMICPOP/MangaReferencePolicy.swift" "$ROOT/tests/mangaReferencePolicyTests.swift" -o "$BIN"
+"$BIN"
 # Repeated drawings must be found across page boundaries, excluding replay cards.
 swiftc "$ROOT/ios/COMICPOP/MangaArtworkUniqueness.swift" "$ROOT/tests/mangaArtworkUniquenessTests.swift" -o "$BIN"
 "$BIN"
