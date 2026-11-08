@@ -700,7 +700,14 @@ struct PreviewPanel: Identifiable {
             message="コマ再生成に失敗しました：\(error.localizedDescription)"
         }
     }
-    func chooseOriginal(_ id:UUID){guard let i=generated.firstIndex(where:{$0.id==id}) else {return};finishingBase[id]=nil;generated[i].drawing=generated[i].original;refreshArtworkSimilarityWarnings();rebuildPages()}
+    func chooseOriginal(_ id:UUID){
+        guard !isGenerating else {message="漫画生成中は絵を切り替えられません";return}
+        guard let i=generated.firstIndex(where:{$0.id==id}) else {return}
+        finishingBase[id]=nil
+        generated[i].drawing=generated[i].original
+        refreshArtworkSimilarityWarnings()
+        rebuildPages()
+    }
     /// Compare the actual artwork, not page headers or captions. This also
     /// catches panel 5 repeating panel 1, which adjacent-panel checks miss.
     /// Review warnings are advisory and never spend AI credits automatically.
