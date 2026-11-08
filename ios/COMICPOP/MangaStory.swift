@@ -186,9 +186,7 @@ enum MangaStoryPlanner {
     }
 
     private static func japanese(_ string:String,otherwise fallback:String,limit:Int)->String {
-        let value=clip(string,limit)
-        let valid=value.unicodeScalars.contains { (0x3040...0x30ff).contains(Int($0.value)) || (0x3400...0x9fff).contains(Int($0.value)) }
-        return valid ? value : fallback
+        MangaJapaneseLettering.clean(string,fallback:fallback,limit:limit)
     }
     private static func clip(_ value:String,_ limit:Int)->String {
         String(value.replacingOccurrences(of:"\n",with:" ")
