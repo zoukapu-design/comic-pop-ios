@@ -473,6 +473,8 @@ struct PreviewPanel: Identifiable {
                     account:account,token:token,seed:seed,
                     story:beat,seriesPremise:storyPlan?.premise ?? "",
                     previousDrawing:generated.last?.drawing,
+                    openingDrawing:MangaReferencePolicy.drawingIndices(for:index).count>1
+                        ? generated.first?.drawing : nil,
                     combinedCardIDs:scenePlan.scenes.first(where:{$0.id==pin.id})?.cardIDs ?? [pin.cardID]
                 )
                 // An in-flight request must never revive old or differently styled results.
@@ -640,6 +642,8 @@ struct PreviewPanel: Identifiable {
                     story:storyPlan?.beats.first(where:{$0.id==id}),
                     seriesPremise:storyPlan?.premise ?? "",
                     previousDrawing:index>0 ? generated[index-1].drawing : nil,
+                    openingDrawing:MangaReferencePolicy.drawingIndices(for:index).count>1
+                        ? generated.first?.drawing : nil,
                     alternateComposition:true,
                     combinedCardIDs:scenePlan.scenes.first(where:{$0.id==pin.id})?.cardIDs ?? [pin.cardID]
                 )
