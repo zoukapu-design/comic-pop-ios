@@ -115,6 +115,7 @@ struct CloudflareAIService {
             title:card.title,subtitle:card.subtitle
         )
         let approvedDirection=story?.userVisualDirection ?? ""
+        let userSceneNote=String((story?.userSceneNoteJP ?? pin.note).prefix(160))
         let plotAction=String((story?.plotDescriptionJP ?? pin.note).prefix(150))
         let plannedIllustration=String((story?.imagePrompt ?? pin.note).prefix(540))
         // Critical: this model prompt is capped. Put the actual action and the
@@ -122,7 +123,8 @@ struct CloudflareAIService {
         let primaryInstructions=[
             "Original sequential JAPANESE MANGA art. ONE panel, a NEW story event; not a photo filter.",
             MangaStyles.prompt(for:style),color,
-            "ACTUAL PLOT EVENT (user notes override conflicting AI guesses): \(plotAction).",
+            "ACTUAL PLOT EVENT (reviewed storyboard): \(plotAction).",
+            userSceneNote.isEmpty ? "" : "USER'S ORIGINAL CARD NOTE (HIGH PRIORITY): \(userSceneNote). It may describe feeling or intent, not literal visible motion. Never depict an event that contradicts it.",
             // Place manual edits BEFORE the long AI storyboard so the 2400
             // character limit can never hide a user's explicit instruction.
             approvedDirection.isEmpty
