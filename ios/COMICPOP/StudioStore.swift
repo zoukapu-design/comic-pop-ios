@@ -310,12 +310,58 @@ struct PreviewPanel: Identifiable {
         // Keep the title printed inside each page consistent with metadata.
         if !generated.isEmpty {rebuildPages()}
     }
-    func selectDeck(_ id:UUID) {data.activeDeckID=id;persist()}
-    func addDeck(name:String){guard data.decks.count<20 else {message="デッキは最大20個です";return};let deck=UserDeck(name:String(name.prefix(24)),cardIDs:[]);data.decks.append(deck);data.activeDeckID=deck.id;persist()}
-    func renameDeck(_ id:UUID,to name:String){guard let i=data.decks.firstIndex(where:{$0.id==id}) else {return};data.decks[i].name=String(name.prefix(24));persist()}
-    func deleteDeck(_ id:UUID){guard data.decks.count>1 else {message="デッキは1個以上必要です";return};data.decks.removeAll{$0.id==id};if data.activeDeckID==id {data.activeDeckID=data.decks.first?.id};persist()}
-    func toggleDeckCard(_ cardID:String){guard let id=data.activeDeckID,let i=data.decks.firstIndex(where:{$0.id==id}) else {return};if let pos=data.decks[i].cardIDs.firstIndex(of:cardID){data.decks[i].cardIDs.remove(at:pos)} else if data.decks[i].cardIDs.count<12 {data.decks[i].cardIDs.append(cardID)}else{message="1デッキ最大12枚です"};persist()}
-    func moveDeckCard(_ cardID:String,by offset:Int){guard let id=data.activeDeckID,let i=data.decks.firstIndex(where:{$0.id==id}),let start=data.decks[i].cardIDs.firstIndex(of:cardID) else {return};let end=start+offset;guard data.decks[i].cardIDs.indices.contains(end) else{return};data.decks[i].cardIDs.swapAt(start,end);persist()}
+    func selectDeck(_ id:UUID) {
+        guard data.decks.contains(where:{$0.id==id}) else {return}
+        var candidate=data
+        candidate.activeDeckID=id
+        commit(candidate)
+    }
+    func addDeck(name:String) {
+        guard data.decks.count<20 else {message="デッキは最大20個です";return}
+        let deck=UserDeck(name:String(name.prefix(24)),cardIDs:[])
+        var candidate=data
+        candidate.decks.append(deck)
+        candidate.activeDeckID=deck.id
+        commit(candidate)
+    }
+    func renameDeck(_ id:UUID,to name:String) {
+        guard let i=data.decks.firstIndex(where:{$0.id==id}) else {return}
+        var candidate=data
+        candidate.decks[i].name=String(name.prefix(24))
+        commit(candidate)
+    }
+    func deleteDeck(_ id:UUID) {
+        guard data.decks.count>1 else {message="デッキは1個以上必要です";return}
+        var candidate=data
+        candidate.decks.removeAll{$0.id==id}
+        guard candidate.decks.count<data.decks.count else {return}
+        if candidate.activeDeckID==id {candidate.activeDeckID=candidate.decks.first?.id}
+        commit(candidate)
+    }
+    func toggleDeckCard(_ cardID:String) {
+        guard let id=data.activeDeckID,
+              let i=data.decks.firstIndex(where:{$0.id==id}) else {return}
+        var candidate=data
+        if let pos=candidate.decks[i].cardIDs.firstIndex(of:cardID) {
+            candidate.decks[i].cardIDs.remove(at:pos)
+        } else if candidate.decks[i].cardIDs.count<12 {
+            candidate.decks[i].cardIDs.append(cardID)
+        } else {
+            message="1デッキ最大12枚です"
+            return
+        }
+        commit(candidate)
+    }
+    func moveDeckCard(_ cardID:String,by offset:Int) {
+        guard let id=data.activeDeckID,
+              let i=data.decks.firstIndex(where:{$0.id==id}),
+              let start=data.decks[i].cardIDs.firstIndex(of:cardID) else {return}
+        let end=start+offset
+        guard data.decks[i].cardIDs.indices.contains(end) else {return}
+        var candidate=data
+        candidate.decks[i].cardIDs.swapAt(start,end)
+        commit(candidate)
+    }
     func connect(token:String) async {
         guard confirmsFree else {message="Workers Free契約を確認してから接続してください";return}
         guard !cloudflareAccount.isEmpty else {message="Account IDを入力してください";return}
