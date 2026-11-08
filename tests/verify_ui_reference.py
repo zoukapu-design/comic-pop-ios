@@ -203,6 +203,8 @@ assert "MangaNarrativeDirector.cues(for:evidence)" in story
 assert '"storyFunctionJP":cue.role.japanese' in story
 assert '"connectionToPrevious":cue.causalDuty' in story
 assert "narrativeDutyJP" in story and "causalLinkJP" in story
+assert "MangaJapaneseLettering.clean" in story
+assert "mangaJapaneseLetteringTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "story?.narrativeDutyJP" in ai and "story?.causalLinkJP" in ai
 assert "前のコマとのつながり" in draft
 assert "causalLink:causal" in draft
