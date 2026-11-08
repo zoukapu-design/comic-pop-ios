@@ -576,6 +576,7 @@ struct PreviewPanel: Identifiable {
                 caption:beat.caption,dialogue:beat.dialogue,
                 storyPrompt:beat.imagePrompt,storyScene:beat.scene
             ))
+            refreshArtworkSimilarityWarnings()
         }
         rebuildPages()
         message="全\(generated.count)コマを端末内で簡易漫画化しました（生成AIではありません）。"
@@ -598,6 +599,7 @@ struct PreviewPanel: Identifiable {
         for index in generated.indices {
             if let output=finished[generated[index].id] {generated[index].drawing=output}
         }
+        refreshArtworkSimilarityWarnings()
         rebuildPages()
         message="ページ全体の描線・明るさ・彩度・輪郭を調整しました。"
     }
