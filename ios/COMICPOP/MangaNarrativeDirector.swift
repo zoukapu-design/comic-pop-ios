@@ -85,6 +85,7 @@ struct MangaNarrativeCue {
     let role: MangaNarrativeRole
     let allCardIDs: [String]
     let causalDuty: String
+    let evidenceRestrictions: String
     let isCombinedMoment: Bool
 }
 
@@ -102,40 +103,71 @@ enum MangaNarrativeDirector {
                 let previous = evidence[index-1]
                 causal="直前のシーン\(index)（カード：\(previous.cardTitle)）から現在の出来事へ、原因→行動→結果のつながりを一つ以上示す。観測できない事実は推測として扱う"
             }
+            let limitations=storyRestrictions(ids)
             return MangaNarrativeCue(index:index+1,role:role,
                                      allCardIDs:ids,causalDuty:causal,
+                                     evidenceRestrictions:limitations,
                                      isCombinedMoment:ids.count>1)
         }
     }
 
+    private static func storyRestrictions(_ ids:[String]) -> String {
+        let tags=Set(ids.map{$0.lowercased()})
+        var rules:[String]=[]
+        if tags.contains("exact") {
+            rules.append("元の人物・行動・場所を忠実に反映し、映像と矛盾する出来事を推測で作らない")
+        }
+        if tags.contains("noextra") {
+            rules.append("動画で確認できない登場人物・動物・重要物を勝手に追加しない")
+        }
+        if tags.contains("quote") {
+            rules.append("引用セリフはユーザー入力や確認できた字幕・音声だけを使い、発言を創作しない")
+        }
+        if tags.contains("must") {
+            rules.append("このシーンを必ず物語の展開に採用する")
+        }
+        if tags.contains("context") || tags.contains("before") {
+            rules.append("前後の場面を見て、切り出した1枚の誤認識を避ける")
+        }
+        return rules.joined(separator:"。")
+    }
+
     private static func chooseRole(ids:[String],index:Int,count:Int)->MangaNarrativeRole {
         let tags=Set(ids.map{$0.lowercased()})
+        func includes(_ choices:[String])->Bool {
+            !tags.isDisjoint(with:choices)
+        }
         if count==1 {return .standalone}
-        if tags.contains("punch") || tags.contains("ending") {
+
+        // Concrete story/food/result cards matter more than decorative effects.
+        if includes(["punch","ending","finishfood","success","triumph","after"]) {
             return .payoff
         }
-        // Combine dramatic + horror as a crisis, never as two separate scenes.
-        if tags.contains("horror") || tags.contains("fear") {
+        // When both dramatic and horror are inserted, the final role is ONE
+        // crisis scene and ALL cards still drive its drawing.
+        if includes(["horror","fear","failure","chaos","sweat","frustration"]) {
             return .crisis
         }
-        if tags.contains("tsukkomi") || tags.contains("reaction") {
+        if includes(["tsukkomi","reaction","cry","anger","embarrass",
+                     "awkward","relief","happy","smile","crowd","funny"]) {
             return .reaction
         }
-        if tags.contains("idea") || tags.contains("reveal") {
+        if includes(["idea","inspiration","reveal","beforeafter","compare"]) {
             return .discovery
         }
-        if tags.contains("dramatic") || tags.contains("climax") ||
-           tags.contains("action") {
+        if includes(["dramatic","climax","impact"]) {
             return .climax
         }
-        if index==0 || tags.contains("intro") || tags.contains("setup") {
+        if index==0 || includes(["intro","setup","challenge","panorama"]) {
             return .introduction
         }
-        if tags.contains("slow") || tags.contains("freeze") {
+        if includes(["slow","freeze","suspense","tension","shadow",
+                     "flashback","pause","silence"]) {
             return .foreshadowing
         }
         if index==count-1 {
-            // Do not invent a successful ending when the video only ends.
+            // If no explicit result card or observed outcome exists, do not
+            // force a fake victory or disaster into the last panel.
             return .openEnding
         }
         return .development
