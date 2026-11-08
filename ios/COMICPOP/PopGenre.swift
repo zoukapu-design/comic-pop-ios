@@ -7,6 +7,7 @@ struct PopGenreScreen: View {
     var review: () -> Void
     var openSettings: () -> Void
     @State private var askGeneration = false
+    @State private var askResetFinished = false
     @AppStorage("pop.story.useVoice") private var useVoice = true
     @AppStorage("pop.story.useVisualAI") private var useVisualAI = true
     @AppStorage("pop.hint.character") private var characterHint = true
@@ -98,7 +99,49 @@ struct PopGenreScreen: View {
                             .font(.system(size:10)).foregroundStyle(PopColor.ink.opacity(0.75))
                     }
                 }
-                if store.storyboardReady {
+                if store.hasCompleteComic {
+                    PopSurface(accent:true) {
+                        VStack(alignment:.leading,spacing:9) {
+                            Label("漫画が完成しています",systemImage:"checkmark.seal.fill")
+                                .font(.system(size:15,weight:.black,design:.rounded))
+                            Text("\(store.generatedPanelCount)コマ・\(store.pageImages.count)ページが完成済みです。再生成せずにレビューへ戻れます。")
+                                .font(.system(size:11,weight:.medium))
+                            PopYellowButton(title:"完成した漫画を見る",
+                                            icon:"book.pages.fill",action:review)
+                            Button {
+                                askResetFinished=true
+                            } label: {
+                                Label("この生成結果をリセット",systemImage:"trash")
+                                    .font(.system(size:11,weight:.semibold))
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(store.isGenerating)
+                        }
+                        .foregroundStyle(PopColor.ink)
+                    }
+                } else if !store.generated.isEmpty {
+                    PopSurface(accent:true) {
+                        VStack(alignment:.leading,spacing:8) {
+                            Label("途中まで生成した漫画があります",systemImage:"arrow.clockwise")
+                                .font(.system(size:14,weight:.black,design:.rounded))
+                            Text("\(store.generatedPanelCount)/\(store.scenePlan.renderedPanelCount)コマ生成済み。完成済みのコマを再利用し、残りだけ処理します。")
+                                .font(.system(size:11,weight:.medium))
+                            PopYellowButton(title:"続きを生成する",
+                                            icon:"arrow.clockwise",
+                                            enabled:!store.isGenerating) {
+                                Task {
+                                    if store.generatedOffline {
+                                        await store.generateOffline()
+                                    } else {
+                                        await store.generate()
+                                    }
+                                    if !store.pageImages.isEmpty {review()}
+                                }
+                            }
+                        }
+                        .foregroundStyle(PopColor.ink)
+                    }
+                } else if store.storyboardReady {
                     PopStoryboardDraft(store:store) {
                         Task {
                             await store.generate()
@@ -136,6 +179,15 @@ struct PopGenreScreen: View {
                 }
             }
             .padding(.horizontal,10).padding(.bottom,16)
+        }
+        .confirmationDialog("完成済み漫画をリセットしますか？",
+                            isPresented:$askResetFinished,titleVisibility:.visible) {
+            Button("生成結果を破棄して作り直す",role:.destructive) {
+                store.discardGenerated()
+            }
+            Button("キャンセル",role:.cancel) {}
+        } message: {
+            Text("生成した画像と脚本を破棄します。カードと動画、作品一覧に保存済みの漫画は保持されます。保存前の完成作品は失われます。")
         }
         .confirmationDialog("漫画の生成方法を選ぶ",isPresented:$askGeneration,titleVisibility:.visible) {
             Button("無料でおためし生成（端末内・AIなし）") {
