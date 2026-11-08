@@ -11,6 +11,9 @@ swiftc "$ROOT/ios/COMICPOP/CardSceneGrouping.swift" "$ROOT/ios/COMICPOP/Models.s
 # Validate all-pin completion, ordering, and quota-safe recovery before iOS build.
 swiftc "$ROOT/ios/COMICPOP/GenerationIntegrity.swift" "$ROOT/tests/generationIntegrityTests.swift" -o "$BIN"
 "$BIN"
+# Data loss regression: a failed JSON encode/write must not corrupt saved pins.
+swiftc "$ROOT/ios/COMICPOP/StudioAtomicPersistence.swift" "$ROOT/tests/studioAtomicPersistenceTests.swift" -o "$BIN"
+"$BIN"
 # The genre screen must open an already completed manga without rerunning AI,
 # and resume only missing panels after a partial failure.
 swiftc "$ROOT/ios/COMICPOP/MangaGenerationRoute.swift" "$ROOT/tests/mangaGenerationRouteTests.swift" -o "$BIN"
