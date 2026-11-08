@@ -32,6 +32,8 @@ import Foundation
         precondition(outline.beats.map(\.id)==inputs.map(\.pinID))
         precondition(outline.beats[2].dialogue=="あれ、曲がってる！", "user dialogue overrides speculation")
         precondition(outline.title=="陶芸初挑戦")
+        precondition(!outline.beats[0].plotDescriptionJP.isEmpty,
+                     "Every panel should have a Japanese action summary")
         let englishCaption=try JSONSerialization.data(withJSONObject:["title":"English only","premise":"Something","panels":beats.enumerated().map { i,row in var v=row;v["caption"]="random glyph 123";return v}])
         let repaired=try MangaStoryPlanner.decodeAIStory(String(decoding:englishCaption,as:UTF8.self),evidence:inputs)
         precondition(repaired.beats[0].caption==inputs[0].userNote,"gibberish captions must be rejected")
