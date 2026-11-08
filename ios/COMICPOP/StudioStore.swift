@@ -379,7 +379,7 @@ struct PreviewPanel: Identifiable {
     /// Only pre-render story text is editable here. Changes cannot silently
     /// affect an already generated manga or incur extra Cloudflare quota.
     func updateStoryboardBeat(
-        _ id:UUID,caption:String,dialogue:String,visualDirection:String
+        _ id:UUID,caption:String,dialogue:String,plotDescription:String,visualDirection:String
     ) {
         guard !isGenerating,generated.isEmpty,let plan=storyPlan,
               let index=plan.beats.firstIndex(where:{$0.id==id}) else {return}
@@ -390,14 +390,14 @@ struct PreviewPanel: Identifiable {
             caption:String(caption.prefix(100)),
             dialogue:String(dialogue.prefix(80)),
             scene:old.scene,imagePrompt:old.imagePrompt,transition:old.transition,
-            plotDescriptionJP:old.plotDescriptionJP,
+            plotDescriptionJP:String(plotDescription.prefix(130)),
             userVisualDirection:String(visualDirection.prefix(320))
         )
         storyPlan=MangaStoryPlan(
             title:plan.title,premise:plan.premise,beats:beats,
             isAIStory:plan.isAIStory,usedVisualEvidence:plan.usedVisualEvidence
         )
-        message="脚本の日本語とシーンの描画指示を保存しました。画像生成の追加消費はありません。"
+        message="コマの展開・セリフ・演出指示を保存しました。画像生成の追加消費はありません。"
     }
 
     func generate() async {
