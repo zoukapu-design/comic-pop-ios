@@ -42,8 +42,10 @@ import Foundation
         ])
         let userPriority=try MangaStoryPlanner.decodeAIStory(
             String(decoding:contradictedJSON,as:UTF8.self),evidence:inputs)
-        precondition(userPriority.beats[0].plotDescriptionJP==inputs[0].userNote,
-                     "AI cannot replace explicit user action with unrelated event")
+        precondition(userPriority.beats[0].userSceneNoteJP==inputs[0].userNote,
+                     "Original card note must survive even a contradictory AI storyboard")
+        precondition(userPriority.beats[0].plotDescriptionJP=="主人公が突然サッカー場で走り始める。",
+                     "AI-proposed physical action must remain visible for manual correction")
         // Without observed action or a user note, the LLM's missing plot
         // must stay visibly empty for human review. A generic dramatic filler
         // is not evidence of a coherent scene.
@@ -80,6 +82,8 @@ import Foundation
         precondition(outline.beats.last?.narrativeDutyJP.contains("結末")==true)
         precondition(!outline.beats[0].plotDescriptionJP.isEmpty,
                      "Every panel should have a Japanese action summary")
+        precondition(outline.beats[0].userSceneNoteJP==inputs[0].userNote,
+                     "Story notes must never be discarded when decoding the AI response")
         let englishCaption=try JSONSerialization.data(withJSONObject:["title":"English only","premise":"Something","panels":beats.enumerated().map { i,row in var v=row;v["caption"]="random glyph 123";return v}])
         let repaired=try MangaStoryPlanner.decodeAIStory(String(decoding:englishCaption,as:UTF8.self),evidence:inputs)
         precondition(repaired.beats[0].caption==inputs[0].userNote,"gibberish captions must be rejected")
