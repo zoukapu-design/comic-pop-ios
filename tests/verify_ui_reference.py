@@ -35,7 +35,7 @@ assert "ForEach(Array(ids.prefix(12)).indices" in editor
 assert '"マイデッキ"' in editor and '"お気に入り"' in editor and '"おすすめ"' in editor
 assert "PopIllustratedCard" in genre and "この画風で漫画を作る" in genre
 assert "await store.generateOffline()" in genre and "await store.generate()" in genre
-assert "Cloudflare AIで漫画化" in genre
+assert "Cloudflare AI：まず脚本を確認してから漫画化" in genre
 assert "store.applyFinishing" in review and "store.regeneratePanel" in review
 assert "store.saveWork()" in review and "ShareLink(item:url)" in popui
 assert "CIColorControls" in finisher and "CISharpenLuminance" in finisher
@@ -68,7 +68,7 @@ assert "URLSession" not in offline, "Offline trial must never upload user video"
 assert "generatedMode == \"offline\"" in store and 'generatedMode="online"' in store
 assert ".task(id:" in ui
 assert "ムビコマ" in app + ui + store
-assert 'title:data.workTitle.isEmpty ? "ムビコマ"' in store
+assert 'storyPlan?.title ?? "ムビコマ"' in store
 assert "- path: COMICPOP" in project, "New SwiftUI source must be included by XcodeGen"
 m = re.search(r"static let base64 = \"\"\"(.*?)\"\"\"", art, re.S)
 assert m, "Missing in-source Rex artwork"
@@ -144,7 +144,7 @@ assert "CardSceneGrouping.swift" in runner
 assert "scenePlan.renderPins.map" in store and "let pins=scenePlan.renderPins" in store
 assert "combinedCard(for:pin)" in store and "let combinedTitle=" in store
 assert "combinedDirections" in story and "DRAMATIC + HORROR" in observations
-assert "MangaSceneContactSheet.jpeg" in observations
+assert "MangaSceneContactSheet.motionJPEG" in observations
 assert "llama-4-scout-17b-16e-instruct" in observations
 assert "ai/v1/chat/completions" in observations
 assert "frames:pins.compactMap" in store
