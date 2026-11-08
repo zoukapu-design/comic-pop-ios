@@ -169,7 +169,7 @@ struct PopStoryboardDraft: View {
                             isPresented:$confirmRewrite,
                             titleVisibility:.visible) {
             Button("再生成（CloudflareのAI利用枠を消費）") {
-                Task {await store.prepareStoryboard()}
+                Task {await store.recreateStoryboard()}
             }
             Button("キャンセル",role:.cancel) {}
         } message: {
