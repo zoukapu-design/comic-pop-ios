@@ -207,7 +207,7 @@ artSimilarity=(root / "ios/COMICPOP/MangaArtworkUniqueness.swift").read_text(enc
 assert "similarReviewThreshold" in artSimilarity
 assert "firstUnintendedSimilarity" in artSimilarity
 assert "mangaArtworkUniquenessTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
-assert 'plotDescriptionJP:source.userNote.trimmingCharacters' in story
+assert 'userSceneNoteJP:clip(source.userNote,160)' in story
 assert "mangaPageIntegrityTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "PopStoryboardDraft(store:store)" in genre
 assert "MangaSceneContactSheet.motionJPEG" in observations
@@ -273,7 +273,11 @@ remove=store.split("func removePin(",1)[1].split("func clearPins()",1)[0]
 assert remove.index("guard commit(candidate) else {return}") < remove.index("removeItem(at:")
 clear=store.split("func clearPins()",1)[1].split("func snapshot(for pin:",1)[0]
 assert clear.index("guard commit(candidate) else {return}") < clear.index("removeItem(at:")
-assert 'plotDescriptionJP:source.userNote.trimmingCharacters' in story
+assert 'userSceneNoteJP:clip(source.userNote,160)' in story
+assert "userSceneNoteJP:old.userSceneNoteJP" in store
+assert "挿入カードのメモ（優先）" in draft
+assert "USER'S ORIGINAL CARD NOTE (HIGH PRIORITY)" in ai
+assert ai.index("USER'S ORIGINAL CARD NOTE (HIGH PRIORITY)") < ai.index("DRAW THIS SPECIFIC EVENT AND COMPOSITION")
 assert ai.index('HIGHEST PRIORITY USER DIRECTION') < ai.index('DRAW THIS SPECIFIC EVENT AND COMPOSITION')
 # Prevent accidental repeat inference; only the review screen's confirmed
 # "rewrite screenplay" control may intentionally spend text/vision quota again.
