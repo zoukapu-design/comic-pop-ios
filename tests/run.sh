@@ -11,6 +11,9 @@ swiftc "$ROOT/ios/COMICPOP/CardSceneGrouping.swift" "$ROOT/ios/COMICPOP/Models.s
 # Validate all-pin completion, ordering, and quota-safe recovery before iOS build.
 swiftc "$ROOT/ios/COMICPOP/GenerationIntegrity.swift" "$ROOT/tests/generationIntegrityTests.swift" -o "$BIN"
 "$BIN"
+# Verify emotional card fusion does not inject horror into unrelated scenes.
+swiftc "$ROOT/ios/COMICPOP/MangaCardFusion.swift" "$ROOT/tests/mangaCardFusionTests.swift" -o "$BIN"
+"$BIN"
 # Repeated drawings must be found across page boundaries, excluding replay cards.
 swiftc "$ROOT/ios/COMICPOP/MangaArtworkUniqueness.swift" "$ROOT/tests/mangaArtworkUniquenessTests.swift" -o "$BIN"
 "$BIN"
