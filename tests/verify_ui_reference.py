@@ -236,6 +236,28 @@ assert "nearlySame(" in quality and "isGeneric(" in quality
 assert "mangaNarrativeDirectorTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 print("PASS: narrative arc responsibilities, causality, merged cards, editable scripts and pre-draw warnings")
 
+# A paid, in-flight image call must not be invalidated by editor mutations.
+# Video replacement is committed to disk before the previous source is deleted.
+replaceVideo=store.split("func replaceVideo(_ importedURL:URL) async {",1)[1].split("func scrub(to seconds:Double)",1)[0]
+assert "guard !isGenerating" in replaceVideo
+assert replaceVideo.index("guard persist() else {") < replaceVideo.index("for file in oldSnapshots")
+assert "data=oldData" in replaceVideo and "removeItem(at:dest)" in replaceVideo
+assert "guard !isGenerating" in store.split("func addPin(card:PinDefinition) async {",1)[1].split("func updatePinStory(",1)[0]
+assert "処理中のカード追加は見送りました" in store
+for mutator, following in (
+    ("func removePin(", "func clearPins()"),
+    ("func clearPins()", "func snapshot(for pin:"),
+    ("func updateStyle(", "func updateColor("),
+    ("func updateColor(", "func updateTitle("),
+    ("func chooseOriginal(", "private func refreshArtworkSimilarityWarnings()"),
+):
+    operation=store.split(mutator,1)[1].split(following,1)[0]
+    assert "guard !isGenerating" in operation, mutator
+# No fabricated narration when there is no video evidence or user-supplied text.
+assert 'else {caption=""}' in story
+assert "plotDescriptionJP:clip(e.userNote,100)" in story
+print("PASS: no in-flight quota waste, safe video replacement and evidence-only offline captions")
+
 print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
 
 print("PASS: Rex onboarding, video picker/confirm, pin guard, deck reorder, PDF share, generated-panel editing")
