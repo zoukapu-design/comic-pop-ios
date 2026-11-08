@@ -73,3 +73,12 @@
 - 画風選択の**場面切替優先**の初期値をONに変更。ただし既存のユーザー設定値があれば尊重する。
 - Cloudflare公式のWorkers Freeは1日10,000 Neuronsの無料割当。GLM-4.7-flashはFreeで利用可能と明記されているが、本人のAPIで画像認識＋作画まで完走することは未検証。モデルごとの課金・無料枠の利用状況はCloudflareのダッシュボードで確認する。
 - 現状は**GitHubコード反映とSwift独立試験まで**。iOS全体の最新コンパイル、Cloudflare本人の実生成、TestFlight画面は未検証。
+
+
+## 2026-11-08 後続監査：実際のカードに基づく演出とページをまたいだ重複警告
+- **実際のカードの組み合わせで作画プロンプトを作る**：以前はすべての複合カードに `DRAMATIC + HORROR` を混ぜる恐れがあった。`MangaCardFusion.swift` を新設し、`dramatic+horror` のときだけ恐怖＋ドラマを融合。「成功＋料理アップ」「面白」などには関係ない恐怖の指示を渡さない。
+- `StudioStore.generate()` と `regeneratePanel()` で、統合シーンの `cardIDs` を画像AIへ渡す。コマ単位再生成でもカードの意味を失わない。
+- **すべての完成コマ間の類似性をレビュー段階で確認**：`MangaArtworkUniqueness.firstUnintendedSimilarity` によってコマ5とコマ1などページをまたぐ似た絵も警告。意図的な回想・リプレイは除外。初回生成・オフライン生成・画質調整・コマ単位再生成・元画像への切替でも再判定し、別のコマと似る場合はコマ番号とページ番号を表示。
+- 正確に同じ絵の保存は従来の厳しい閾値（0.004）で防ぎ、**類似警告は0.055で任意の再生成を案内するだけ**。アプリが勝手に追加のCloudflare画像生成枠を使わない。
+- `tests/mangaCardFusionTests.swift` と `tests/mangaArtworkUniquenessTests.swift` にケースを追加。ローカル **Swift 6.2.1** で両方の独立テストをコンパイル・実行してPASS。
+- 残る検証：本物の動画とCloudflareアカウントによる脚本・作画エンドツーエンド品質、iOSアプリの全体コンパイル。GitHub Actionsは直近ジョブの実行時間0ms・stepsなしで失敗しており、Swiftソース由来とはまだ断定できない。
