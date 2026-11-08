@@ -390,6 +390,7 @@ struct PreviewPanel: Identifiable {
             caption:String(caption.prefix(100)),
             dialogue:String(dialogue.prefix(80)),
             scene:old.scene,imagePrompt:old.imagePrompt,transition:old.transition,
+            plotDescriptionJP:old.plotDescriptionJP,
             userVisualDirection:String(visualDirection.prefix(320))
         )
         storyPlan=MangaStoryPlan(
