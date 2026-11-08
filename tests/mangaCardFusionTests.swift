@@ -13,8 +13,9 @@ import Foundation
             cardIDs:["success","foodzoom"],title:"成功＋料理アップ",
             subtitle:"やった！ / 食材を見せる")
         precondition(food.contains("成功＋料理アップ"))
-        precondition(!food.contains("Blend DRAMATIC and HORROR"),
-                     "Food success must not turn into a horror panel")
+        precondition(!food.lowercased().contains("horror") &&
+                     !food.lowercased().contains("fear"),
+                     "Food success prompt must not even mention unrelated horror or fear")
         precondition(food.contains("Combine ONLY these inserted cards"))
 
         let one=MangaCardFusion.instruction(
