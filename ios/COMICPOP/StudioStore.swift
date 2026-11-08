@@ -675,6 +675,30 @@ struct PreviewPanel: Identifiable {
             message="未完成の漫画は保存できません。すべてのカードの生成を完了してください。"
             return false
         }
+        // Check illustrations themselves. Comparing composed page PNGs alone
+        // misses duplicates because every page has a different number/header.
+        // Rechecking all pairs also catches panel 5 repeating panel 1.
+        var visualComparisons:[MangaArtworkComparison]=[]
+        if generated.count>1 {
+            for later in 1..<generated.count {
+                let intentionalReplay=scenePlan.scenes.indices.contains(later) &&
+                    scenePlan.scenes[later].cardIDs.contains(where: {
+                        ["flashback","replay","beforeafter"].contains($0)
+                    })
+                for earlier in 0..<later {
+                    visualComparisons.append(MangaArtworkComparison(
+                        earlier:earlier,later:later,
+                        distance:ImageDifference.distance(
+                            generated[earlier].drawing,generated[later].drawing),
+                        intentionalReprise:intentionalReplay
+                    ))
+                }
+            }
+        }
+        if let duplicate=MangaArtworkUniqueness.firstUnintendedDuplicate(visualComparisons) {
+            message="絵が重複しています（コマ\(duplicate.earlier+1)と\(duplicate.later+1)）。文章ではなく画像が同じため、該当コマを別構図で再生成してから保存してください。"
+            return false
+        }
         // Validate the ENTIRE manga before writing the first file. A failed
         // second page can no longer leave a half-saved work on disk.
         let encodedPages=pageImages.compactMap{$0.pngData()}
