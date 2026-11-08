@@ -153,6 +153,12 @@ assert "repetitiveScenes" in story and "shotHint(for:index)" in story
 assert "alternateComposition:true" in store and "combinedEmotion" in ai
 fusion=(root / "ios/COMICPOP/MangaCardFusion.swift").read_text(encoding="utf-8")
 assert "MangaCardFusion.instruction(" in ai
+referencePolicy=(root / "ios/COMICPOP/MangaReferencePolicy.swift").read_text(encoding="utf-8")
+assert "enum MangaReferencePolicy" in referencePolicy
+assert "MangaReferencePolicy.drawingIndices(for:index)" in store
+assert store.count("openingDrawing:MangaReferencePolicy.drawingIndices(for:index)") == 2
+assert "input_image_2" in ai and "openingDrawing:UIImage?=nil" in ai
+assert "mangaReferencePolicyTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "combinedCardIDs:" in store and "scenePlan.scenes.first(where:" in store
 assert "MangaCardFusion" in fusion and "joinedIDs" not in fusion
 assert "mangaCardFusionTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
