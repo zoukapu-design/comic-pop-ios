@@ -8,6 +8,14 @@ struct PopStoryboardDraft: View {
     @State private var editingBeat:MangaStoryBeat?
     @State private var confirmRewrite=false
 
+    private var storyWarnings:[StoryReviewWarning] {
+        MangaStoryQualityAudit.warnings(for:store.storyboardBeats.map {
+            StoryReviewScene(index:$0.index,plot:$0.plotDescriptionJP,
+                             caption:$0.caption,imagePrompt:$0.imagePrompt,
+                             transition:$0.transition)
+        })
+    }
+
     var body:some View {
         PopSurface(accent:true) {
             VStack(alignment:.leading,spacing:10) {
@@ -29,6 +37,24 @@ struct PopStoryboardDraft: View {
                 Text(store.storyCreationMode)
                     .font(.system(size:10))
                     .foregroundStyle(PopColor.royal)
+                if !storyWarnings.isEmpty {
+                    VStack(alignment:.leading,spacing:5) {
+                        Label("作画前に確認したい点（\(storyWarnings.count)件）",
+                              systemImage:"exclamationmark.triangle.fill")
+                            .font(.system(size:12,weight:.black))
+                        ForEach(storyWarnings) { finding in
+                            Text("シーン\(finding.sceneNumber)：\(finding.message)")
+                                .font(.system(size:11,weight:.medium))
+                        }
+                        Text("これは簡易チェックです。AI漫画の品質を保証するスコアではありません。")
+                            .font(.system(size:10))
+                    }
+                    .foregroundStyle(PopColor.ink)
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    .padding(10)
+                    .background(PopColor.yellow.opacity(0.25),
+                                in:RoundedRectangle(cornerRadius:11))
+                }
 
                 ForEach(store.storyboardBeats) { beat in
                     let cards=store.scenePlan.scenes.first(where:{$0.id==beat.id})?
