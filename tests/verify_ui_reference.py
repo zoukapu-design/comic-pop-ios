@@ -203,7 +203,7 @@ artSimilarity=(root / "ios/COMICPOP/MangaArtworkUniqueness.swift").read_text(enc
 assert "similarReviewThreshold" in artSimilarity
 assert "firstUnintendedSimilarity" in artSimilarity
 assert "mangaArtworkUniquenessTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
-assert 'otherwise:source.userNote.isEmpty' in story
+assert 'plotDescriptionJP:source.userNote.trimmingCharacters' in story
 assert "mangaPageIntegrityTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "PopStoryboardDraft(store:store)" in genre
 assert "MangaSceneContactSheet.motionJPEG" in observations
