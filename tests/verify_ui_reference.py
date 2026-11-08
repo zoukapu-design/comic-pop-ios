@@ -275,6 +275,22 @@ clear=store.split("func clearPins()",1)[1].split("func snapshot(for pin:",1)[0]
 assert clear.index("guard commit(candidate) else {return}") < clear.index("removeItem(at:")
 assert 'plotDescriptionJP:source.userNote.trimmingCharacters' in story
 assert ai.index('HIGHEST PRIORITY USER DIRECTION') < ai.index('DRAW THIS SPECIFIC EVENT AND COMPOSITION')
+# Prevent accidental repeat inference; only the review screen's confirmed
+# "rewrite screenplay" control may intentionally spend text/vision quota again.
+storyPreparation=store.split("private func prepareStoryboard(force:Bool) async {",1)[1].split("func updateStoryboardBeat(",1)[0]
+assert "guard force || !storyboardReady else" in storyPreparation
+assert "await prepareStoryboard(force:false)" in store
+assert "await prepareStoryboard(force:true)" in store
+renderStart=store.split("func generate() async {",1)[1].split("func generateOffline() async {",1)[0]
+assert 'hasCompleteComic && generatedMode == "online"' in renderStart
+assert "生成結果を明示的にリセット" in renderStart
+style=store.split("func updateStyle(_ style:String)",1)[1].split("func updateColor(",1)[0]
+color=store.split("func updateColor(_ value:String)",1)[1].split("func updateTitle(",1)[0]
+title=store.split("func updateTitle(_ value:String)",1)[1].split("func selectDeck(",1)[0]
+assert style.index("guard commit(candidate) else {return}") < style.index("clearGenerated()")
+assert color.index("guard commit(candidate) else {return}") < color.index('UserDefaults.standard.set(true')
+assert title.index("guard commit(candidate) else {return}") < title.index("rebuildPages()")
+print("PASS: user-confirmed storyboard rewrite only, no accidental double image charge, atomic style and title edits")
 print("PASS: failed pin saves preserve originals; manual scene directions outrank AI guesses")
 print("PASS: no in-flight quota waste, safe video replacement and evidence-only offline captions")
 
