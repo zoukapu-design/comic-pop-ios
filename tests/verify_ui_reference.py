@@ -183,6 +183,9 @@ assert "CloudflareStoryResponse.text(from:data)" in observations
 assert "choices" in response_parser and "response" in response_parser
 assert "cloudflareStoryResponseTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "MangaPageIntegrity.firstDuplicatePage(encodedPages)" in store
+assert "MangaArtworkUniqueness.firstUnintendedDuplicate(visualComparisons)" in store
+assert "mangaArtworkUniquenessTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+assert 'otherwise:source.userNote.isEmpty' in story
 assert "mangaPageIntegrityTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "PopStoryboardDraft(store:store)" in genre
 assert "MangaSceneContactSheet.motionJPEG" in observations
