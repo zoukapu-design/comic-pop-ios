@@ -344,6 +344,13 @@ struct PreviewPanel: Identifiable {
         }
         let pins=scenePlan.renderPins
         guard !pins.isEmpty else {message="編集画面でカードを挿してください";return}
+        // Apply the same limit BEFORE text/vision inference; otherwise a user
+        // could spend free quota drafting a 20-scene story that the image
+        // workflow later refuses to draw.
+        guard pins.count<=12 else {
+            message="現在のAIモードは12シーンまでです（カードは統合前なら12枚を超えても構いません）。脚本生成前に場面を絞ってください。"
+            return
+        }
         guard confirmsFree,let token=CloudflareCredentialVault.load(),
               !cloudflareAccount.isEmpty else {
             message="Cloudflareの無料枠を確認してAIアカウントを接続してください"
