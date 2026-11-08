@@ -98,6 +98,7 @@ enum MangaSpeechEvidence {
 private enum MangaVisualStoryError: Error {
     case unsupported
     case quota
+    case credentials
 }
 
 /// A single, whole-story text request BEFORE individual image generation.
@@ -167,10 +168,12 @@ enum MangaStoryAIService {
                         account:account,token:token
                     )
                 } catch MangaVisualStoryError.quota {
-                throw MangaError.server("Cloudflareの利用枠を確認してください。画像理解AIの呼出しで制限に達しました。")
+                    throw MangaError.server("Cloudflareの利用枠を確認してください。画像理解AIの呼出しで制限に達しました。")
+                } catch MangaVisualStoryError.credentials {
+                    throw MangaError.server("Cloudflareの認証・Workers AIの権限を確認してください。認証エラー時は追加のAI呼出しを行いません。")
                 } catch {
-                    // Could be unsupported vision access or invalid structured
-                    // response; the lower-cost GLM script remains available.
+                    // Unsupported model and malformed JSON can use GLM as a
+                    // fallback. Auth/quota failures MUST NOT retry automatically.
                 }
             }
         }
@@ -237,6 +240,9 @@ enum MangaStoryAIService {
         guard let http=response as? HTTPURLResponse else {throw MangaVisualStoryError.unsupported}
         if http.statusCode==429 || http.statusCode==402 {
             throw MangaVisualStoryError.quota
+        }
+        if http.statusCode==401 || http.statusCode==403 {
+            throw MangaVisualStoryError.credentials
         }
         guard (200...299).contains(http.statusCode),
               let raw=CloudflareStoryResponse.text(from:data),!raw.isEmpty else {
