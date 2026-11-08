@@ -15,6 +15,15 @@ struct PopGenreScreen: View {
     @AppStorage("pop.hint.scene") private var sceneHint = true
     @AppStorage("pop.hint.fidelity") private var fidelityHint = false
 
+    private var generationRoute:MangaGenerationRoute {
+        MangaGenerationRoute.resolve(
+            hasCompleteComic:store.hasCompleteComic,
+            generatedPanelCount:store.generatedPanelCount,
+            generatedOffline:store.generatedOffline,
+            storyboardReady:store.storyboardReady
+        )
+    }
+
     private let genres:[(id:String,title:String)] = [
         ("american","アメコミ系"),("shonen","熱血少年漫画"),
         ("shojo","少女漫画"),("gag","ギャグ漫画"),
@@ -99,7 +108,7 @@ struct PopGenreScreen: View {
                             .font(.system(size:10)).foregroundStyle(PopColor.ink.opacity(0.75))
                     }
                 }
-                if store.hasCompleteComic {
+                if generationRoute == .viewCompleted {
                     PopSurface(accent:true) {
                         VStack(alignment:.leading,spacing:9) {
                             Label("漫画が完成しています",systemImage:"checkmark.seal.fill")
@@ -119,7 +128,7 @@ struct PopGenreScreen: View {
                         }
                         .foregroundStyle(PopColor.ink)
                     }
-                } else if !store.generated.isEmpty {
+                } else if generationRoute == .resumeOnline || generationRoute == .resumeOffline {
                     PopSurface(accent:true) {
                         VStack(alignment:.leading,spacing:8) {
                             Label("途中まで生成した漫画があります",systemImage:"arrow.clockwise")
@@ -130,7 +139,7 @@ struct PopGenreScreen: View {
                                             icon:"arrow.clockwise",
                                             enabled:!store.isGenerating) {
                                 Task {
-                                    if store.generatedOffline {
+                                    if generationRoute == .resumeOffline {
                                         await store.generateOffline()
                                     } else {
                                         await store.generate()
@@ -141,7 +150,7 @@ struct PopGenreScreen: View {
                         }
                         .foregroundStyle(PopColor.ink)
                     }
-                } else if store.storyboardReady {
+                } else if generationRoute == .reviewStoryboard {
                     PopStoryboardDraft(store:store) {
                         Task {
                             await store.generate()
