@@ -177,13 +177,17 @@ enum MangaStoryAIService {
                 }
             }
         }
+        // The whole chapter must be returned as one JSON document.
+        // A fixed 3000-token cap can truncate later panels of a 12-scene manga.
+        // This is an upper bound, NOT a requirement to consume the tokens.
+        let outputBudget=min(6400,max(3000,evidence.count*450+1000))
         let body:[String:Any]=[
             "messages":[
                 ["role":"system","content":"You are a professional Japanese manga writer and storyboard artist. Output valid JSON and coherent Japanese captions only."],
                 ["role":"user","content":prompt]
             ],
             "temperature":0.5,
-            "max_completion_tokens":3200,
+            "max_completion_tokens":outputBudget,
             "stream":false
         ]
         var request=URLRequest(url:url)
@@ -216,6 +220,7 @@ enum MangaStoryAIService {
             throw MangaVisualStoryError.unsupported
         }
         let imageURI="data:image/jpeg;base64,"+sheet.base64EncodedString()
+        let outputBudget=min(6400,max(3000,evidence.count*450+1000))
         // A contact-sheet row represents one user-selected scene and its motion.
         let body:[String:Any]=[
             "model":visualModel,
@@ -227,7 +232,7 @@ enum MangaStoryAIService {
                 ]]
             ],
             "temperature":0.25,
-            "max_tokens":3000,
+            "max_tokens":outputBudget,
             "stream":false
         ]
         var request=URLRequest(url:url)
