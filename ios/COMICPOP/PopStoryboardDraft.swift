@@ -91,6 +91,11 @@ struct PopStoryboardDraft: View {
                                 .font(.system(size:11,weight:.bold))
                                 .foregroundStyle(PopColor.royal)
                         }
+                        if !beat.userSceneNoteJP.isEmpty {
+                            Text("挿入カードのメモ（優先）：\(beat.userSceneNoteJP)")
+                                .font(.system(size:11,weight:.semibold))
+                                .foregroundStyle(PopColor.royal)
+                        }
                         if !beat.plotDescriptionJP.isEmpty {
                             Text("このコマの出来事：\(beat.plotDescriptionJP)")
                                 .font(.system(size:12,weight:.heavy))
