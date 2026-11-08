@@ -85,7 +85,7 @@ struct CloudflareAIService {
         // Token validity is not a confirmation of the Workers Free plan or account permissions.
         return status.success == true && status.result?.status == "active"
     }
-    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="",previousDrawing:UIImage?=nil,alternateComposition:Bool=false,combinedCardIDs:[String]=[]) async throws -> UIImage {
+    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="",previousDrawing:UIImage?=nil,openingDrawing:UIImage?=nil,alternateComposition:Bool=false,combinedCardIDs:[String]=[]) async throws -> UIImage {
         guard let jpg=VideoFrameService.compactJPEG(image),jpg.count<700_000 else{throw MangaError.invalidImage}
         guard let url=accountURL(account),!token.isEmpty else{throw MangaError.credentialsMissing}
         let aspect=image.size.width/max(image.size.height,1)
@@ -137,7 +137,8 @@ struct CloudflareAIService {
         let secondaryInstructions=[
             "Keep the same protagonist, clothing, hairstyle and setting across adjacent panels.",
             "Input image 0 depicts the current moment. Use it as evidence, not as a fixed camera angle.",
-            "If image 1 exists, use it ONLY for continuity of the person's identity, clothing and drawing style. Draw a NEW pose, angle and narrative action.",
+            "If image 1 exists, it is the PREVIOUS manga panel. Use it for identity, clothes, and drawing style, NOT for copying its pose or action.",
+            "If image 2 exists, it is the FIRST manga panel. Use image 2 to keep long-range protagonist identity and linework stable. If the subject differs, keep ONLY the overall art style. NEVER copy its scene, background or pose.",
             "The reaction must answer the prior event. A payoff must visibly follow an earlier setup.",
             "Scene context: \(String((story?.scene ?? "").prefix(125))).",
             "Transition: \(String((story?.transition ?? "").prefix(125))).",
@@ -158,6 +159,11 @@ struct CloudflareAIService {
            let continuityJPEG=VideoFrameService.compactJPEG(previousDrawing),
            continuityJPEG.count<700_000 {
             form.addJPEG(name:"input_image_1",bytes:continuityJPEG)
+            if let openingDrawing,
+               let anchorJPEG=VideoFrameService.compactJPEG(openingDrawing),
+               anchorJPEG.count<700_000 {
+                form.addJPEG(name:"input_image_2",bytes:anchorJPEG)
+            }
         }
         form.finish()
         var request=URLRequest(url:url)
