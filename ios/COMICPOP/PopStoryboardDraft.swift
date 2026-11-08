@@ -77,10 +77,23 @@ struct PopStoryboardDraft: View {
                             .buttonStyle(.bordered)
                             .tint(PopColor.blue)
                         }
+                        if !beat.narrativeDutyJP.isEmpty {
+                            Label("物語の役割：\(beat.narrativeDutyJP)",
+                                  systemImage:"list.bullet.rectangle")
+                                .font(.system(size:11,weight:.bold))
+                                .foregroundStyle(PopColor.royal)
+                        }
                         if !beat.plotDescriptionJP.isEmpty {
                             Text("このコマの出来事：\(beat.plotDescriptionJP)")
                                 .font(.system(size:12,weight:.heavy))
                                 .foregroundStyle(PopColor.royal)
+                        }
+                        if beat.index>1 {
+                            Text(beat.causalLinkJP.isEmpty
+                                 ? "前のコマとのつながり：未設定（シーン修正から追加できます）"
+                                 : "前のコマとのつながり：\(beat.causalLinkJP)")
+                                .font(.system(size:11,weight:.medium))
+                                .foregroundStyle(PopColor.ink)
                         }
                         Text(beat.caption.isEmpty ? "（ナレーションなし）" : beat.caption)
                             .font(.system(size:12,weight:.medium))
@@ -124,9 +137,10 @@ struct PopStoryboardDraft: View {
             }
         }
         .sheet(item:$editingBeat) { beat in
-            PopStoryboardTextEditor(beat:beat) { plot,caption,dialogue,direction in
+            PopStoryboardTextEditor(beat:beat) { plot,caption,dialogue,direction,causal in
                 store.updateStoryboardBeat(beat.id,caption:caption,dialogue:dialogue,
-                                           plotDescription:plot,visualDirection:direction)
+                                           plotDescription:plot,visualDirection:direction,
+                                           causalLink:causal)
             }
         }
         .confirmationDialog("脚本を再作成しますか？",
@@ -145,20 +159,22 @@ struct PopStoryboardDraft: View {
 
 private struct PopStoryboardTextEditor:View {
     let beat:MangaStoryBeat
-    let onSave:(String,String,String,String)->Void
+    let onSave:(String,String,String,String,String)->Void
     @Environment(\.dismiss) private var dismiss
     @State private var plotDescription:String
     @State private var caption:String
     @State private var dialogue:String
     @State private var visualDirection:String
+    @State private var causalLink:String
 
-    init(beat:MangaStoryBeat,onSave:@escaping (String,String,String,String)->Void) {
+    init(beat:MangaStoryBeat,onSave:@escaping (String,String,String,String,String)->Void) {
         self.beat=beat
         self.onSave=onSave
         _plotDescription=State(initialValue:beat.plotDescriptionJP)
         _caption=State(initialValue:beat.caption)
         _dialogue=State(initialValue:beat.dialogue)
         _visualDirection=State(initialValue:beat.userVisualDirection)
+        _causalLink=State(initialValue:beat.causalLinkJP)
     }
 
     var body:some View {
@@ -178,6 +194,17 @@ private struct PopStoryboardTextEditor:View {
                                 .background(.white,in:RoundedRectangle(cornerRadius:9))
                             Text("セリフとは別に、人物の行動と事件の結果を具体的に記入してください。")
                                 .font(.system(size:11))
+                            if beat.index>1 {
+                                Text("前のコマとのつながり（原因・反応・結果）")
+                                    .font(.system(size:13,weight:.black))
+                                TextEditor(text:$causalLink)
+                                    .frame(minHeight:75)
+                                    .scrollContentBackground(.hidden)
+                                    .padding(6)
+                                    .background(.white,in:RoundedRectangle(cornerRadius:9))
+                                Text("例：「そばを切ろうとして手が滑り、その音に驚いた」")
+                                    .font(.system(size:11))
+                            }
                             Text("ナレーション").font(.system(size:13,weight:.black))
                             TextEditor(text:$caption)
                                 .frame(minHeight:100)
@@ -202,7 +229,7 @@ private struct PopStoryboardTextEditor:View {
                             Text("この指示はAIの元の脚本より優先します。セリフと描画指示の編集だけなら画像生成回数は増えません。")
                                 .font(.system(size:11))
                             PopYellowButton(title:"脚本に反映",icon:"checkmark") {
-                                onSave(plotDescription,caption,dialogue,visualDirection)
+                                onSave(plotDescription,caption,dialogue,visualDirection,causalLink)
                                 dismiss()
                             }
                         }
