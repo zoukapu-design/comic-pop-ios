@@ -10,9 +10,16 @@ struct PopStoryboardDraft: View {
 
     private var storyWarnings:[StoryReviewWarning] {
         MangaStoryQualityAudit.warnings(for:store.storyboardBeats.map {
-            StoryReviewScene(index:$0.index,plot:$0.plotDescriptionJP,
-                             caption:$0.caption,imagePrompt:$0.imagePrompt,
-                             transition:$0.transition)
+            StoryReviewScene(
+                index:$0.index,plot:$0.plotDescriptionJP,
+                caption:$0.caption,
+                imagePrompt:$0.userVisualDirection.isEmpty
+                    ? $0.imagePrompt : $0.userVisualDirection,
+                transition:$0.transition,
+                narrativeRole:$0.narrativeDutyJP,
+                causalLink:$0.causalLinkJP,
+                requiresCausalLink:$0.index>1
+            )
         })
     }
 
