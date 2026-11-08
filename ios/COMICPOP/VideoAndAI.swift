@@ -114,35 +114,39 @@ struct CloudflareAIService {
             ? "CRITICAL: all emotional cards \(card.title) belong to ONE SAME VIDEO MOMENT. Blend ALL effects in ONE illustration. Dramatic + Horror means an ominous, high-stakes manga scene, NOT two pictures."
             : "Express the requested narrative card naturally in this one illustration."
         let approvedDirection=story?.userVisualDirection ?? ""
-        let prompt=[
-            "Original cinematic JAPANESE MANGA illustration from a continuous sequential story.",
-            combinedEmotion,alternate,
+        let plotAction=String((story?.plotDescriptionJP ?? pin.note).prefix(150))
+        let plannedIllustration=String((story?.imagePrompt ?? pin.note).prefix(540))
+        // Critical: this model prompt is capped. Put the actual action and the
+        // scene's story responsibility FIRST, never after verbose style advice.
+        let primaryInstructions=[
+            "Original sequential JAPANESE MANGA art. ONE panel, a NEW story event; not a photo filter.",
+            MangaStyles.prompt(for:style),color,
+            "ACTUAL PLOT EVENT: \(plotAction).",
+            "DRAW THIS SPECIFIC EVENT AND COMPOSITION: \(plannedIllustration).",
+            "CAUSAL CONNECTION TO PREVIOUS SCENE: \(String((story?.causalLinkJP ?? "").prefix(120))).",
+            "STORY ROLE: \(story?.narrativeDutyJP ?? "").",
+            combinedEmotion,
             approvedDirection.isEmpty
                 ? ""
-                : "HIGHEST PRIORITY USER APPROVED ACTION/COMPOSITION: \(approvedDirection). Follow this as the intended plot action, emotion, shot angle and visual storytelling. The input photograph is only a visual reference.",
-            MangaStyles.prompt(for:style),color,
-            "Manga panel narrative responsibility: \(story?.narrativeDutyJP ?? "").",
-            "Direct causal relation to the previous panel: \(story?.causalLinkJP ?? "").",
-            "Make this panel advance the story. It is NOT a still-photo filter or documentary storyboard.",
-            "Shared chapter premise: \(seriesPremise).",
-            "Current storytelling role: \(card.title) / \(card.subtitle).",
-            "What HAPPENS (Japanese storyboard event): \(story?.plotDescriptionJP ?? pin.note). This is the user's reviewed narrative action.",
-            "Panel event: \(story?.scene ?? pin.note).",
-            "What to draw: \(story?.imagePrompt ?? pin.note).",
-            "Causal transition from prior panel: \(story?.transition ?? "continue preceding action").",
-            "Keep principal characters visibly recognizable across adjacent panels: same face, hairstyle, clothing and accessories, and believable recurring locations.",
-            "You MAY change camera angle, pose, expression, background detail and implied intermediate action to turn the scene into a compelling manga beat.",
-            "Input image 0 is the CURRENT video reference: use its people, place and relevant action as the scene inspiration.",
-            "When image 1 is provided, it is the PREVIOUS FINISHED MANGA PANEL. Transfer ONLY character identity, clothing and drawing style from it; do NOT duplicate its pose, background composition or storyline beat.",
-            "The written storyboard governs the NEW action and camera angle in this panel. Let the comic progress rather than drawing two near-identical pictures.",
-            "Express card emotion strongly in character posture and faces. A reaction must respond to the previous action; final panel should pay off earlier events.",
-            hints,
-            "ABSOLUTELY NO TEXT of ANY language, NO WORDS, NO KANJI, NO GIBBERISH GLYPHS, NO CAPTIONS, NO WATERMARKS, NO speech balloons. The app typeset Japanese speech and captions after generation."
-        ].joined(separator:" ")
+                : "HIGHEST PRIORITY USER DIRECTION: \(String(approvedDirection.prefix(300))). Override the AI's suggested scene action and composition when this conflicts.",
+            alternate,
+            "CHAPTER: \(String(seriesPremise.prefix(150))).",
+            "CARD EMOTIONS: \(card.title), \(String(card.subtitle.prefix(160)))."
+        ].filter{!$0.isEmpty}
+        let secondaryInstructions=[
+            "Keep the same protagonist, clothing, hairstyle and setting across adjacent panels.",
+            "Input image 0 depicts the current moment. Use it as evidence, not as a fixed camera angle.",
+            "If image 1 exists, use it ONLY for continuity of the person's identity, clothing and drawing style. Draw a NEW pose, angle and narrative action.",
+            "The reaction must answer the prior event. A payoff must visibly follow an earlier setup.",
+            "Scene context: \(String((story?.scene ?? "").prefix(125))).",
+            "Transition: \(String((story?.transition ?? "").prefix(125))).",
+            hints
+        ]
+        let prompt=(primaryInstructions+secondaryInstructions).joined(separator:" ")
         var form=FormDataBuilder()
-        // Keep the text-exclusion rule intact even when a long screenplay
-        // causes the descriptive portion to be truncated.
-        let neverText="ABSOLUTELY NO WORDS OR LETTERS OR JAPANESE CHARACTERS OR FAKE WRITING IN THE PICTURE. APP WILL TYPESET ALL JAPANESE CAPTIONS AND SPEECH."
+        // Always append the no-gibberish instruction OUTSIDE the truncation.
+        // The iOS renderer typesets natural Japanese dialogue and captions.
+        let neverText="ABSOLUTELY NO WORDS, NO KANJI, NO FAKE LETTERS OR SPEECH BALLOONS. APP TYPESETS ALL JAPANESE LETTERING AFTER GENERATION."
         form.add(name:"prompt",value:String(prompt.prefix(2400))+" "+neverText)
         form.add(name:"width",value:String(width))
         form.add(name:"height",value:String(height))
