@@ -116,6 +116,9 @@ struct CloudflareAIService {
         let prompt=[
             "Original cinematic JAPANESE MANGA illustration from a continuous sequential story.",
             combinedEmotion,alternate,
+            story?.userVisualDirection.isEmpty == false
+                ? "HIGHEST PRIORITY USER APPROVED ACTION/COMPOSITION: \(story!.userVisualDirection). Follow this as the intended plot action, emotion, shot angle and visual storytelling. The input photograph is only a visual reference."
+                : "",
             MangaStyles.prompt(for:style),color,
             "Make this panel advance the story. It is NOT a still-photo filter or documentary storyboard.",
             "Shared chapter premise: \(seriesPremise).",
