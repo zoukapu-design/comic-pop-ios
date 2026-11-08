@@ -492,19 +492,13 @@ struct PreviewPanel: Identifiable {
                 } else {
                     finishedImage=image
                 }
-                let warning: String? = {
-                    guard let prev=generated.last else {return nil}
-                    let generatedDifference=ImageDifference.distance(
-                        finishedImage,prev.drawing)
-                    return generatedDifference<0.055
-                        ? "前のコマと構図が非常に似ています。別シーンならコマ単位で再生成してください。"
-                        : nil
-                }()
                 generated.append(PreviewPanel(
-                    id:pin.id,cardTitle:card.title,original:original,drawing:finishedImage,warning:warning,
+                    id:pin.id,cardTitle:card.title,original:original,
+                    drawing:finishedImage,warning:nil,
                     caption:beat.caption,dialogue:beat.dialogue,
                     storyPrompt:beat.imagePrompt,storyScene:beat.scene
                 ))
+                refreshArtworkSimilarityWarnings()
             } catch {
                 guard startingSession == videoSession && startingRevision == pinsRevision &&
                     style == data.style && colorMode == data.colorMode else {
@@ -661,14 +655,43 @@ struct PreviewPanel: Identifiable {
             panelRetryCount[id]=attempt
             finishingBase[id]=updated
             generated[index].drawing=updated
-            generated[index].warning=nil
+            refreshArtworkSimilarityWarnings()
             rebuildPages()
             message="選択コマを再生成しました。保存前に結果を確認してください。"
         } catch {
             message="コマ再生成に失敗しました：\(error.localizedDescription)"
         }
     }
-    func chooseOriginal(_ id:UUID){guard let i=generated.firstIndex(where:{$0.id==id}) else {return};finishingBase[id]=nil;generated[i].drawing=generated[i].original;generated[i].warning=nil;rebuildPages()}
+    func chooseOriginal(_ id:UUID){guard let i=generated.firstIndex(where:{$0.id==id}) else {return};finishingBase[id]=nil;generated[i].drawing=generated[i].original;refreshArtworkSimilarityWarnings();rebuildPages()}
+    /// Compare the actual artwork, not page headers or captions. This also
+    /// catches panel 5 repeating panel 1, which adjacent-panel checks miss.
+    /// Review warnings are advisory and never spend AI credits automatically.
+    private func refreshArtworkSimilarityWarnings() {
+        guard !generated.isEmpty else {return}
+        for index in generated.indices {
+            generated[index].warning=nil
+        }
+        guard generated.count>1 else {return}
+        for later in 1..<generated.count {
+            let isFlashback=scenePlan.scenes.indices.contains(later) &&
+                scenePlan.scenes[later].cardIDs.contains(where: {
+                    ["flashback","replay","beforeafter"].contains($0)
+                })
+            let comparisons=(0..<later).map { earlier in
+                MangaArtworkComparison(
+                    earlier:earlier,later:later,
+                    distance:ImageDifference.distance(
+                        generated[earlier].drawing,generated[later].drawing),
+                    intentionalReprise:isFlashback
+                )
+            }
+            if let match=MangaArtworkUniqueness.firstUnintendedSimilarity(comparisons) {
+                let pageA=match.earlier/4+1, pageB=match.later/4+1
+                generated[later].warning="コマ\(match.earlier+1)（\(pageA)ページ目）とコマ\(later+1)（\(pageB)ページ目）の絵が似ています。別の展開ならコマ単位で再生成できます。"
+            }
+        }
+    }
+
     func rebuildPages() {
         let title=data.workTitle.isEmpty ? (storyPlan?.title ?? "ムビコマ") : data.workTitle
         pageImages=stride(from:0,to:generated.count,by:4).map { offset in
