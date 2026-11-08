@@ -7,6 +7,7 @@ struct PopStoryboardDraft: View {
     let drawComic: () -> Void
     @State private var editingBeat:MangaStoryBeat?
     @State private var confirmRewrite=false
+    @State private var confirmDrawWithWarnings=false
 
     private var storyWarnings:[StoryReviewWarning] {
         MangaStoryQualityAudit.warnings(for:store.storyboardBeats.map {
@@ -130,7 +131,13 @@ struct PopStoryboardDraft: View {
                     .foregroundStyle(PopColor.ink)
                 PopYellowButton(title:"この脚本で漫画の絵を描く",
                                 icon:"paintbrush.pointed.fill",
-                                enabled:!store.isGenerating,action:drawComic)
+                                enabled:!store.isGenerating) {
+                    if storyWarnings.isEmpty {
+                        drawComic()
+                    } else {
+                        confirmDrawWithWarnings=true
+                    }
+                }
                 Button {confirmRewrite=true} label:{
                     Label("脚本を作り直す（AI利用枠を消費）",
                           systemImage:"arrow.clockwise")
@@ -149,6 +156,14 @@ struct PopStoryboardDraft: View {
                                            plotDescription:plot,visualDirection:direction,
                                            causalLink:causal)
             }
+        }
+        .confirmationDialog("作画前の注意点があります",
+                            isPresented:$confirmDrawWithWarnings,
+                            titleVisibility:.visible) {
+            Button("注意点を確認したうえで作画する") {drawComic()}
+            Button("修正する",role:.cancel) {}
+        } message: {
+            Text("脚本に\(storyWarnings.count)件の確認点があります。内容を修正すれば画像生成枠の無駄を減らせます。今のまま進める場合はCloudflareの画像生成枠を使用します。")
         }
         .confirmationDialog("脚本を再作成しますか？",
                             isPresented:$confirmRewrite,
