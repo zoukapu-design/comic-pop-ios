@@ -33,6 +33,28 @@ import Foundation
         precondition(outline.isAIStory && outline.beats.count==5)
         precondition(outline.beats.map(\.id)==inputs.map(\.pinID))
         precondition(outline.beats[2].dialogue=="あれ、曲がってる！", "user dialogue overrides speculation")
+        // Without observed action or a user note, the LLM's missing plot
+        // must stay visibly empty for human review. A generic dramatic filler
+        // is not evidence of a coherent scene.
+        let noEvidence=MangaStoryEvidence(
+            pinID:UUID(),seconds:5,cardID:"dramatic",cardTitle:"ドラマティック",
+            cardHint:"緊張",visual:"unclassified frame",neighborVisual:"",
+            heard:"",userNote:"",userDialogue:""
+        )
+        let missingPlotJSON=try JSONSerialization.data(withJSONObject:[
+            "title":"出来事","premise":"緊張が走る",
+            "panels":[[
+                "index":1,"caption":"一瞬、空気が変わった。",
+                "dialogue":"","scene":"cinematic interior",
+                "imagePrompt":"person reacts in a new cinematic composition",
+                "transition":"opening"
+            ]]
+        ])
+        let missingPlot=try MangaStoryPlanner.decodeAIStory(
+            String(decoding:missingPlotJSON,as:UTF8.self),evidence:[noEvidence])
+        precondition(missingPlot.beats[0].plotDescriptionJP.isEmpty,
+                     "Unobserved plot events must not be disguised with generic prose")
+        precondition(missingPlot.beats[0].caption=="一瞬、空気が変わった。")
         precondition(outline.title=="陶芸初挑戦")
         precondition(outline.beats[0].narrativeDutyJP.contains("導入"))
         precondition(outline.beats[1].causalLinkJP.contains("前の作業"))
