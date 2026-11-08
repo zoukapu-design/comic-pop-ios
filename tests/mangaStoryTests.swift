@@ -33,6 +33,17 @@ import Foundation
         precondition(outline.isAIStory && outline.beats.count==5)
         precondition(outline.beats.map(\.id)==inputs.map(\.pinID))
         precondition(outline.beats[2].dialogue=="あれ、曲がってる！", "user dialogue overrides speculation")
+        // AI may produce grammatically valid but contradictory content. User
+        // notes remain the exact event shown in the final drawing prompt.
+        var contradictory=beats
+        contradictory[0]["plotDescriptionJP"]="主人公が突然サッカー場で走り始める。"
+        let contradictedJSON=try JSONSerialization.data(withJSONObject:[
+            "title":"陶芸初挑戦","premise":"陶芸に取り組む物語","panels":contradictory
+        ])
+        let userPriority=try MangaStoryPlanner.decodeAIStory(
+            String(decoding:contradictedJSON,as:UTF8.self),evidence:inputs)
+        precondition(userPriority.beats[0].plotDescriptionJP==inputs[0].userNote,
+                     "AI cannot replace explicit user action with unrelated event")
         // Without observed action or a user note, the LLM's missing plot
         // must stay visibly empty for human review. A generic dramatic filler
         // is not evidence of a coherent scene.
