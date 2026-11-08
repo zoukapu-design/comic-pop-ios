@@ -124,6 +124,7 @@ struct CloudflareAIService {
             "Make this panel advance the story. It is NOT a still-photo filter or documentary storyboard.",
             "Shared chapter premise: \(seriesPremise).",
             "Current storytelling role: \(card.title) / \(card.subtitle).",
+            "What HAPPENS (Japanese storyboard event): \(story?.plotDescriptionJP ?? pin.note). This is the user's reviewed narrative action.",
             "Panel event: \(story?.scene ?? pin.note).",
             "What to draw: \(story?.imagePrompt ?? pin.note).",
             "Causal transition from prior panel: \(story?.transition ?? "continue preceding action").",
