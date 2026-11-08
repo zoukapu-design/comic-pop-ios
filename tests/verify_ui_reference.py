@@ -306,6 +306,34 @@ for deckAction, nextAction in (
     assert "var candidate=data" in operation, deckAction
     assert "commit(candidate)" in operation, deckAction
     assert "data.decks.append(" not in operation and "data.decks.removeAll" not in operation
+# Screen navigation must not mistake a finished drawing for a fresh AI job.
+generationRoute=(root / "ios/COMICPOP/MangaGenerationRoute.swift").read_text(encoding="utf-8")
+routeTests=(root / "tests/mangaGenerationRouteTests.swift").read_text(encoding="utf-8")
+preflight=(root / "tests/run.sh").read_text(encoding="utf-8")
+assert "enum MangaGenerationRoute" in generationRoute
+assert "if hasCompleteComic { return .viewCompleted }" in generationRoute
+assert "if generatedPanelCount > 0" in generationRoute
+assert ".resumeOffline" in generationRoute and ".resumeOnline" in generationRoute
+assert "MangaGenerationRoute.resolve(" in genre
+assert "generationRoute == .viewCompleted" in genre
+assert "generationRoute == .resumeOnline || generationRoute == .resumeOffline" in genre
+assert "generationRoute == .reviewStoryboard" in genre
+assert "完成した漫画を見る" in genre
+assert "続きを生成する" in genre
+assert "生成結果を破棄して作り直す" in genre
+assert "store.discardGenerated()" in genre
+assert "mangaGenerationRouteTests.swift" in preflight
+assert "7 deterministic manga-generation route scenarios" in routeTests
+# Page rasterization is expensive: save title immediately, rasterize only
+# on submit/navigation/save, not on each TextField character change.
+titleEdit=store.split("func updateTitle(_ value:String)",1)[1].split("func refreshPageTitle()",1)[0]
+assert "guard commit(candidate) else {return}" in titleEdit
+assert "rebuildPages()" not in titleEdit
+assert "func refreshPageTitle()" in store
+assert ".onSubmit {store.refreshPageTitle()}" in genre
+assert ".onDisappear {store.refreshPageTitle()}" in genre
+assert "refreshPageTitle()" in store.split("func saveWork() -> Bool",1)[1]
+print("PASS: actual UI state machine for complete/partial/script; title page rasterization deferred")
 print("PASS: decks are committed atomically before the published collection changes")
 print("PASS: user-confirmed storyboard rewrite only, no accidental double image charge, atomic style and title edits")
 print("PASS: failed pin saves preserve originals; manual scene directions outrank AI guesses")
