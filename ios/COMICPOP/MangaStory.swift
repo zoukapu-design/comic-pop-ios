@@ -21,6 +21,8 @@ struct MangaStoryBeat: Identifiable {
     let scene: String
     let imagePrompt: String
     let transition: String
+    /// Human-readable summary of what physically happens in this panel.
+    var plotDescriptionJP: String = ""
     /// Explicit user instructions for how the scene should be drawn.
     var userVisualDirection: String = ""
 }
@@ -42,6 +44,7 @@ private struct AIStoryPanel: Decodable {
     let index: Int
     let caption: String
     let dialogue: String
+    let plotDescriptionJP: String?
     let scene: String
     let imagePrompt: String
     let transition: String
@@ -74,7 +77,10 @@ enum MangaStoryPlanner {
             return MangaStoryBeat(id:e.pinID,index:index+1,caption:caption,
                 dialogue:clip(e.userDialogue,35),scene:role(for:e.cardID),
                 imagePrompt:"Shot \(index+1): \(shotHint(for:index)). Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
-                transition:index==0 ? "Opening" : "Continue directly from preceding panel")
+                transition:index==0 ? "Opening" : "Continue directly from preceding panel",
+                plotDescriptionJP:clip(e.userNote.isEmpty
+                    ? role(for:e.cardID)
+                    : e.userNote,100))
         }
         return MangaStoryPlan(title:"動画から生まれた物語",premise:"カードから組み立てた仮の構成",beats:beats,isAIStory:false)
     }
@@ -112,7 +118,9 @@ enum MangaStoryPlanner {
                 dialogue:!source.userDialogue.isEmpty ? clip(source.userDialogue,35) : japanese(line.dialogue,otherwise:"",limit:35),
                 scene:clip(line.scene,120).isEmpty ? standard.scene : clip(line.scene,120),
                 imagePrompt:"Shot \(index+1): \(shotHint(for:index)). "+(clip(line.imagePrompt,590).isEmpty ? standard.imagePrompt : clip(line.imagePrompt,590)),
-                transition:clip(line.transition,160))
+                transition:clip(line.transition,160),
+                plotDescriptionJP:japanese(line.plotDescriptionJP ?? "",
+                    otherwise:standard.plotDescriptionJP,limit:100))
         }
         return MangaStoryPlan(title:japanese(draft.title,otherwise:backup.title,limit:38),
             premise:japanese(draft.premise,otherwise:backup.premise,limit:145),beats:beats,isAIStory:true)
