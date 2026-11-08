@@ -77,19 +77,21 @@ enum MangaStoryPlanner {
         let cues=MangaNarrativeDirector.cues(for:evidence)
         let beats=evidence.enumerated().map { index,e in
             let cue=cues[index]
+            // The offline renderer cannot invent a truthful plot from an
+            // unclassified video frame. Never fill missing evidence with
+            // generic "dramatic turn" or fabricated "happy ending" captions.
+            // The user can explicitly add narration in the review editor.
             let caption: String
             if !e.userNote.isEmpty {caption=clip(e.userNote,46)}
             else if !e.heard.isEmpty {caption=clip(e.heard,46)}
-            else if index==0 {caption="こうして、一つの出来事が始まった。"}
-            else if index==evidence.count-1 {caption="そして、物語はひとつの結末へ。"}
-            else {caption=["そのとき、思わぬ展開が。","けれど、まだ終わらない。","次の瞬間、状況が動いた。"][index%3]}
+            else {caption=""}
             return MangaStoryBeat(id:e.pinID,index:index+1,caption:caption,
                 dialogue:clip(e.userDialogue,35),scene:role(for:e.cardID),
                 imagePrompt:"Shot \(index+1): \(cue.role.imageComposition). \(shotHint(for:index)). Story duty: \(cue.role.narrativeRequirement). Constraints: \(cue.evidenceRestrictions). Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
                 transition:index==0 ? "Opening" : "Continue directly from preceding panel",
-                plotDescriptionJP:clip(e.userNote.isEmpty
-                    ? cue.role.narrativeRequirement
-                    : e.userNote,100),
+                // Story roles are *instructions*, not observed events.
+                // Keep the factual scene description empty without a note.
+                plotDescriptionJP:clip(e.userNote,100),
                 narrativeDutyJP:cue.role.japanese,
                 causalLinkJP:"")
         }
