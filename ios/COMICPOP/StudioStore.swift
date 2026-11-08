@@ -307,8 +307,12 @@ struct PreviewPanel: Identifiable {
         candidate.workTitle=String(value.prefix(80))
         guard commit(candidate) else {return}
         titleDraft=data.workTitle
-        // Keep the title printed inside each page consistent with metadata.
-        if !generated.isEmpty {rebuildPages()}
+        // Do not rasterize every page on each keyboard keystroke. Flush when
+        // editing finishes or before saving, while preserving the text now.
+    }
+    func refreshPageTitle() {
+        guard !isGenerating && !generated.isEmpty else {return}
+        rebuildPages()
     }
     func selectDeck(_ id:UUID) {
         guard data.decks.contains(where:{$0.id==id}) else {return}
@@ -893,6 +897,9 @@ struct PreviewPanel: Identifiable {
             message="絵が重複しています（コマ\(duplicate.earlier+1)と\(duplicate.later+1)）。文章ではなく画像が同じため、該当コマを別構図で再生成してから保存してください。"
             return false
         }
+        // Recompose headers from the latest title before saving. The editable
+        // title field intentionally avoids expensive per-keystroke rendering.
+        refreshPageTitle()
         // Validate the ENTIRE manga before writing the first file. A failed
         // second page can no longer leave a half-saved work on disk.
         let encodedPages=pageImages.compactMap{$0.pngData()}
