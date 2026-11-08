@@ -109,8 +109,7 @@ struct PreviewPanel: Identifiable {
     }
     @discardableResult private func persist(_ snapshot: StudioData? = nil) -> Bool {
         do {
-            let out=try JSONEncoder().encode(snapshot ?? data)
-            try out.write(to:modelURL,options:.atomic)
+            try StudioAtomicPersistence.write(snapshot ?? data,to:modelURL)
             return true
         } catch {
             message="端末への保存に失敗しました：\(error.localizedDescription)"
