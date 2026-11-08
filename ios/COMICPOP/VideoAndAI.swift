@@ -121,6 +121,8 @@ struct CloudflareAIService {
                 ? ""
                 : "HIGHEST PRIORITY USER APPROVED ACTION/COMPOSITION: \(approvedDirection). Follow this as the intended plot action, emotion, shot angle and visual storytelling. The input photograph is only a visual reference.",
             MangaStyles.prompt(for:style),color,
+            "Manga panel narrative responsibility: \(story?.narrativeDutyJP ?? "").",
+            "Direct causal relation to the previous panel: \(story?.causalLinkJP ?? "").",
             "Make this panel advance the story. It is NOT a still-photo filter or documentary storyboard.",
             "Shared chapter premise: \(seriesPremise).",
             "Current storytelling role: \(card.title) / \(card.subtitle).",
