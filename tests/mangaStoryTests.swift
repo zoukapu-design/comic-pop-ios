@@ -22,7 +22,9 @@ import Foundation
         precondition(MangaStoryPlanner.role(for:"punch").contains("オチ"))
         let beats=(1...5).map { index in
             ["index":index,"caption":"そして展開が動いた\(index)。",
-             "dialogue":"これはどうなる？","scene":"pottery studio beat \(index)",
+             "dialogue":"これはどうなる？",
+             "causalLinkJP":index==1 ? "" : "前の作業が進んだため、次の行動に移った。",
+             "scene":"pottery studio beat \(index)",
              "imagePrompt":"draw the pottery scene moment \(index), changing camera distance",
              "transition":"this follows the previous action"] as [String:Any]
         }
@@ -32,6 +34,9 @@ import Foundation
         precondition(outline.beats.map(\.id)==inputs.map(\.pinID))
         precondition(outline.beats[2].dialogue=="あれ、曲がってる！", "user dialogue overrides speculation")
         precondition(outline.title=="陶芸初挑戦")
+        precondition(outline.beats[0].narrativeDutyJP.contains("導入"))
+        precondition(outline.beats[1].causalLinkJP.contains("前の作業"))
+        precondition(outline.beats.last?.narrativeDutyJP.contains("結末")==true)
         precondition(!outline.beats[0].plotDescriptionJP.isEmpty,
                      "Every panel should have a Japanese action summary")
         let englishCaption=try JSONSerialization.data(withJSONObject:["title":"English only","premise":"Something","panels":beats.enumerated().map { i,row in var v=row;v["caption"]="random glyph 123";return v}])
@@ -94,6 +99,8 @@ import Foundation
         let source=MangaStoryPlanner.evidenceJSON(inputs)
         precondition(source.contains("陶" ) == false || source.contains("card"))
         precondition(source.contains("粘土を回し始める"))
+        precondition(source.contains("storyFunction"))
+        precondition(source.contains("connectionToPrevious"))
         print("PASS: story-first mapping 5 cards, human Japanese dialogue priority, invalid glyph replacement, missing panels rejection")
     }
 }
