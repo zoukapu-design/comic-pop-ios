@@ -290,6 +290,19 @@ title=store.split("func updateTitle(_ value:String)",1)[1].split("func selectDec
 assert style.index("guard commit(candidate) else {return}") < style.index("clearGenerated()")
 assert color.index("guard commit(candidate) else {return}") < color.index('UserDefaults.standard.set(true')
 assert title.index("guard commit(candidate) else {return}") < title.index("rebuildPages()")
+for deckAction, nextAction in (
+    ("func selectDeck(", "func addDeck("),
+    ("func addDeck(", "func renameDeck("),
+    ("func renameDeck(", "func deleteDeck("),
+    ("func deleteDeck(", "func toggleDeckCard("),
+    ("func toggleDeckCard(", "func moveDeckCard("),
+    ("func moveDeckCard(", "func connect(token:")
+):
+    operation=store.split(deckAction,1)[1].split(nextAction,1)[0]
+    assert "var candidate=data" in operation, deckAction
+    assert "commit(candidate)" in operation, deckAction
+    assert "data.decks.append(" not in operation and "data.decks.removeAll" not in operation
+print("PASS: decks are committed atomically before the published collection changes")
 print("PASS: user-confirmed storyboard rewrite only, no accidental double image charge, atomic style and title edits")
 print("PASS: failed pin saves preserve originals; manual scene directions outrank AI guesses")
 print("PASS: no in-flight quota waste, safe video replacement and evidence-only offline captions")
