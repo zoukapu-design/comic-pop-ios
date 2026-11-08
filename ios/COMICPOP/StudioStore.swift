@@ -125,6 +125,10 @@ struct PreviewPanel: Identifiable {
         duration=loaded.isFinite ? max(0,loaded) : 0
     }
     func replaceVideo(_ importedURL:URL) async {
+        guard !isGenerating else {
+            message="漫画の脚本・画像を生成中です。完了後に動画を変更してください。"
+            return
+        }
         do {
             let security=importedURL.startAccessingSecurityScopedResource()
             defer {if security {importedURL.stopAccessingSecurityScopedResource()}}
@@ -153,6 +157,10 @@ struct PreviewPanel: Identifiable {
     func seek(by delta:Double) {scrub(to:currentTime+delta)}
     func playPause(){player.rate>0 ? player.pause() : player.play()}
     func addPin(card:PinDefinition) async {
+        guard !isGenerating else {
+            message="漫画生成中はカードを追加できません。生成完了後に編集してください。"
+            return
+        }
         guard !isAddingPin else {return}
         guard let url=videoURL else {message="先に動画を選んでください";return}
         guard data.pins.count < 12 else {message="挿入できるカードは一度に12枚までです";return}
@@ -203,14 +211,28 @@ struct PreviewPanel: Identifiable {
         message="日本語のセリフ・ナレーションを修正しました"
     }
 
-    func removePin(_ pin:MangaPin){data.pins.removeAll{$0.id==pin.id};pinsResetEpoch=UUID();pinsRevision=UUID();try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile));clearGenerated();persist()}
-    func clearPins(){pinsResetEpoch=UUID();pinsRevision=UUID();for p in data.pins {try? fm.removeItem(at:support.appendingPathComponent(p.snapshotFile))};data.pins=[];clearGenerated();persist()}
+    func removePin(_ pin:MangaPin){
+        guard !isGenerating else {message="漫画生成中はカードを削除できません";return}
+        data.pins.removeAll{$0.id==pin.id};pinsResetEpoch=UUID();pinsRevision=UUID()
+        try? fm.removeItem(at:support.appendingPathComponent(pin.snapshotFile))
+        clearGenerated();persist()
+    }
+    func clearPins(){
+        guard !isGenerating else {message="漫画生成中はカードを全削除できません";return}
+        pinsResetEpoch=UUID();pinsRevision=UUID()
+        for p in data.pins {try? fm.removeItem(at:support.appendingPathComponent(p.snapshotFile))}
+        data.pins=[];clearGenerated();persist()
+    }
     func snapshot(for pin:MangaPin)->UIImage? {UIImage(contentsOfFile:support.appendingPathComponent(pin.snapshotFile).path)}
     func card(for pin:MangaPin)->PinDefinition {
         catalog.first(where:{$0.id==pin.cardID}) ?? catalog.first ??
             PinDefinition(id:"unknown",title:"未登録カード",subtitle:"カード情報を確認",category:"editing",art:0,color:"#eeeeee")
     }
     func updateStyle(_ style:String) {
+        guard !isGenerating else {
+            message="漫画生成中は画風を変更できません。作画完了後に変更してください。"
+            return
+        }
         guard data.style != style else {return}
         data.style=style
         // Preserve an explicit monochrome/colour choice when browsing genre cards.
@@ -220,6 +242,10 @@ struct PreviewPanel: Identifiable {
         clearGenerated();persist()
     }
     func updateColor(_ value:String) {
+        guard !isGenerating else {
+            message="漫画生成中はカラー設定を変更できません。作画完了後に変更してください。"
+            return
+        }
         guard value=="mono" || value=="color" else {return}
         UserDefaults.standard.set(true,forKey:"pop.userChoseColor")
         guard data.colorMode != value else {return}
