@@ -122,15 +122,17 @@ struct CloudflareAIService {
         let primaryInstructions=[
             "Original sequential JAPANESE MANGA art. ONE panel, a NEW story event; not a photo filter.",
             MangaStyles.prompt(for:style),color,
-            "ACTUAL PLOT EVENT: \(plotAction).",
-            "Reference images: 0 = current video event, 1 = preceding manga panel (if present), 2 = opening manga panel (if present). Use 1 and 2 to stabilize identity and line style, never to repeat their action, pose or background.",
-            "DRAW THIS SPECIFIC EVENT AND COMPOSITION: \(plannedIllustration).",
-            "CAUSAL CONNECTION TO PREVIOUS SCENE: \(String((story?.causalLinkJP ?? "").prefix(120))).",
-            "STORY ROLE: \(story?.narrativeDutyJP ?? "").",
-            combinedEmotion,
+            "ACTUAL PLOT EVENT (user notes override conflicting AI guesses): \(plotAction).",
+            // Place manual edits BEFORE the long AI storyboard so the 2400
+            // character limit can never hide a user's explicit instruction.
             approvedDirection.isEmpty
                 ? ""
                 : "HIGHEST PRIORITY USER DIRECTION: \(String(approvedDirection.prefix(300))). Override the AI's suggested scene action and composition when this conflicts.",
+            "Reference images: 0 = current video event, 1 = preceding manga panel (if present), 2 = opening manga panel (if present). Use 1 and 2 to stabilize identity and line style, never to repeat their action, pose or background.",
+            "DRAW THIS SPECIFIC EVENT AND COMPOSITION (only when consistent with ACTUAL PLOT EVENT): \(plannedIllustration).",
+            "CAUSAL CONNECTION TO PREVIOUS SCENE: \(String((story?.causalLinkJP ?? "").prefix(120))).",
+            "STORY ROLE: \(story?.narrativeDutyJP ?? "").",
+            combinedEmotion,
             alternate,
             "CHAPTER: \(String(seriesPremise.prefix(150))).",
             "CARD EMOTIONS: \(card.title), \(String(card.subtitle.prefix(160)))."
