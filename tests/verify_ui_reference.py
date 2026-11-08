@@ -169,6 +169,11 @@ assert "await store.prepareStoryboard()" in genre
 assert "この脚本で漫画の絵を描く" in draft
 assert "PopStoryboardTextEditor" in draft and "updateStoryboardBeat" in draft
 assert "popStoryboardReviewBeforeDrawing" in draft
+assert "plotDescriptionJP" in story and "plotDescriptionJP" in observations
+assert "このコマの出来事：" in draft
+assert "userVisualDirection" in story and "userVisualDirection" in ai
+assert "visualDirection:" in store and "visualDirection" in draft
+assert "MangaVisualStoryError.credentials" in observations
 assert "CloudflareStoryResponse.text(from:data)" in observations
 assert "choices" in response_parser and "response" in response_parser
 assert "cloudflareStoryResponseTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
