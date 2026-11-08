@@ -420,6 +420,13 @@ struct PreviewPanel: Identifiable {
     /// First step of AI creation: spend text/vision inference only, then
     /// let the user review the coherent Japanese chapter BEFORE image calls.
     func prepareStoryboard() async {
+        await prepareStoryboard(force:false)
+    }
+    /// The review screen has a separate, explicit quota-consuming retry.
+    func recreateStoryboard() async {
+        await prepareStoryboard(force:true)
+    }
+    private func prepareStoryboard(force:Bool) async {
         guard !isGenerating else {return}
         guard videoURL != nil else {message="動画を選択してください";return}
         guard generated.isEmpty else {
@@ -435,8 +442,8 @@ struct PreviewPanel: Identifiable {
             message="現在のAIモードは12シーンまでです（カードは統合前なら12枚を超えても構いません）。脚本生成前に場面を絞ってください。"
             return
         }
-        guard !storyboardReady else {
-            message="脚本は作成済みです。内容を確認してから作画してください。作り直す場合は生成結果をリセットしてください。"
+        guard force || !storyboardReady else {
+            message="脚本は作成済みです。内容を確認してから作画してください。再作成は脚本画面の確認ボタンから行えます。"
             return
         }
         guard confirmsFree,let token=CloudflareCredentialVault.load(),
