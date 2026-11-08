@@ -173,6 +173,11 @@ assert "plotDescriptionJP" in story and "plotDescriptionJP" in observations
 assert "このコマの出来事：" in draft
 assert "userVisualDirection" in story and "userVisualDirection" in ai
 assert "visualDirection:" in store and "visualDirection" in draft
+assert "plotDescriptionJP" in ai and "plotDescription:" in store
+assert "TextEditor(text:$plotDescription)" in draft
+assert "MangaStoryQualityAudit.warnings" in draft
+assert "mangaStoryQualityAuditTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+assert '@AppStorage("pop.hint.scene") private var sceneHint = true' in genre
 assert "MangaVisualStoryError.credentials" in observations
 assert "CloudflareStoryResponse.text(from:data)" in observations
 assert "choices" in response_parser and "response" in response_parser
