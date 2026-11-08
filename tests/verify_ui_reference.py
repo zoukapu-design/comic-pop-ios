@@ -190,6 +190,29 @@ assert "video:movie,duration:duration" in store
 print("PASS: review Japanese manga screenplay before image quota, parse Cloudflare envelopes and reject duplicate saved pages")
 
 print("PASS: same-time cards combine into one comic scene, cinematic scene continuity and accurate paging")
+# Narrative duties must reach both AI screenplay and image prompts, while
+# merged emotional cards remain ONE render scene.
+narrative=(root / "ios/COMICPOP/MangaNarrativeDirector.swift").read_text(encoding="utf-8")
+quality=(root / "ios/COMICPOP/MangaStoryQualityAudit.swift").read_text(encoding="utf-8")
+assert "enum MangaNarrativeDirector" in narrative
+assert "MangaNarrativeRole" in narrative
+assert "same" not in narrative or "isCombinedMoment" in narrative
+assert "causalDuty" in narrative and "openEnding" in narrative
+assert "allCardIDs:scene.cardIDs" in store
+assert "MangaNarrativeDirector.cues(for:evidence)" in story
+assert '"storyFunctionJP":cue.role.japanese' in story
+assert '"connectionToPrevious":cue.causalDuty' in story
+assert "narrativeDutyJP" in story and "causalLinkJP" in story
+assert "story?.narrativeDutyJP" in ai and "story?.causalLinkJP" in ai
+assert "前のコマとのつながり" in draft
+assert "causalLink:causal" in draft
+assert "requiresCausalLink:$0.index>1" in draft
+assert "MangaStoryQualityAudit.warnings" in draft
+assert "confirmDrawWithWarnings" in draft
+assert "nearlySame(" in quality and "isGeneric(" in quality
+assert "mangaNarrativeDirectorTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+print("PASS: narrative arc responsibilities, causality, merged cards, editable scripts and pre-draw warnings")
+
 print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
 
 print("PASS: Rex onboarding, video picker/confirm, pin guard, deck reorder, PDF share, generated-panel editing")
