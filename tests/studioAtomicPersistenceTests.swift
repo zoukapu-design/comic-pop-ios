@@ -21,23 +21,27 @@ private struct FailingStudioState: Encodable {
         let first = TestStudioState(title:"原稿",pins:["intro","dramatic"])
         try StudioAtomicPersistence.write(first,to:url)
         let baseline = try Data(contentsOf:url)
-        precondition(try JSONDecoder().decode(TestStudioState.self,from:baseline)==first,
+        let decodedFirst=try JSONDecoder().decode(TestStudioState.self,from:baseline)
+        precondition(decodedFirst==first,
                      "First write must be a valid JSON session")
         do {
             try StudioAtomicPersistence.write(FailingStudioState(),to:url)
             preconditionFailure("Fault-injected JSON encoding should throw")
         } catch ForcedFailure.encodingRefused {}
-        precondition(try Data(contentsOf:url)==baseline,
+        let afterFailure=try Data(contentsOf:url)
+        precondition(afterFailure==baseline,
                      "Failed encoding must preserve previous persisted data")
         do {
             try StudioAtomicPersistence.write(["invalid":Double.nan],to:url)
             preconditionFailure("Nonfinite JSON numbers must be rejected")
         } catch {}
-        precondition(try Data(contentsOf:url)==baseline,
+        let afterInvalid=try Data(contentsOf:url)
+        precondition(afterInvalid==baseline,
                      "Invalid JSON cannot overwrite a previously good session")
         let updated=TestStudioState(title:"完成",pins:["intro","dramatic","ending"])
         try StudioAtomicPersistence.write(updated,to:url)
-        precondition(try JSONDecoder().decode(TestStudioState.self,from:Data(contentsOf:url))==updated,
+        let decodedUpdated=try JSONDecoder().decode(TestStudioState.self,from:Data(contentsOf:url))
+        precondition(decodedUpdated==updated,
                      "A valid later edit should replace JSON with all cards intact")
         let missingFolder=folder.appendingPathComponent("no-such-directory")
         do {
