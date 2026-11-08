@@ -172,6 +172,10 @@ assert "5 distinct scenes" in (root / "tests/modelTests.swift").read_text(encodi
 draft=(root / "ios/COMICPOP/PopStoryboardDraft.swift").read_text(encoding="utf-8")
 response_parser=(root / "ios/COMICPOP/CloudflareStoryResponse.swift").read_text(encoding="utf-8")
 assert "func prepareStoryboard() async" in store
+assert "func recreateStoryboard() async" in store
+assert "await prepareStoryboard(force:true)" in store
+assert "guard force || !storyboardReady else" in store
+assert "await store.recreateStoryboard()" in draft
 assert "var storyboardReady: Bool" in store
 assert "func updateStoryboardBeat(" in store
 assert "if !resumable && !preparedDraft {clearGenerated()}" in store
