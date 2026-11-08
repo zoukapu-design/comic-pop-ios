@@ -261,6 +261,14 @@ for mutator, following in (
 assert 'else {caption=""}' in story
 assert "plotDescriptionJP:clip(e.userNote,100)" in story
 # A failed save must not delete existing pins, snapshots, or story notes.
+atomicStore=(root / "ios/COMICPOP/StudioAtomicPersistence.swift").read_text(encoding="utf-8")
+atomicTests=(root / "tests/studioAtomicPersistenceTests.swift").read_text(encoding="utf-8")
+assert "StudioAtomicPersistence.write(snapshot ?? data,to:modelURL)" in store
+assert "try JSONEncoder().encode(value)" in atomicStore
+assert "encoded.write(to: destination, options: .atomic)" in atomicStore
+assert "ForcedFailure.encodingRefused" in atomicTests
+assert "Nonfinite JSON numbers must be rejected" in atomicTests
+assert "studioAtomicPersistenceTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 commit=store.split("private func commit(_ candidate: StudioData) -> Bool {",1)[1].split("private func loadDuration()",1)[0]
 assert commit.index("guard persist(candidate) else {return false}") < commit.index("data=candidate")
 add=store.split("func addPin(card:PinDefinition) async {",1)[1].split("func updatePinStory(",1)[0]
