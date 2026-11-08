@@ -74,6 +74,21 @@ import Foundation
         precondition(single.beats[0].dialogue=="えっ、何！？")
         precondition(MangaStoryPlanner.evidenceJSON([combined])
                      .contains("combinedDirections"))
+        // A user-approved scene direction must be held separately from the
+        // AI's existing script and survive reconstruction without another API.
+        var approved=single.beats[0]
+        approved.userVisualDirection="大きな恐怖の表情、ドラマティックな集中線"
+        precondition(approved.id==combined.pinID)
+        precondition(approved.userVisualDirection.contains("恐怖"))
+        precondition(approved.imagePrompt.contains("ドラマティック"))
+        let remade=MangaStoryBeat(
+            id:approved.id,index:approved.index,caption:"予期せぬ出来事が起きた。",
+            dialogue:"どうしよう！",scene:approved.scene,
+            imagePrompt:approved.imagePrompt,transition:approved.transition,
+            userVisualDirection:approved.userVisualDirection
+        )
+        precondition(remade.userVisualDirection==approved.userVisualDirection,
+                     "Manual visual instructions must persist after copy-on-edit")
         let source=MangaStoryPlanner.evidenceJSON(inputs)
         precondition(source.contains("陶" ) == false || source.contains("card"))
         precondition(source.contains("粘土を回し始める"))
