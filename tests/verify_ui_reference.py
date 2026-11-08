@@ -256,6 +256,22 @@ for mutator, following in (
 # No fabricated narration when there is no video evidence or user-supplied text.
 assert 'else {caption=""}' in story
 assert "plotDescriptionJP:clip(e.userNote,100)" in story
+# A failed save must not delete existing pins, snapshots, or story notes.
+commit=store.split("private func commit(_ candidate: StudioData) -> Bool {",1)[1].split("private func loadDuration()",1)[0]
+assert commit.index("guard persist(candidate) else {return false}") < commit.index("data=candidate")
+add=store.split("func addPin(card:PinDefinition) async {",1)[1].split("func updatePinStory(",1)[0]
+assert add.index("guard commit(candidate) else {") < add.index("pinsRevision = UUID()")
+assert add.index("guard commit(candidate) else {") < add.index("clearGenerated()")
+assert "try? fm.removeItem(at:snapshotURL)" in add
+notes=store.split("func updatePinStory(",1)[1].split("func updatePanelText(",1)[0]
+assert notes.index("guard commit(candidate) else {return}") < notes.index("clearGenerated()")
+remove=store.split("func removePin(",1)[1].split("func clearPins()",1)[0]
+assert remove.index("guard commit(candidate) else {return}") < remove.index("removeItem(at:")
+clear=store.split("func clearPins()",1)[1].split("func snapshot(for pin:",1)[0]
+assert clear.index("guard commit(candidate) else {return}") < clear.index("removeItem(at:")
+assert 'plotDescriptionJP:source.userNote.trimmingCharacters' in story
+assert ai.index('HIGHEST PRIORITY USER DIRECTION') < ai.index('DRAW THIS SPECIFIC EVENT AND COMPOSITION')
+print("PASS: failed pin saves preserve originals; manual scene directions outrank AI guesses")
 print("PASS: no in-flight quota waste, safe video replacement and evidence-only offline captions")
 
 print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
