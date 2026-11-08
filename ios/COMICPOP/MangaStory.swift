@@ -11,6 +11,8 @@ struct MangaStoryEvidence {
     let heard: String
     let userNote: String
     let userDialogue: String
+    /// All cards attached to this one moment, including secondary emotion cards.
+    var allCardIDs: [String] = []
 }
 
 struct MangaStoryBeat: Identifiable {
@@ -25,6 +27,10 @@ struct MangaStoryBeat: Identifiable {
     var plotDescriptionJP: String = ""
     /// Explicit user instructions for how the scene should be drawn.
     var userVisualDirection: String = ""
+    /// The expected story function assigned from card semantics and sequence.
+    var narrativeDutyJP: String = ""
+    /// How the event is caused by, or reacts to, the previous scene.
+    var causalLinkJP: String = ""
 }
 
 struct MangaStoryPlan {
@@ -45,6 +51,7 @@ private struct AIStoryPanel: Decodable {
     let caption: String
     let dialogue: String
     let plotDescriptionJP: String?
+    let causalLinkJP: String?
     let scene: String
     let imagePrompt: String
     let transition: String
@@ -67,7 +74,9 @@ enum MangaStoryPlanner {
     }
 
     static func fallback(_ evidence: [MangaStoryEvidence]) -> MangaStoryPlan {
+        let cues=MangaNarrativeDirector.cues(for:evidence)
         let beats=evidence.enumerated().map { index,e in
+            let cue=cues[index]
             let caption: String
             if !e.userNote.isEmpty {caption=clip(e.userNote,46)}
             else if !e.heard.isEmpty {caption=clip(e.heard,46)}
@@ -76,11 +85,13 @@ enum MangaStoryPlanner {
             else {caption=["そのとき、思わぬ展開が。","けれど、まだ終わらない。","次の瞬間、状況が動いた。"][index%3]}
             return MangaStoryBeat(id:e.pinID,index:index+1,caption:caption,
                 dialogue:clip(e.userDialogue,35),scene:role(for:e.cardID),
-                imagePrompt:"Shot \(index+1): \(shotHint(for:index)). Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
+                imagePrompt:"Shot \(index+1): \(cue.role.imageComposition). \(shotHint(for:index)). Story duty: \(cue.role.narrativeRequirement). Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
                 transition:index==0 ? "Opening" : "Continue directly from preceding panel",
                 plotDescriptionJP:clip(e.userNote.isEmpty
-                    ? role(for:e.cardID)
-                    : e.userNote,100))
+                    ? cue.role.narrativeRequirement
+                    : e.userNote,100),
+                narrativeDutyJP:cue.role.japanese,
+                causalLinkJP:"")
         }
         return MangaStoryPlan(title:"動画から生まれた物語",premise:"カードから組み立てた仮の構成",beats:beats,isAIStory:false)
     }
@@ -97,6 +108,7 @@ enum MangaStoryPlanner {
             throw MangaStoryError.missingPanels
         }
         let backup=fallback(evidence)
+        let cues=MangaNarrativeDirector.cues(for:evidence)
         // Reject an obviously repeated draft BEFORE spending any image quota.
         // Repeated clothing/location phrases are fine; identical consecutive
         // action+composition and narration are not a story progression.
@@ -120,20 +132,35 @@ enum MangaStoryPlanner {
                 imagePrompt:"Shot \(index+1): \(shotHint(for:index)). "+(clip(line.imagePrompt,590).isEmpty ? standard.imagePrompt : clip(line.imagePrompt,590)),
                 transition:clip(line.transition,160),
                 plotDescriptionJP:japanese(line.plotDescriptionJP ?? "",
-                    otherwise:standard.plotDescriptionJP,limit:100))
+                    otherwise:standard.plotDescriptionJP,limit:100),
+                narrativeDutyJP:cues[index].role.japanese,
+                causalLinkJP:index==0 ? "" : japanese(
+                    line.causalLinkJP ?? "",otherwise:"",limit:110))
         }
         return MangaStoryPlan(title:japanese(draft.title,otherwise:backup.title,limit:38),
             premise:japanese(draft.premise,otherwise:backup.premise,limit:145),beats:beats,isAIStory:true)
     }
 
     static func evidenceJSON(_ evidence:[MangaStoryEvidence]) -> String {
-        let rows=evidence.enumerated().map { index,e in
-            ["index":String(index+1),"time":String(format:"%.1f",e.seconds),
-             "card":e.cardTitle,"role":role(for:e.cardID),
-             "combinedDirections":clip(e.cardHint,340),
-             "image":clip(e.visual,140),"betweenFrames":clip(e.neighborVisual,130),
-             "speech":clip(e.heard,180),"note":clip(e.userNote,160),
-             "dialogue":clip(e.userDialogue,110)]
+        let cues=MangaNarrativeDirector.cues(for:evidence)
+        let rows:[[String:Any]]=evidence.enumerated().map { index,e in
+            let cue=cues[index]
+            return [
+                "index":index+1,
+                "time":String(format:"%.1f",e.seconds),
+                "card":e.cardTitle,"cardIDs":cue.allCardIDs,
+                "role":role(for:e.cardID),
+                "combinedDirections":clip(e.cardHint,340),
+                "storyFunction":cue.role.rawValue,
+                "storyFunctionJP":cue.role.japanese,
+                "storyDuty":cue.role.narrativeRequirement,
+                "connectionToPrevious":cue.causalDuty,
+                "suggestedShot":cue.role.imageComposition,
+                "isCombinedMoment":cue.isCombinedMoment,
+                "image":clip(e.visual,140),"betweenFrames":clip(e.neighborVisual,130),
+                "speech":clip(e.heard,180),"note":clip(e.userNote,160),
+                "dialogue":clip(e.userDialogue,110)
+            ]
         }
         guard let data=try? JSONSerialization.data(withJSONObject:rows,options:[.sortedKeys]),
               let string=String(data:data,encoding:.utf8) else {return "[]"}
