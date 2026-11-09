@@ -77,6 +77,11 @@ import Foundation
         precondition(MangaStoryQualityAudit.warnings(
             for:[sceneA,sceneB,sceneC,flashback]).isEmpty,
             "Explicit flashback cards are allowed to reprise an older composition")
+        var adjacentFlashback=sceneA
+        adjacentFlashback.isIntentionalReplay=true
+        precondition(MangaStoryQualityAudit.warnings(
+            for:[sceneA,adjacentFlashback]).isEmpty,
+            "An explicitly requested adjacent replay is not accidental duplication")
         let differentEvent=StoryReviewScene(
             index:4,plot:"主人公が茶碗を頭上に掲げて喜ぶ",
             caption:"大成功",imagePrompt:repeatedD.imagePrompt,
