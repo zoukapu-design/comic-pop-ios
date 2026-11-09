@@ -14,6 +14,9 @@ swiftc "$ROOT/ios/COMICPOP/GenerationIntegrity.swift" "$ROOT/tests/generationInt
 # Data loss regression: a failed JSON encode/write must not corrupt saved pins.
 swiftc "$ROOT/ios/COMICPOP/StudioAtomicPersistence.swift" "$ROOT/tests/studioAtomicPersistenceTests.swift" -o "$BIN"
 "$BIN"
+# Changing genre or colour must never silently delete an unsaved manga.
+swiftc "$ROOT/ios/COMICPOP/MangaAppearanceChangePolicy.swift" "$ROOT/tests/mangaAppearanceChangePolicyTests.swift" -o "$BIN"
+"$BIN"
 # The genre screen must open an already completed manga without rerunning AI,
 # and resume only missing panels after a partial failure.
 swiftc "$ROOT/ios/COMICPOP/MangaGenerationRoute.swift" "$ROOT/tests/mangaGenerationRouteTests.swift" -o "$BIN"
