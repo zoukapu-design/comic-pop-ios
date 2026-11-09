@@ -285,7 +285,7 @@ struct PreviewPanel: Identifiable {
         guard videoURL==url else {return}
         duration=loaded.isFinite ? max(0,loaded) : 0
     }
-    func replaceVideo(_ importedURL:URL) async {
+    func replaceVideo(_ importedURL:URL,allowDiscard:Bool = false) async {
         guard !isGenerating else {
             message="漫画の脚本・画像を生成中です。完了後に動画を変更してください。"
             return
@@ -328,7 +328,7 @@ struct PreviewPanel: Identifiable {
     }
     func seek(by delta:Double) {scrub(to:currentTime+delta)}
     func playPause(){player.rate>0 ? player.pause() : player.play()}
-    func addPin(card:PinDefinition) async {
+    func addPin(card:PinDefinition,allowDiscard:Bool = false) async {
         guard !isGenerating else {
             message="漫画生成中はカードを追加できません。生成完了後に編集してください。"
             return
@@ -370,7 +370,7 @@ struct PreviewPanel: Identifiable {
     }
     /// User notes and dialogue are stronger evidence than automatically
     /// inferred actions and are included in the whole-series story script.
-    func updatePinStory(_ id:UUID,note:String,dialogue:String) {
+    @discardableResult func updatePinStory(_ id:UUID,note:String,dialogue:String,allowDiscard:Bool = false) -> Bool {
         guard !isGenerating else {message="漫画生成中はカードを編集できません";return}
         guard let index=data.pins.firstIndex(where:{$0.id==id}) else {return}
         let cleanNote=String(note.prefix(260))
@@ -403,7 +403,7 @@ struct PreviewPanel: Identifiable {
         message="日本語のセリフ・ナレーションを修正しました"
     }
 
-    func removePin(_ pin:MangaPin){
+    func removePin(_ pin:MangaPin,allowDiscard:Bool = false){
         guard !isGenerating else {message="漫画生成中はカードを削除できません";return}
         guard let existing=data.pins.first(where:{$0.id==pin.id}) else {return}
         var candidate=data
@@ -415,7 +415,7 @@ struct PreviewPanel: Identifiable {
         try? fm.removeItem(at:support.appendingPathComponent(existing.snapshotFile))
         message="カードを削除しました"
     }
-    func clearPins(){
+    func clearPins(allowDiscard:Bool = false){
         guard !isGenerating else {message="漫画生成中はカードを全削除できません";return}
         let oldSnapshots=data.pins.map(\.snapshotFile)
         var candidate=data
