@@ -36,6 +36,10 @@ struct MovikomaPopRootView: View {
                     PopHomeScreen(store:store,
                         chooseVideo:{journey = .selectVideo},
                         continueEditing:{journey = .workspace;stage = .editor},
+                        continueManga:{
+                            journey = .workspace
+                            stage = store.hasCompleteComic ? .review : .styles
+                        },
                         openWorks:{showWorks = true},
                         openDeck:{showDeck = true},
                         openSettings:{showSettings = true})
