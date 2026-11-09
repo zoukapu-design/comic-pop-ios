@@ -15,7 +15,7 @@ struct MangaStoryEvidence {
     var allCardIDs: [String] = []
 }
 
-struct MangaStoryBeat: Identifiable {
+struct MangaStoryBeat: Identifiable, Codable {
     let id: UUID
     let index: Int
     let caption: String
@@ -36,7 +36,7 @@ struct MangaStoryBeat: Identifiable {
     var userSceneNoteJP: String = ""
 }
 
-struct MangaStoryPlan {
+struct MangaStoryPlan: Codable {
     let title: String
     let premise: String
     let beats: [MangaStoryBeat]
