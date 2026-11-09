@@ -446,4 +446,48 @@ print("PASS: interrupted comic and edited screenplay persist across restart; mis
 print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
 
 print("PASS: Rex onboarding, video picker/confirm, pin guard, deck reorder, PDF share, generated-panel editing")
+# Editing a card after generating artwork must never silently delete the
+# screenplay or render. User consent is scoped to an actual mutation, and a
+# failed JSON commit cannot discard a costly draft.
+draftEdit=(root / "ios/COMICPOP/MangaDraftEditGuard.swift").read_text(encoding="utf-8")
+draftEditTests=(root / "tests/mangaDraftEditGuardTests.swift").read_text(encoding="utf-8")
+assert "enum MangaDraftEditGuard" in draftEdit
+assert "!hasDraft || confirmed" in draftEdit
+assert "return !isGenerating && allowsChange(" in draftEdit
+assert "mangaDraftEditGuardTests.swift" in preflight
+assert "8 manga draft editing authorization scenarios" in draftEditTests
+assert store.count("MangaDraftEditGuard.allowsChange(") == 6
+for first,last in (
+    ("func replaceVideo(", "func scrub("),
+    ("func addPin(", "func updatePinStory("),
+    ("func updatePinStory(", "func updatePanelText("),
+    ("func removePin(", "func clearPins("),
+    ("func clearPins(", "func snapshot(for pin:")
+):
+    section=store.split(first,1)[1].split(last,1)[0]
+    assert "MangaDraftEditGuard.allowsChange(" in section,first
+    assert section.index("guard commit(candidate)") < section.index("clearGenerated()") if first not in (
+        "func replaceVideo(", "func addPin("
+    ) else True
+adding=store.split("func addPin(",1)[1].split("func updatePinStory(",1)[0]
+assert adding.count("MangaDraftEditGuard.allowsChange(")==2
+assert "capturedRevision == pinsRevision" in adding
+assert adding.index("guard commit(candidate)") < adding.index("clearGenerated()")
+notes=store.split("func updatePinStory(",1)[1].split("func updatePanelText(",1)[0]
+assert "return false" in notes and "return true" in notes
+assert "pendingDraftAction" in editor and "askDiscardDraft" in editor
+assert "PopTimeline(store:store,onDelete:requestDelete)" in editor
+assert "store.removePin(pin,allowDiscard:true)" in editor
+assert "store.clearPins(allowDiscard:true)" in editor
+assert "store.addPin(card:definition,allowDiscard:true)" in editor
+assert "onDelete(pin)" in editor
+assert "askDiscardDraft" in story_forms
+assert "saveNotes(allowDiscard:true)" in story_forms
+assert "if store.updatePinStory(" in story_forms
+assert "store.replaceVideo(movie.url,allowDiscard:allowDiscard)" in journey
+assert "store.replaceVideo(url,allowDiscard:allowDiscard)" in journey
+assert "importPhoto(photo,allowDiscard:true)" in journey
+assert "importVideo(url,allowDiscard:true)" in journey
+print("PASS: editor/video/pin story changes require consent and commit before wiping manga drafts")
+
 print("PASS: MOVIKOMA 3 reference-faithful native screens, real Rex sprite assets and connected interactions")
