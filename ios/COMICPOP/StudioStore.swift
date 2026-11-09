@@ -78,6 +78,7 @@ struct PreviewPanel: Identifiable {
 
     var generatedPanelCount: Int { generated.count }
     var generatedOffline: Bool { generatedMode == "offline" }
+    var hasRecoverableDraft: Bool { fm.fileExists(atPath:draftURL.path) }
     /// Unpublished artwork or an AI storyboard would be lost by a style change.
     /// Stored works are not included; they remain in the works library.
     var hasUncommittedGeneration: Bool { !generated.isEmpty || storyPlan != nil }
@@ -239,8 +240,14 @@ struct PreviewPanel: Identifiable {
     /// reset can never restore a previously discarded manga on next launch.
     private func removeDraftCheckpoint() {
         try? fm.removeItem(at:draftURL)
-        for file in storedArtworkFiles.values {
-            try? fm.removeItem(at:support.appendingPathComponent(file))
+        // Include files from an interrupted/crashed checkpoint write. A fresh
+        // draft may never reuse a stale artwork filename.
+        if let files=try? fm.contentsOfDirectory(atPath:support.path) {
+            for file in files where file.hasPrefix("draft-art-") &&
+                                   file.hasSuffix(".png") &&
+                                   !file.contains("/") && !file.contains("..") {
+                try? fm.removeItem(at:support.appendingPathComponent(file))
+            }
         }
         storedArtworkFiles.removeAll()
         dirtyArtworkIDs.removeAll()
