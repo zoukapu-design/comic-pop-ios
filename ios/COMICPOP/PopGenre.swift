@@ -8,6 +8,41 @@ struct PopGenreScreen: View {
     var openSettings: () -> Void
     @State private var askGeneration = false
     @State private var askResetFinished = false
+    @State private var askAppearanceReset = false
+    @State private var pendingAppearance: AppearanceChange?
+
+    private enum AppearanceChange {
+        case style(String)
+        case color(String)
+    }
+
+    private func requestAppearance(_ choice:AppearanceChange) {
+        let same:Bool
+        switch choice {
+        case .style(let value): same=store.data.style == value
+        case .color(let value): same=store.data.colorMode == value
+        }
+        switch MangaAppearanceChangePolicy.decide(
+            isGenerating:store.isGenerating,
+            hasUncommittedGeneration:store.hasUncommittedGeneration,
+            isSameSelection:same
+        ) {
+        case .unchanged, .blockedWhileGenerating:
+            return
+        case .applyNow:
+            applyAppearance(choice)
+        case .needsDiscardConfirmation:
+            pendingAppearance=choice
+            askAppearanceReset=true
+        }
+    }
+
+    private func applyAppearance(_ choice:AppearanceChange) {
+        switch choice {
+        case .style(let value): store.updateStyle(value)
+        case .color(let value): store.updateColor(value)
+        }
+    }
     @AppStorage("pop.story.useVoice") private var useVoice = true
     @AppStorage("pop.story.useVisualAI") private var useVisualAI = true
     @AppStorage("pop.hint.character") private var characterHint = true
@@ -47,7 +82,7 @@ struct PopGenreScreen: View {
                                            GridItem(.flexible(),spacing:8)],spacing:9) {
                             ForEach(genres.indices,id:\.self) { i in
                                 let genre=genres[i]
-                                Button {store.updateStyle(genre.id)} label: {
+                                Button {requestAppearance(.style(genre.id))} label: {
                                     PopIllustratedCard(title:genre.title,artIndex:i,kind:.genres,
                                                        selected:store.data.style==genre.id)
                                 }.buttonStyle(.plain)
@@ -75,11 +110,11 @@ struct PopGenreScreen: View {
                             Text("色の設定").font(.system(size:12,weight:.bold))
                             PopPill(text:"白黒",icon:"circle.lefthalf.filled",
                                     selected:store.data.colorMode=="mono") {
-                                store.updateColor("mono")
+                                requestAppearance(.color("mono"))
                             }
                             PopPill(text:"カラー",icon:"paintpalette",
                                     selected:store.data.colorMode=="color") {
-                                store.updateColor("color")
+                                requestAppearance(.color("color"))
                             }
                         }
                         .foregroundStyle(PopColor.ink)
@@ -190,6 +225,18 @@ struct PopGenreScreen: View {
                 }
             }
             .padding(.horizontal,10).padding(.bottom,16)
+        }
+        .confirmationDialog("生成済みの漫画・脚本を破棄しますか？",
+                            isPresented:$askAppearanceReset,titleVisibility:.visible) {
+            Button("生成結果を破棄して設定を変更",role:.destructive) {
+                guard !store.isGenerating, let choice=pendingAppearance else {return}
+                store.discardGenerated()
+                applyAppearance(choice)
+                pendingAppearance=nil
+            }
+            Button("キャンセル",role:.cancel) {pendingAppearance=nil}
+        } message: {
+            Text("画風や色を変えると、保存前の生成画像とAI脚本は消えます。挿入カード・動画・保存済みの作品は保持されます。")
         }
         .confirmationDialog("完成済み漫画をリセットしますか？",
                             isPresented:$askResetFinished,titleVisibility:.visible) {
