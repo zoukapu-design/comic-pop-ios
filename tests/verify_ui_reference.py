@@ -411,6 +411,36 @@ generateScope=store.split("func generate() async {",1)[1].split("func generateOf
 assert generateScope.index("guard saveDraftCheckpoint() else {return}") < generateScope.index("let startIndex=generated.count")
 assert "追加のAI呼出しは停止しました" in generateScope
 assert "dirtyArtworkIDs.insert(pin.id)" in generateScope
+# Even an indexed, clean PNG may disappear from disk. Retry its local
+# write instead of claiming the checkpoint is safely persisted.
+filePolicy=(root / "ios/COMICPOP/MangaDraftFilePolicy.swift").read_text(encoding="utf-8")
+fileTests=(root / "tests/mangaDraftFilePolicyTests.swift").read_text(encoding="utf-8")
+assert "enum MangaDraftFilePolicy" in filePolicy
+assert "static func needsWrite(" in filePolicy
+assert "static func orphanFiles(" in filePolicy
+assert "fileExists(existingFile)" in filePolicy
+assert "MangaDraftFilePolicy.needsWrite(" in store
+assert "MangaDraftFilePolicy.orphanFiles(" in store
+assert "cleanupUnreferencedDraftArtwork()" in store
+assert "mangaDraftFilePolicyTests.swift" in preflight
+assert "A checkpoint must repair PNG files missing from disk" in fileTests
+assert "Never delete the referenced last-good image" in fileTests
+# If editing fails to persist, the editor should not display unsaved changes
+# as if the user's previously approved Japanese wording was safely stored.
+lettering=store.split("func updatePanelText(",1)[1].split("func removePin(",1)[0]
+assert "let previousPanel=generated[index]" in lettering
+assert "generated[index]=previousPanel" in lettering
+scriptEdit=store.split("func updateStoryboardBeat(",1)[1].split("func generate() async {",1)[0]
+assert "storyPlan=plan" in scriptEdit
+finishing=store.split("func applyFinishing(",1)[1].split("func regeneratePanel(",1)[0]
+assert "let previousPanels=generated" in finishing
+assert "generated=previousPanels" in finishing
+assert "finishingBase=previousFinishingBase" in finishing
+original=store.split("func chooseOriginal(",1)[1].split("private func refreshArtworkSimilarityWarnings()",1)[0]
+assert "generated[i].drawing=previousDrawing" in original
+assert "dirtyArtworkIDs=previousDirty" in original
+print("PASS: repair missing PNG backup, clean orphan drafts, roll back edits after disk failure")
+
 print("PASS: interrupted comic and edited screenplay persist across restart; mismatched video and notes rejected")
 
 print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
