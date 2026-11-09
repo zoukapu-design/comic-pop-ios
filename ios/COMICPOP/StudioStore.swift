@@ -360,6 +360,7 @@ struct PreviewPanel: Identifiable {
         guard let index=generated.firstIndex(where:{$0.id==id}) else {return}
         generated[index].caption=String(caption.prefix(100))
         generated[index].dialogue=String(dialogue.prefix(80))
+        guard saveDraftCheckpoint() else {return}
         rebuildPages()
         message="日本語のセリフ・ナレーションを修正しました"
     }
@@ -653,7 +654,8 @@ struct PreviewPanel: Identifiable {
             storyCreationMode=plan.usedVisualEvidence
                 ? "動画の各シーンを画像AIが確認して脚本を作成"
                 : "カード・字幕・音声の文字情報から脚本を作成"
-            message="脚本ができました。各シーンの展開・日本語を確認し、納得してから作画してください。"
+            guard saveDraftCheckpoint() else {return}
+            message="脚本を端末に保存しました。各シーンの展開・日本語を確認してから作画してください。"
         } catch {
             message="脚本の作成に失敗しました。以前の脚本は残しました：\(error.localizedDescription)"
         }
@@ -684,7 +686,8 @@ struct PreviewPanel: Identifiable {
             title:plan.title,premise:plan.premise,beats:beats,
             isAIStory:plan.isAIStory,usedVisualEvidence:plan.usedVisualEvidence
         )
-        message="コマの展開・セリフ・演出指示を保存しました。画像生成の追加消費はありません。"
+        guard saveDraftCheckpoint() else {return}
+        message="脚本の修正を端末に保存しました。画像生成の追加消費はありません。"
     }
 
     func generate() async {
@@ -734,6 +737,9 @@ struct PreviewPanel: Identifiable {
                 storyCreationMode=plan.usedVisualEvidence
                     ? "選択した動画シーンを画像AIが理解し、カードと日本語音声で物語を構成"
                     : "カード・字幕・日本語音声からAIが物語を構成（画像理解AIは未使用）"
+                // Do not start billable image requests before the screenplay
+                // has been backed up on this iPhone.
+                guard saveDraftCheckpoint() else {return}
             } catch {
                 clearGenerated()
                 message="脚本の生成に失敗しました。AI作画の無料枠はまだ使っていません：\(error.localizedDescription)"
@@ -783,6 +789,12 @@ struct PreviewPanel: Identifiable {
                     caption:beat.caption,dialogue:beat.dialogue,
                     storyPrompt:beat.imagePrompt,storyScene:beat.scene
                 ))
+                dirtyArtworkIDs.insert(pin.id)
+                guard saveDraftCheckpoint() else {
+                    rebuildPages()
+                    message="AI作画したコマを端末に保存できませんでした。アプリを終了せず、空き容量を確認してください。追加のAI呼出しは停止しました。"
+                    return
+                }
                 refreshArtworkSimilarityWarnings()
             } catch {
                 guard startingSession == videoSession && startingRevision == pinsRevision &&
@@ -830,6 +842,7 @@ struct PreviewPanel: Identifiable {
                 storyPlan=plan
                 storySummary=plan.premise
                 storyCreationMode="端末内のカード構成（文章AIなし）"
+                guard saveDraftCheckpoint() else {return}
             } catch {
                 clearGenerated();message="カードの構成に失敗しました：\(error.localizedDescription)"
                 return
@@ -861,6 +874,12 @@ struct PreviewPanel: Identifiable {
                 caption:beat.caption,dialogue:beat.dialogue,
                 storyPrompt:beat.imagePrompt,storyScene:beat.scene
             ))
+            dirtyArtworkIDs.insert(pin.id)
+            guard saveDraftCheckpoint() else {
+                rebuildPages()
+                message="簡易漫画のコマを端末に保存できませんでした。空き容量を確認してください。"
+                return
+            }
             refreshArtworkSimilarityWarnings()
         }
         rebuildPages()
@@ -884,6 +903,8 @@ struct PreviewPanel: Identifiable {
         for index in generated.indices {
             if let output=finished[generated[index].id] {generated[index].drawing=output}
         }
+        dirtyArtworkIDs.formUnion(generated.map(\.id))
+        guard saveDraftCheckpoint() else {return}
         refreshArtworkSimilarityWarnings()
         rebuildPages()
         message="ページ全体の描線・明るさ・彩度・輪郭を調整しました。"
@@ -944,6 +965,8 @@ struct PreviewPanel: Identifiable {
             panelRetryCount[id]=attempt
             finishingBase[id]=updated
             generated[index].drawing=updated
+            dirtyArtworkIDs.insert(id)
+            guard saveDraftCheckpoint() else {return}
             refreshArtworkSimilarityWarnings()
             rebuildPages()
             message="選択コマを再生成しました。保存前に結果を確認してください。"
@@ -956,6 +979,8 @@ struct PreviewPanel: Identifiable {
         guard let i=generated.firstIndex(where:{$0.id==id}) else {return}
         finishingBase[id]=nil
         generated[i].drawing=generated[i].original
+        dirtyArtworkIDs.insert(id)
+        guard saveDraftCheckpoint() else {return}
         refreshArtworkSimilarityWarnings()
         rebuildPages()
     }
