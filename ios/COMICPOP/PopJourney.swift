@@ -8,6 +8,7 @@ struct PopHomeScreen: View {
     @ObservedObject var store: StudioStore
     let chooseVideo: () -> Void
     let continueEditing: () -> Void
+    let continueManga: () -> Void
     let openWorks: () -> Void
     let openDeck: () -> Void
     let openSettings: () -> Void
@@ -60,6 +61,28 @@ struct PopHomeScreen: View {
                             }
                             .buttonStyle(.plain)
                         }
+                    }
+                }
+                if store.hasUncommittedGeneration {
+                    PopSurface(accent: true) {
+                        VStack(alignment: .leading, spacing: 9) {
+                            Label(store.hasCompleteComic
+                                  ? "完成した漫画を再開できます"
+                                  : "作りかけの漫画が残っています",
+                                  systemImage: "externaldrive.fill.badge.checkmark")
+                                .font(.system(size: 15, weight: .black, design: .rounded))
+                            Text(store.hasCompleteComic
+                                 ? "\(store.generatedPanelCount)コマの漫画を確認・保存できます。"
+                                 : "\(store.generatedPanelCount)/\(store.scenePlan.renderedPanelCount)コマ完成。脚本と描いた画像は端末内に保存されています。")
+                                .font(.system(size: 11, weight: .medium))
+                            PopYellowButton(
+                                title: store.hasCompleteComic ? "完成した漫画を見る" : "マンガ作成の続きを開く",
+                                icon: "book.closed.fill",
+                                enabled: !store.isGenerating,
+                                action: continueManga
+                            )
+                        }
+                        .foregroundStyle(PopColor.ink)
                     }
                 }
                 VStack(spacing: 9) {
