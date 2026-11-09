@@ -12,7 +12,15 @@ struct PopEditorScreen: View {
     @State private var fullScreen = false
     @State private var showDeck = false
     @State private var showRemoveAll = false
+    @State private var askDiscardDraft = false
+    @State private var pendingDraftAction:DraftAction?
     @State private var editingPin:MangaPin?
+
+    private enum DraftAction {
+        case insert(PinDefinition)
+        case delete(MangaPin)
+        case deleteAll
+    }
     @State private var cardGroup: CardGroup = .recommended
     @State private var selectedID = "intro"
     @AppStorage("pop.favorite.cardIDs") private var favouriteValue = ""
@@ -46,7 +54,7 @@ struct PopEditorScreen: View {
             VStack(alignment:.leading,spacing:11) {
                 videoPreview
                 playbackControls
-                PopTimeline(store:store)
+                PopTimeline(store:store,onDelete:requestDelete)
                 cardStudio
                 if !store.data.pins.isEmpty { insertedPins }
                 if !store.message.isEmpty {
@@ -75,6 +83,25 @@ struct PopEditorScreen: View {
         }
         .confirmationDialog("すべての挿入カードを削除しますか？",isPresented:$showRemoveAll) {
             Button("すべて削除",role:.destructive) {store.clearPins()}
+            Button("キャンセル",role:.cancel) {}
+        }
+        .confirmationDialog("未保存の漫画とAI脚本を破棄しますか？",
+                            isPresented:$askDiscardDraft,titleVisibility:.visible) {
+            Button("生成結果を破棄してカードを編集",role:.destructive) {
+                guard !store.isGenerating,let action=pendingDraftAction else {return}
+                pendingDraftAction=nil
+                switch action {
+                case .insert(let definition):
+                    Task {await store.addPin(card:definition,allowDiscard:true)}
+                case .delete(let pin):
+                    store.removePin(pin,allowDiscard:true)
+                case .deleteAll:
+                    store.clearPins(allowDiscard:true)
+                }
+            }
+            Button("キャンセル",role:.cancel) {pendingDraftAction=nil}
+        } message: {
+            Text("新しいカード構成で漫画を作り直します。作成途中の画像とAI脚本は破棄されます。保存済みの作品・元動画・マイデッキは残ります。")
         }
         .onChange(of:store.data.activeDeckID) { _,_ in
             if let next = store.selectedDeck?.cardIDs.first {selectedID=next}
@@ -230,7 +257,7 @@ struct PopEditorScreen: View {
                 HStack(spacing:8) {
                     PopYellowButton(title:store.isAddingPin ? "挿入中…" : "＋ 挿入",
                                     icon:"plus",enabled:canInsert) {
-                        if let def=card(selectedID) {Task {await store.addPin(card:def)}}
+                        if let def=card(selectedID) {selectAndInsert(def)}
                     }
                     VStack(alignment:.leading,spacing:3) {
                         Image(systemName:"bolt.fill").foregroundStyle(.yellow)
@@ -256,7 +283,12 @@ struct PopEditorScreen: View {
                         .font(.system(size:14,weight:.black,design:.rounded))
                         .foregroundStyle(PopColor.ink)
                     Spacer()
-                    Button("全削除",role:.destructive) {showRemoveAll=true}
+                    Button("全削除",role:.destructive) {
+                        if store.hasUncommittedGeneration {
+                            pendingDraftAction = .deleteAll
+                            askDiscardDraft = true
+                        } else {showRemoveAll=true}
+                    }
                         .font(.system(size:12,weight:.bold))
                 }
                 ForEach(store.scenePlan.orderedPins) { pin in
@@ -277,7 +309,7 @@ struct PopEditorScreen: View {
                             Image(systemName:"pencil.line")
                         }
                         .accessibilityLabel("カードのストーリーとセリフを指定")
-                        Button(role:.destructive) {store.removePin(pin)} label:{
+                        Button(role:.destructive) {requestDelete(pin)} label:{
                             Image(systemName:"trash")
                         }
                     }
@@ -299,7 +331,21 @@ struct PopEditorScreen: View {
             store.message="無料枠保護のため一度に最大12コマです"
             return
         }
-        Task {await store.addPin(card:definition)}
+        if store.hasUncommittedGeneration {
+            pendingDraftAction = .insert(definition)
+            askDiscardDraft = true
+        } else {
+            Task {await store.addPin(card:definition)}
+        }
+    }
+    private func requestDelete(_ pin:MangaPin) {
+        guard !store.isGenerating else {return}
+        if store.hasUncommittedGeneration {
+            pendingDraftAction = .delete(pin)
+            askDiscardDraft = true
+        } else {
+            store.removePin(pin)
+        }
     }
     private func toggleFavourite(_ id:String) {
         var values=favourites
@@ -339,6 +385,7 @@ private struct PopAVPlayerSurface: UIViewRepresentable {
 /// which would overlap on a narrow phone.
 private struct PopTimeline: View {
     @ObservedObject var store: StudioStore
+    let onDelete:(MangaPin)->Void
     @State private var frames: [UIImage?] = Array(repeating:nil,count:5)
     @State private var focusedPinID: UUID?
     @State private var pendingCluster: TimelinePinCluster?
@@ -412,7 +459,7 @@ private struct PopTimeline: View {
                         .minimumScaleFactor(0.8)
                     Spacer(minLength:4)
                     Button {
-                        store.removePin(pin)
+                        onDelete(pin)
                         focusedPinID = nil
                     } label: {
                         Label("削除",systemImage:"trash")
