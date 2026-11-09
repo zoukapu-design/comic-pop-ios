@@ -172,6 +172,12 @@ struct PopGenreScreen: View {
                                 .font(.system(size:14,weight:.black,design:.rounded))
                             Text("\(store.generatedPanelCount)/\(store.scenePlan.renderedPanelCount)コマ生成済み。完成済みのコマを再利用し、残りだけ処理します。")
                                 .font(.system(size:11,weight:.medium))
+                            if store.hasRecoverableDraft {
+                                Label("端末に自動保存済み。アプリを再起動しても続きから再開できます。",
+                                      systemImage:"internaldrive.fill")
+                                    .font(.system(size:10,weight:.semibold))
+                                    .foregroundStyle(PopColor.royal)
+                            }
                             PopYellowButton(title:"続きを生成する",
                                             icon:"arrow.clockwise",
                                             enabled:!store.isGenerating) {
@@ -188,6 +194,11 @@ struct PopGenreScreen: View {
                         .foregroundStyle(PopColor.ink)
                     }
                 } else if generationRoute == .reviewStoryboard {
+                    if store.hasRecoverableDraft {
+                        Text("脚本はこのiPhoneに保存されています。作画前に編集できます。")
+                            .font(.system(size:11,weight:.medium))
+                            .foregroundStyle(.white)
+                    }
                     PopStoryboardDraft(store:store) {
                         Task {
                             await store.generate()
