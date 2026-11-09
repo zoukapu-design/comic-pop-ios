@@ -368,6 +368,45 @@ print("PASS: user-confirmed storyboard rewrite only, no accidental double image 
 print("PASS: failed pin saves preserve originals; manual scene directions outrank AI guesses")
 print("PASS: no in-flight quota waste, safe video replacement and evidence-only offline captions")
 
+# Restart-safe manga checkpoint: the screenplay and every successful artwork
+# are persisted locally before another Cloudflare image request is sent.
+checkpoint=(root / "ios/COMICPOP/MangaDraftCheckpoint.swift").read_text(encoding="utf-8")
+checkpointTests=(root / "tests/mangaDraftCheckpointTests.swift").read_text(encoding="utf-8")
+assert "struct MangaDraftCheckpoint: Codable" in checkpoint
+assert "sourcePins == currentPins" in checkpoint
+assert "sceneIDs == currentSceneIDs" in checkpoint
+assert 'mode == "online" || mode == "offline"' in checkpoint
+assert 'artworks.map(\\.id) == Array(sceneIDs.prefix(artworks.count))' in checkpoint
+assert "!$0.contains(" in checkpoint
+assert "struct MangaStoryPlan: Codable" in story
+assert "struct MangaStoryBeat: Identifiable, Codable" in story
+assert "mangaDraftCheckpointTests.swift" in preflight
+assert "Valid partial AI draft should resume" in checkpointTests
+assert "Editing notes must invalidate old storyboard" in checkpointTests
+assert "Reject path traversal" in checkpointTests
+assert "restoreDraftCheckpoint()" in store
+assert "private func saveDraftCheckpoint() -> Bool" in store
+assert "StudioAtomicPersistence.write(checkpoint,to:draftURL)" in store
+assert "draft-art-" in store and "png.write" in store
+assert "removeDraftCheckpoint()" in store
+assert "hasRecoverableDraft" in store and "hasRecoverableDraft" in genre
+for start,nextMethod in (
+    ("private func prepareStoryboard(force:Bool) async {", "func updateStoryboardBeat("),
+    ("func updateStoryboardBeat(", "func generate() async {"),
+    ("func generate() async {", "func generateOffline() async {"),
+    ("func generateOffline() async {", "func applyFinishing("),
+    ("func applyFinishing(", "func regeneratePanel("),
+    ("func regeneratePanel(", "func chooseOriginal("),
+    ("func chooseOriginal(", "private func refreshArtworkSimilarityWarnings()")
+):
+    scope=store.split(start,1)[1].split(nextMethod,1)[0]
+    assert "saveDraftCheckpoint()" in scope,start
+generateScope=store.split("func generate() async {",1)[1].split("func generateOffline() async {",1)[0]
+assert generateScope.index("guard saveDraftCheckpoint() else {return}") < generateScope.index("let startIndex=generated.count")
+assert "追加のAI呼出しは停止しました" in generateScope
+assert "dirtyArtworkIDs.insert(pin.id)" in generateScope
+print("PASS: interrupted comic and edited screenplay persist across restart; mismatched video and notes rejected")
+
 print("PASS: story-first generation, real Japanese lettering, and reading every stored manga page")
 
 print("PASS: Rex onboarding, video picker/confirm, pin guard, deck reorder, PDF share, generated-panel editing")
