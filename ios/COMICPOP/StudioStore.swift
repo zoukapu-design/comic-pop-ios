@@ -45,10 +45,14 @@ struct PreviewPanel: Identifiable {
     private var storyPlan: MangaStoryPlan?
     private var finishingBase:[UUID:UIImage]=[:]
     private var panelRetryCount:[UUID:Int]=[:]
+    /// Artwork files are versioned, never overwritten before JSON commits.
+    private var storedArtworkFiles:[UUID:String]=[:]
+    private var dirtyArtworkIDs:Set<UUID>=[]
 
     private let fm = FileManager.default
     private let support: URL
     private var modelURL: URL { support.appendingPathComponent("studio.json") }
+    private var draftURL: URL { support.appendingPathComponent("manga-draft.json") }
     var videoURL:URL? {data.videoFile.map{support.appendingPathComponent($0)}}
     var tokenExists: Bool {CloudflareCredentialVault.load() != nil}
     var selectedDeck: UserDeck? {data.decks.first(where:{$0.id == data.activeDeckID}) ?? data.decks.first}
@@ -78,6 +82,7 @@ struct PreviewPanel: Identifiable {
     /// Stored works are not included; they remain in the works library.
     var hasUncommittedGeneration: Bool { !generated.isEmpty || storyPlan != nil }
     func clearGenerated() {
+        removeDraftCheckpoint()
         generated = []; pageImages = []
         generatedStyle = nil; generatedColor = nil; generatedMode = nil
         storyPlan = nil;storySummary = "";storyCreationMode = ""
@@ -106,6 +111,7 @@ struct PreviewPanel: Identifiable {
             player.replaceCurrentItem(with:AVPlayerItem(url:support.appendingPathComponent(file)))
             Task {await self.loadDuration()}
         }
+        restoreDraftCheckpoint()
         observer=player.addPeriodicTimeObserver(forInterval:CMTime(seconds:0.15,preferredTimescale:600),queue:.main){[weak self] time in
             Task { @MainActor in self?.currentTime=time.seconds.isFinite ? time.seconds : 0 }
         }
@@ -126,6 +132,120 @@ struct PreviewPanel: Identifiable {
         data=candidate
         return true
     }
+    /// Restore only if the same video, all user pin records and scene grouping
+    /// remain unchanged. A missing/corrupt image ends the recoverable prefix.
+    private func restoreDraftCheckpoint() {
+        guard let contents=try? Data(contentsOf:draftURL),
+              let saved=try? JSONDecoder().decode(MangaDraftCheckpoint.self,from:contents),
+              saved.isCompatible(
+                videoFile:data.videoFile,pins:data.pins,
+                sceneIDs:scenePlan.renderPins.map(\.id),
+                style:data.style,colorMode:data.colorMode
+              ) else {return}
+        let sourcePins=Dictionary(uniqueKeysWithValues:scenePlan.renderPins.map{($0.id,$0)})
+        var recovered:[PreviewPanel]=[]
+        var recoveredFiles:[UUID:String]=[:]
+        for art in saved.artworks {
+            guard let pin=sourcePins[art.id],
+                  let original=snapshot(for:pin),
+                  let drawing=UIImage(contentsOfFile:support.appendingPathComponent(art.drawingFile).path)
+            else {break}
+            recovered.append(PreviewPanel(
+                id:art.id,cardTitle:art.cardTitle,original:original,
+                drawing:drawing,warning:nil,caption:art.caption,
+                dialogue:art.dialogue,storyPrompt:art.storyPrompt,
+                storyScene:art.storyScene
+            ))
+            recoveredFiles[art.id]=art.drawingFile
+        }
+        generatedStyle=saved.style;generatedColor=saved.colorMode
+        generatedMode=saved.mode
+        storyPlan=saved.plan
+        storySummary=saved.summary
+        storyCreationMode=saved.creationMode
+        generated=recovered
+        storedArtworkFiles=recoveredFiles
+        if recovered.count != saved.artworks.count {
+            // Repair the metadata: missing file(s) must not create holes in
+            // the completed prefix or cause an unnecessary repeat AI call.
+            _ = saveDraftCheckpoint()
+        }
+        if !generated.isEmpty {
+            refreshArtworkSimilarityWarnings()
+            rebuildPages()
+            message="中断していた漫画を端末から復元しました（\(generated.count)/\(scenePlan.renderedPanelCount)コマ）。"
+        } else {
+            message="中断していた脚本を復元しました。確認してから作画を開始できます。"
+        }
+    }
+
+    /// Persist a screenplay and an ordered prefix of artwork after EACH
+    /// successful AI call. Do not silently spend the next credit if this fails.
+    @discardableResult private func saveDraftCheckpoint() -> Bool {
+        guard let plan=storyPlan,
+              let movie=data.videoFile,
+              let style=generatedStyle,
+              let color=generatedColor,
+              let mode=generatedMode else {return false}
+        let previous=storedArtworkFiles
+        var next=previous
+        var newFiles:[String]=[]
+        do {
+            for panel in generated {
+                guard next[panel.id] == nil || dirtyArtworkIDs.contains(panel.id) else {continue}
+                guard let png=panel.drawing.pngData(),!png.isEmpty else {
+                    throw MangaError.invalidImage
+                }
+                let file="draft-art-\(UUID().uuidString).png"
+                try png.write(to:support.appendingPathComponent(file),options:.atomic)
+                newFiles.append(file)
+                next[panel.id]=file
+            }
+            let artworks=try generated.map { panel -> MangaDraftArtwork in
+                guard let file=next[panel.id] else {throw MangaError.invalidImage}
+                return MangaDraftArtwork(
+                    id:panel.id,drawingFile:file,cardTitle:panel.cardTitle,
+                    caption:panel.caption,dialogue:panel.dialogue,
+                    storyPrompt:panel.storyPrompt,storyScene:panel.storyScene
+                )
+            }
+            let checkpoint=MangaDraftCheckpoint(
+                version:1,videoFile:movie,sourcePins:data.pins,
+                sceneIDs:scenePlan.renderPins.map(\.id),
+                style:style,colorMode:color,mode:mode,plan:plan,
+                summary:storySummary,creationMode:storyCreationMode,
+                artworks:artworks
+            )
+            guard checkpoint.isCompatible(
+                videoFile:movie,pins:data.pins,
+                sceneIDs:scenePlan.renderPins.map(\.id),
+                style:data.style,colorMode:data.colorMode
+            ) else {throw MangaStoryError.missingPanels}
+            try StudioAtomicPersistence.write(checkpoint,to:draftURL)
+            storedArtworkFiles=next
+            dirtyArtworkIDs.removeAll()
+            for (id,file) in previous where next[id] != file {
+                try? fm.removeItem(at:support.appendingPathComponent(file))
+            }
+            return true
+        } catch {
+            for file in newFiles {try? fm.removeItem(at:support.appendingPathComponent(file))}
+            message="漫画の復元データを端末に保存できませんでした：\(error.localizedDescription)"
+            return false
+        }
+    }
+
+    /// Remove the checkpoint index before its referenced image files, so a
+    /// reset can never restore a previously discarded manga on next launch.
+    private func removeDraftCheckpoint() {
+        try? fm.removeItem(at:draftURL)
+        for file in storedArtworkFiles.values {
+            try? fm.removeItem(at:support.appendingPathComponent(file))
+        }
+        storedArtworkFiles.removeAll()
+        dirtyArtworkIDs.removeAll()
+    }
+
     private func loadDuration() async {
         guard let url=videoURL else { duration=0; return }
         let loaded=(try? await AVURLAsset(url:url).load(.duration))?.seconds ?? 0
