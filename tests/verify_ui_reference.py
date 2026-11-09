@@ -472,6 +472,9 @@ for first,last in (
 adding=store.split("func addPin(",1)[1].split("func updatePinStory(",1)[0]
 assert adding.count("MangaDraftEditGuard.allowsChange(")==2
 assert "capturedRevision == pinsRevision" in adding
+assert "capturedDraftRevision == draftRevision" in adding
+assert "let capturedDraftRevision=draftRevision" in adding
+assert "draftRevision=UUID()" in store
 assert adding.index("guard commit(candidate)") < adding.index("clearGenerated()")
 notes=store.split("func updatePinStory(",1)[1].split("func updatePanelText(",1)[0]
 assert "return false" in notes and "return true" in notes
