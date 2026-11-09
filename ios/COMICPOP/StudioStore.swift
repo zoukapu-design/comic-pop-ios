@@ -390,9 +390,15 @@ struct PreviewPanel: Identifiable {
     func updatePanelText(_ id:UUID,caption:String,dialogue:String) {
         guard !isGenerating else {message="生成中はセリフを変更できません";return}
         guard let index=generated.firstIndex(where:{$0.id==id}) else {return}
+        let previousPanel=generated[index]
         generated[index].caption=String(caption.prefix(100))
         generated[index].dialogue=String(dialogue.prefix(80))
-        guard saveDraftCheckpoint() else {return}
+        guard saveDraftCheckpoint() else {
+            // JSON still contains the previous lettering: do not show an edit
+            // that will silently disappear the next time the app starts.
+            generated[index]=previousPanel
+            return
+        }
         rebuildPages()
         message="日本語のセリフ・ナレーションを修正しました"
     }
@@ -718,7 +724,10 @@ struct PreviewPanel: Identifiable {
             title:plan.title,premise:plan.premise,beats:beats,
             isAIStory:plan.isAIStory,usedVisualEvidence:plan.usedVisualEvidence
         )
-        guard saveDraftCheckpoint() else {return}
+        guard saveDraftCheckpoint() else {
+            storyPlan=plan
+            return
+        }
         message="脚本の修正を端末に保存しました。画像生成の追加消費はありません。"
     }
 
@@ -929,6 +938,9 @@ struct PreviewPanel: Identifiable {
     /// Preserve an unfiltered baseline so moving a slider never compounds filters.
     func applyFinishing(contrast:Double,brightness:Double,saturation:Double,sharpness:Double) {
         guard hasCompleteComic else {message="すべてのコマ生成後に調整してください";return}
+        let previousPanels=generated
+        let previousFinishingBase=finishingBase
+        let previousDirty=dirtyArtworkIDs
         var finished:[UUID:UIImage]=[:]
         for panel in generated {
             let base=finishingBase[panel.id] ?? panel.drawing
@@ -944,10 +956,15 @@ struct PreviewPanel: Identifiable {
             if let output=finished[generated[index].id] {generated[index].drawing=output}
         }
         dirtyArtworkIDs.formUnion(generated.map(\.id))
-        guard saveDraftCheckpoint() else {return}
+        guard saveDraftCheckpoint() else {
+            generated=previousPanels
+            finishingBase=previousFinishingBase
+            dirtyArtworkIDs=previousDirty
+            return
+        }
         refreshArtworkSimilarityWarnings()
         rebuildPages()
-        message="ページ全体の描線・明るさ・彩度・輪郭を調整しました。"
+        message="ページ全体の描線・明るさ・彩度・輪郭を調整しました."
     }
 
     /// Retake one existing, ordered panel. Does not modify pins, titles or other
@@ -1020,10 +1037,18 @@ struct PreviewPanel: Identifiable {
     func chooseOriginal(_ id:UUID){
         guard !isGenerating else {message="漫画生成中は絵を切り替えられません";return}
         guard let i=generated.firstIndex(where:{$0.id==id}) else {return}
+        let previousDrawing=generated[i].drawing
+        let previousFinishingBase=finishingBase[id]
+        let previousDirty=dirtyArtworkIDs
         finishingBase[id]=nil
         generated[i].drawing=generated[i].original
         dirtyArtworkIDs.insert(id)
-        guard saveDraftCheckpoint() else {return}
+        guard saveDraftCheckpoint() else {
+            generated[i].drawing=previousDrawing
+            finishingBase[id]=previousFinishingBase
+            dirtyArtworkIDs=previousDirty
+            return
+        }
         refreshArtworkSimilarityWarnings()
         rebuildPages()
     }
