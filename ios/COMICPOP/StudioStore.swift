@@ -938,6 +938,9 @@ struct PreviewPanel: Identifiable {
         let startingSession=videoSession,startingRevision=pinsRevision
         let original=generated[index].original
         let attempt=panelRetryCount[id,default:0]+1
+        // Protect the current panel before a user explicitly spends another
+        // AI request on retaking it.
+        guard saveDraftCheckpoint() else {return}
         isGenerating=true
         defer {isGenerating=false}
         do {
@@ -1067,6 +1070,9 @@ struct PreviewPanel: Identifiable {
             message="絵が重複しています（コマ\(duplicate.earlier+1)と\(duplicate.later+1)）。文章ではなく画像が同じため、該当コマを別構図で再生成してから保存してください。"
             return false
         }
+        // Ensure a finished-but-previously-unbacked draft has a recovery
+        // checkpoint too. A failed backup must not silently claim success.
+        guard saveDraftCheckpoint() else {return false}
         // Recompose headers from the latest title before saving. The editable
         // title field intentionally avoids expensive per-keystroke rendering.
         refreshPageTitle()
