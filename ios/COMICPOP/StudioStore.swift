@@ -74,6 +74,9 @@ struct PreviewPanel: Identifiable {
 
     var generatedPanelCount: Int { generated.count }
     var generatedOffline: Bool { generatedMode == "offline" }
+    /// Unpublished artwork or an AI storyboard would be lost by a style change.
+    /// Stored works are not included; they remain in the works library.
+    var hasUncommittedGeneration: Bool { !generated.isEmpty || storyPlan != nil }
     func clearGenerated() {
         generated = []; pageImages = []
         generatedStyle = nil; generatedColor = nil; generatedMode = nil
@@ -275,6 +278,10 @@ struct PreviewPanel: Identifiable {
             return
         }
         guard data.style != style else {return}
+        guard !hasUncommittedGeneration else {
+            message="生成済みの絵や脚本があります。画風を変える場合は確認して生成結果をリセットしてください。"
+            return
+        }
         var candidate=data
         candidate.style=style
         // Preserve an explicit monochrome/colour choice when browsing genre cards.
@@ -290,6 +297,10 @@ struct PreviewPanel: Identifiable {
             return
         }
         guard value=="mono" || value=="color" else {return}
+        guard data.colorMode == value || !hasUncommittedGeneration else {
+            message="生成済みの絵や脚本があります。色の設定を変える場合は確認して生成結果をリセットしてください。"
+            return
+        }
         guard data.colorMode != value else {
             UserDefaults.standard.set(true,forKey:"pop.userChoseColor")
             return
