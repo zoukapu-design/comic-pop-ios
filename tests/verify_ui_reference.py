@@ -332,6 +332,27 @@ assert "生成結果を破棄して作り直す" in genre
 assert "store.discardGenerated()" in genre
 assert "mangaGenerationRouteTests.swift" in preflight
 assert "7 deterministic manga-generation route scenarios" in routeTests
+# Style/colour selection must not silently invalidate a paid screenplay
+# or unsaved comic: block it in the store, and require explicit UI consent.
+appearance=(root / "ios/COMICPOP/MangaAppearanceChangePolicy.swift").read_text(encoding="utf-8")
+appearanceTests=(root / "tests/mangaAppearanceChangePolicyTests.swift").read_text(encoding="utf-8")
+assert "enum MangaAppearanceChangePolicy" in appearance
+assert "if hasUncommittedGeneration { return .needsDiscardConfirmation }" in appearance
+assert "if isGenerating { return .blockedWhileGenerating }" in appearance
+assert "6 editor/generation states" in appearanceTests
+assert "mangaAppearanceChangePolicyTests.swift" in preflight
+assert "var hasUncommittedGeneration: Bool" in store
+assert "guard !hasUncommittedGeneration else" in style
+assert "guard data.colorMode == value || !hasUncommittedGeneration else" in color
+assert "MangaAppearanceChangePolicy.decide(" in genre
+assert "requestAppearance(.style(genre.id))" in genre
+assert 'requestAppearance(.color("mono"))' in genre
+assert 'requestAppearance(.color("color"))' in genre
+assert "askAppearanceReset" in genre and "pendingAppearance" in genre
+assert "生成結果を破棄して設定を変更" in genre
+assert "store.discardGenerated()" in genre
+print("PASS: style/colour changes require explicit consent before discarding unsaved artwork")
+
 # Page rasterization is expensive: save title immediately, rasterize only
 # on submit/navigation/save, not on each TextField character change.
 titleEdit=store.split("func updateTitle(_ value:String)",1)[1].split("func refreshPageTitle()",1)[0]
