@@ -25,6 +25,11 @@ swiftc "$ROOT/ios/COMICPOP/MangaDraftEditGuard.swift" \
 # and resume only missing panels after a partial failure.
 swiftc "$ROOT/ios/COMICPOP/MangaGenerationRoute.swift" "$ROOT/tests/mangaGenerationRouteTests.swift" -o "$BIN"
 "$BIN"
+# Image API prompt must preserve a whole scene's user notes, every card,
+# causality, and no-text instruction inside the 2400-character budget.
+swiftc "$ROOT/ios/COMICPOP/MangaDrawingPrompt.swift" \
+  "$ROOT/tests/mangaDrawingPromptTests.swift" -o "$BIN"
+"$BIN"
 # Verify emotional card fusion does not inject horror into unrelated scenes.
 swiftc "$ROOT/ios/COMICPOP/MangaCardFusion.swift" "$ROOT/tests/mangaCardFusionTests.swift" -o "$BIN"
 "$BIN"
