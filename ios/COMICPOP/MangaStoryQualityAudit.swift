@@ -74,7 +74,7 @@ enum MangaStoryQualityAudit {
                     }
                 }
             }
-            if offset>0 {
+            if offset>0 && !scene.isIntentionalReplay {
                 let before=scenes[offset-1]
                 let previousPlot=normalize(before.plot)
                 let previousVisual=normalize(before.imagePrompt)
