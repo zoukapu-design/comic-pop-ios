@@ -118,43 +118,29 @@ struct CloudflareAIService {
         let userSceneNote=String((story?.userSceneNoteJP ?? pin.note).prefix(160))
         let plotAction=String((story?.plotDescriptionJP ?? pin.note).prefix(150))
         let plannedIllustration=String((story?.imagePrompt ?? pin.note).prefix(540))
-        // Critical: this model prompt is capped. Put the actual action and the
-        // scene's story responsibility FIRST, never after verbose style advice.
-        let primaryInstructions=[
-            "Original sequential JAPANESE MANGA art. ONE panel, a NEW story event; not a photo filter.",
-            MangaStyles.prompt(for:style),color,
-            "ACTUAL PLOT EVENT (reviewed storyboard): \(plotAction).",
-            userSceneNote.isEmpty ? "" : "USER'S ORIGINAL CARD NOTE (HIGH PRIORITY): \(userSceneNote). It may describe feeling or intent, not literal visible motion. Never depict an event that contradicts it.",
-            // Place manual edits BEFORE the long AI storyboard so the 2400
-            // character limit can never hide a user's explicit instruction.
-            approvedDirection.isEmpty
-                ? ""
-                : "HIGHEST PRIORITY USER DIRECTION: \(String(approvedDirection.prefix(300))). Override the AI's suggested scene action and composition when this conflicts.",
-            "Reference images: 0 = current video event, 1 = preceding manga panel (if present), 2 = opening manga panel (if present). Use 1 and 2 to stabilize identity and line style, never to repeat their action, pose or background.",
-            "DRAW THIS SPECIFIC EVENT AND COMPOSITION (only when consistent with ACTUAL PLOT EVENT): \(plannedIllustration).",
-            "CAUSAL CONNECTION TO PREVIOUS SCENE: \(String((story?.causalLinkJP ?? "").prefix(120))).",
-            "STORY ROLE: \(story?.narrativeDutyJP ?? "").",
-            combinedEmotion,
-            alternate,
-            "CHAPTER: \(String(seriesPremise.prefix(150))).",
-            "CARD EMOTIONS: \(card.title), \(String(card.subtitle.prefix(160)))."
-        ].filter{!$0.isEmpty}
-        let secondaryInstructions=[
-            "Keep the same protagonist, clothing, hairstyle and setting across adjacent panels.",
-            "Input image 0 depicts the current moment. Use it as evidence, not as a fixed camera angle.",
-            "If image 1 exists, it is the PREVIOUS manga panel. Use it for identity, clothes, and drawing style, NOT for copying its pose or action.",
-            "If image 2 exists, it is the FIRST manga panel. Use image 2 to keep long-range protagonist identity and linework stable. If the subject differs, keep ONLY the overall art style. NEVER copy its scene, background or pose.",
-            "The reaction must answer the prior event. A payoff must visibly follow an earlier setup.",
-            "Scene context: \(String((story?.scene ?? "").prefix(125))).",
-            "Transition: \(String((story?.transition ?? "").prefix(125))).",
-            hints
-        ]
-        let prompt=(primaryInstructions+secondaryInstructions).joined(separator:" ")
+        // Serialize the storyboard with hard priority for actual user notes,
+        // the reviewed plot, manual drawing directions, and every card in a
+        // simultaneous group. Supplementary hints are discarded before these.
+        let prompt=MangaDrawingPrompt.compose(MangaDrawingPromptInput(
+            stylePrompt:MangaStyles.prompt(for:style),
+            colorInstruction:color,
+            plotAction:plotAction,
+            userNote:userSceneNote,
+            userDirection:approvedDirection,
+            cardIDs:combinedCardIDs.isEmpty ? [pin.cardID] : combinedCardIDs,
+            cardInstruction:combinedEmotion,
+            visualInstruction:plannedIllustration,
+            causalLink:story?.causalLinkJP ?? "",
+            narrativeRole:story?.narrativeDutyJP ?? "",
+            referenceInstruction:"Image 0 = current video event. Image 1 (if included) = previous manga panel. Image 2 (if included) = opening manga panel. Copy identity and line style, never duplicate poses.",
+            alternateInstruction:alternate,
+            seriesPremise:seriesPremise,
+            sceneContext:story?.scene ?? "",
+            transition:story?.transition ?? "",
+            consistencyHints:hints
+        ))
         var form=FormDataBuilder()
-        // Always append the no-gibberish instruction OUTSIDE the truncation.
-        // The iOS renderer typesets natural Japanese dialogue and captions.
-        let neverText="ABSOLUTELY NO WORDS, NO KANJI, NO FAKE LETTERS OR SPEECH BALLOONS. APP TYPESETS ALL JAPANESE LETTERING AFTER GENERATION."
-        form.add(name:"prompt",value:String(prompt.prefix(2400))+" "+neverText)
+        form.add(name:"prompt",value:prompt)
         form.add(name:"width",value:String(width))
         form.add(name:"height",value:String(height))
         form.add(name:"seed",value:String(seed))
