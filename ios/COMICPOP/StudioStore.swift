@@ -946,6 +946,7 @@ struct PreviewPanel: Identifiable {
             let base=finishingBase[panel.id] ?? panel.drawing
             guard let output=PopPageFinisher.render(base,contrast:contrast,brightness:brightness,
                                                       saturation:saturation,sharpness:sharpness) else {
+                finishingBase=previousFinishingBase
                 message="画質調整に失敗しました。元の漫画は保持しています。"
                 return
             }
@@ -964,7 +965,7 @@ struct PreviewPanel: Identifiable {
         }
         refreshArtworkSimilarityWarnings()
         rebuildPages()
-        message="ページ全体の描線・明るさ・彩度・輪郭を調整しました."
+        message="ページ全体の描線・明るさ・彩度・輪郭を調整しました。"
     }
 
     /// Retake one existing, ordered panel. Does not modify pins, titles or other
