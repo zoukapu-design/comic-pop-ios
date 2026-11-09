@@ -170,6 +170,10 @@ struct PreviewPanel: Identifiable {
             // Repair the metadata: missing file(s) must not create holes in
             // the completed prefix or cause an unnecessary repeat AI call.
             _ = saveDraftCheckpoint()
+        } else {
+            // An interrupted write may leave an orphan PNG that is no longer
+            // referenced by the last-good, atomically saved JSON.
+            cleanupUnreferencedDraftArtwork()
         }
         if !generated.isEmpty {
             refreshArtworkSimilarityWarnings()
@@ -193,7 +197,14 @@ struct PreviewPanel: Identifiable {
         var newFiles:[String]=[]
         do {
             for panel in generated {
-                guard next[panel.id] == nil || dirtyArtworkIDs.contains(panel.id) else {continue}
+                // Check the actual image on disk, not only its cached file
+                // name. The PNG may have been removed after the last save.
+                let needsWrite=MangaDraftFilePolicy.needsWrite(
+                    existingFile:next[panel.id],
+                    isDirty:dirtyArtworkIDs.contains(panel.id),
+                    fileExists:{ fm.fileExists(atPath:support.appendingPathComponent($0).path) }
+                )
+                guard needsWrite else {continue}
                 guard let png=panel.drawing.pngData(),!png.isEmpty else {
                     throw MangaError.invalidImage
                 }
@@ -228,6 +239,7 @@ struct PreviewPanel: Identifiable {
             for (id,file) in previous where next[id] != file {
                 try? fm.removeItem(at:support.appendingPathComponent(file))
             }
+            cleanupUnreferencedDraftArtwork()
             return true
         } catch {
             for file in newFiles {try? fm.removeItem(at:support.appendingPathComponent(file))}
@@ -236,16 +248,29 @@ struct PreviewPanel: Identifiable {
         }
     }
 
+    /// Only after a verified checkpoint is present may abandoned PNGs be
+    /// collected. Never touch original video, pins or saved manga pages.
+    private func cleanupUnreferencedDraftArtwork() {
+        guard fm.fileExists(atPath:draftURL.path),
+              let files=try? fm.contentsOfDirectory(atPath:support.path) else {return}
+        let referenced=Set(storedArtworkFiles.values)
+        for file in MangaDraftFilePolicy.orphanFiles(
+            available:files,referenced:referenced
+        ) {
+            try? fm.removeItem(at:support.appendingPathComponent(file))
+        }
+    }
+
     /// Remove the checkpoint index before its referenced image files, so a
     /// reset can never restore a previously discarded manga on next launch.
     private func removeDraftCheckpoint() {
         try? fm.removeItem(at:draftURL)
-        // Include files from an interrupted/crashed checkpoint write. A fresh
-        // draft may never reuse a stale artwork filename.
+        // A deliberate reset drops all temporary draft PNGs, but does not
+        // touch any original video, pin snapshot or saved comic page.
         if let files=try? fm.contentsOfDirectory(atPath:support.path) {
-            for file in files where file.hasPrefix("draft-art-") &&
-                                   file.hasSuffix(".png") &&
-                                   !file.contains("/") && !file.contains("..") {
+            for file in MangaDraftFilePolicy.orphanFiles(
+                available:files,referenced:[]
+            ) {
                 try? fm.removeItem(at:support.appendingPathComponent(file))
             }
         }
