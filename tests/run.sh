@@ -45,6 +45,14 @@ swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" "$ROOT/tests/mangaJapan
 # Inspect screenplay structure without API calls or image quota.
 swiftc "$ROOT/ios/COMICPOP/MangaStoryQualityAudit.swift" "$ROOT/tests/mangaStoryQualityAuditTests.swift" -o "$BIN"
 "$BIN"
+# Validate restart-safe in-progress manga checkpoints, including story JSON
+# round trips, exact pin identity, and rejection of unrelated video/style.
+swiftc "$ROOT/ios/COMICPOP/CardSceneGrouping.swift" "$ROOT/ios/COMICPOP/Models.swift" \
+  "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" \
+  "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" \
+  "$ROOT/ios/COMICPOP/MangaDraftCheckpoint.swift" \
+  "$ROOT/tests/mangaDraftCheckpointTests.swift" -o "$BIN"
+"$BIN"
 # Verify exactly one story beat per inserted card and natural Japanese captions.
 swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" "$ROOT/tests/mangaStoryTests.swift" -o "$BIN"
 "$BIN"
