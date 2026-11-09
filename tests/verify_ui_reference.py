@@ -18,7 +18,7 @@ theme = (root / "ios/COMICPOP/PopTheme.swift").read_text(encoding="utf-8")
 finisher = (root / "ios/COMICPOP/PopPageFinisher.swift").read_text(encoding="utf-8")
 assert "PopBrandHeader" in popui and "PopStepNavigation(stage:$stage)" in popui
 assert "PopEditorScreen" in popui and "PopGenreScreen" in popui and "PopReviewScreen" in popui
-assert "PopAVPlayerSurface(player:store.player)" in editor and "PopTimeline(store:store)" in editor
+assert "PopAVPlayerSurface(player:store.player)" in editor and "PopTimeline(store:store,onDelete:requestDelete)" in editor
 # Every inserted card must appear at the correct time on the *live* editor bar.
 markers = (root / "ios/COMICPOP/TimelinePinLayout.swift").read_text(encoding="utf-8")
 assert 'timelineInsertedCardMarkers' in editor
@@ -30,7 +30,7 @@ assert 'group.points' in editor and 'MangaPin' in editor
 assert 'TimelinePinPoint' in markers and 'struct TimelinePinCluster' in markers
 assert 'pending.append(point)' in markers and 'centerX' in markers
 
-assert "await store.addPin(card:def)" in editor
+assert "await store.addPin(card:definition)" in editor
 assert "ForEach(Array(ids.prefix(12)).indices" in editor
 assert '"マイデッキ"' in editor and '"お気に入り"' in editor and '"おすすめ"' in editor
 assert "PopIllustratedCard" in genre and "この画風で漫画を作る" in genre
@@ -85,7 +85,7 @@ assert "PopSettingsPanel(store:store)" in popui
 assert "pop.didSeeWelcome" in popui and "onChange(of:stage)" in popui
 assert "PopYellowButton(title: \"動画からマンガを作る\"" in journey
 assert "PhotosPicker(selection: $chosenPhoto" in journey
-assert "await store.replaceVideo(movie.url)" in journey
+assert "await store.replaceVideo(movie.url,allowDiscard:allowDiscard)" in journey
 assert "変更してカードをリセット" in journey
 assert "この動画で編集を始める" in journey
 assert "popStartEditing" in journey
@@ -242,15 +242,15 @@ print("PASS: narrative arc responsibilities, causality, merged cards, editable s
 
 # A paid, in-flight image call must not be invalidated by editor mutations.
 # Video replacement is committed to disk before the previous source is deleted.
-replaceVideo=store.split("func replaceVideo(_ importedURL:URL) async {",1)[1].split("func scrub(to seconds:Double)",1)[0]
+replaceVideo=store.split("func replaceVideo(_ importedURL:URL,allowDiscard:Bool = false) async {",1)[1].split("func scrub(to seconds:Double)",1)[0]
 assert "guard !isGenerating" in replaceVideo
 assert replaceVideo.index("guard persist() else {") < replaceVideo.index("for file in oldSnapshots")
 assert "data=oldData" in replaceVideo and "removeItem(at:dest)" in replaceVideo
-assert "guard !isGenerating" in store.split("func addPin(card:PinDefinition) async {",1)[1].split("func updatePinStory(",1)[0]
+assert "guard !isGenerating" in store.split("func addPin(card:PinDefinition,allowDiscard:Bool = false) async {",1)[1].split("func updatePinStory(",1)[0]
 assert "処理中のカード追加は見送りました" in store
 for mutator, following in (
-    ("func removePin(", "func clearPins()"),
-    ("func clearPins()", "func snapshot(for pin:"),
+    ("func removePin(", "func clearPins(allowDiscard:Bool = false)"),
+    ("func clearPins(allowDiscard:Bool = false)", "func snapshot(for pin:"),
     ("func updateStyle(", "func updateColor("),
     ("func updateColor(", "func updateTitle("),
     ("func chooseOriginal(", "private func refreshArtworkSimilarityWarnings()"),
@@ -271,15 +271,15 @@ assert "Nonfinite JSON numbers must be rejected" in atomicTests
 assert "studioAtomicPersistenceTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 commit=store.split("private func commit(_ candidate: StudioData) -> Bool {",1)[1].split("private func loadDuration()",1)[0]
 assert commit.index("guard persist(candidate) else {return false}") < commit.index("data=candidate")
-add=store.split("func addPin(card:PinDefinition) async {",1)[1].split("func updatePinStory(",1)[0]
+add=store.split("func addPin(card:PinDefinition,allowDiscard:Bool = false) async {",1)[1].split("func updatePinStory(",1)[0]
 assert add.index("guard commit(candidate) else {") < add.index("pinsRevision = UUID()")
 assert add.index("guard commit(candidate) else {") < add.index("clearGenerated()")
 assert "try? fm.removeItem(at:snapshotURL)" in add
 notes=store.split("func updatePinStory(",1)[1].split("func updatePanelText(",1)[0]
 assert notes.index("guard commit(candidate) else {return}") < notes.index("clearGenerated()")
-remove=store.split("func removePin(",1)[1].split("func clearPins()",1)[0]
+remove=store.split("func removePin(",1)[1].split("func clearPins(allowDiscard:Bool = false)",1)[0]
 assert remove.index("guard commit(candidate) else {return}") < remove.index("removeItem(at:")
-clear=store.split("func clearPins()",1)[1].split("func snapshot(for pin:",1)[0]
+clear=store.split("func clearPins(allowDiscard:Bool = false)",1)[1].split("func snapshot(for pin:",1)[0]
 assert clear.index("guard commit(candidate) else {return}") < clear.index("removeItem(at:")
 assert 'userSceneNoteJP:clip(source.userNote,160)' in story
 assert "userSceneNoteJP:old.userSceneNoteJP" in store
