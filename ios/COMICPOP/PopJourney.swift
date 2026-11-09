@@ -254,7 +254,7 @@ struct PopVideoChooseScreen: View {
         }
         .onChange(of: chosenPhoto) { _, next in
             guard let next else {return}
-            if store.videoURL != nil && !store.data.pins.isEmpty {
+            if store.videoURL != nil && (!store.data.pins.isEmpty || store.hasUncommittedGeneration) {
                 pendingPhoto = next
                 shouldConfirmReplace = true
             } else {
@@ -266,7 +266,7 @@ struct PopVideoChooseScreen: View {
             switch result {
             case .success(let urls):
                 guard let url=urls.first else {return}
-                if store.videoURL != nil && !store.data.pins.isEmpty {
+                if store.videoURL != nil && (!store.data.pins.isEmpty || store.hasUncommittedGeneration) {
                     pendingURL=url
                     shouldConfirmReplace=true
                 } else {Task {await importVideo(url)}}
@@ -277,8 +277,8 @@ struct PopVideoChooseScreen: View {
         .confirmationDialog("別の動画に変更しますか？",
                             isPresented: $shouldConfirmReplace, titleVisibility: .visible) {
             Button("変更してカードをリセット", role: .destructive) {
-                if let photo = pendingPhoto {Task {await importPhoto(photo)}}
-                else if let url = pendingURL {Task {await importVideo(url)}}
+                if let photo = pendingPhoto {Task {await importPhoto(photo,allowDiscard:true)}}
+                else if let url = pendingURL {Task {await importVideo(url,allowDiscard:true)}}
                 pendingPhoto=nil
                 pendingURL=nil
             }
@@ -291,7 +291,7 @@ struct PopVideoChooseScreen: View {
         }
     }
 
-    private func importPhoto(_ photo: PhotosPickerItem) async {
+    private func importPhoto(_ photo: PhotosPickerItem,allowDiscard:Bool = false) async {
         guard !loading else {return}
         loading = true
         defer {loading = false}
@@ -300,14 +300,14 @@ struct PopVideoChooseScreen: View {
                 store.message = "動画を読み込めませんでした。別の動画を選択してください。"
                 return
             }
-            await store.replaceVideo(movie.url)
+            await store.replaceVideo(movie.url,allowDiscard:allowDiscard)
         } catch {store.message="動画取り込みに失敗しました：\(error.localizedDescription)"}
     }
-    private func importVideo(_ url: URL) async {
+    private func importVideo(_ url: URL,allowDiscard:Bool = false) async {
         guard !loading else {return}
         loading=true
         defer {loading=false}
-        await store.replaceVideo(url)
+        await store.replaceVideo(url,allowDiscard:allowDiscard)
     }
 }
 
