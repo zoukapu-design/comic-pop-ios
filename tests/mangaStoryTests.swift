@@ -110,6 +110,36 @@ import Foundation
             preconditionFailure("duplicated adjacent panels must be rejected")
         } catch MangaStoryError.repetitiveScenes {}
         precondition(MangaStoryPlanner.role(for:"horror").contains("恐怖"))
+        // The user's replay/flashback card intentionally recalls an earlier
+        // frame; exact visual repetition is allowed only for that intent.
+        precondition(MangaReplayIntent.isIntentional(cardIDs:["flashback"]))
+        precondition(MangaReplayIntent.isIntentional(cardIDs:["beforeafter"]))
+        precondition(MangaReplayIntent.isIntentional(cardIDs:["dramatic","replay"]))
+        precondition(!MangaReplayIntent.isIntentional(cardIDs:["dramatic","punch"]))
+        let oldScene=MangaStoryEvidence(
+            pinID:UUID(),seconds:2,cardID:"intro",cardTitle:"導入",
+            cardHint:"",visual:"pottery workshop",neighborVisual:"",
+            heard:"",userNote:"茶碗を置く",userDialogue:""
+        )
+        var replayScene=MangaStoryEvidence(
+            pinID:UUID(),seconds:12,cardID:"dramatic",cardTitle:"回想＋ドラマ",
+            cardHint:"same remembered moment",visual:"pottery workshop",
+            neighborVisual:"",heard:"",userNote:"さっきの場面を回想",userDialogue:""
+        )
+        replayScene.allCardIDs=["dramatic","flashback"]
+        let sameComposition=[
+            ["index":1,"caption":"以前のこと","dialogue":"","scene":"same blue pottery workshop",
+             "imagePrompt":"same composition of protagonist placing bowl","transition":"opening"],
+            ["index":2,"caption":"思い出した","dialogue":"","scene":"same blue pottery workshop",
+             "imagePrompt":"same composition of protagonist placing bowl","transition":"flashback"]
+        ] as [[String:Any]]
+        let replayJSON=try JSONSerialization.data(withJSONObject:[
+            "title":"思い出","premise":"ふと過去の行動を振り返る","panels":sameComposition
+        ])
+        let replayOutline=try MangaStoryPlanner.decodeAIStory(
+            String(decoding:replayJSON,as:UTF8.self),evidence:[oldScene,replayScene])
+        precondition(replayOutline.beats.count==2,
+                     "An explicit flashback must not be discarded by repetitive-scene validation")
         // Combined cards are ONE story row with multiple directions.
         let combined=MangaStoryEvidence(
             pinID:UUID(),seconds:45,cardID:"dramatic",
