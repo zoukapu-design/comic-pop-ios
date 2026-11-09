@@ -376,6 +376,12 @@ assert "struct MangaDraftCheckpoint: Codable" in checkpoint
 assert "sourcePins == currentPins" in checkpoint
 assert "sceneIDs == currentSceneIDs" in checkpoint
 assert 'mode == "online" || mode == "offline"' in checkpoint
+assert '(mode == "online") == plan.isAIStory' in checkpoint
+assert "Never mistake an AI screenplay for an offline draft" in checkpointTests
+assert "Never mistake an offline script for an online AI draft" in checkpointTests
+retake=store.split("func regeneratePanel(",1)[1].split("isGenerating=true",1)[0]
+assert "guard saveDraftCheckpoint() else {return}" in retake
+assert "guard saveDraftCheckpoint() else {return false}" in store.split("func saveWork() -> Bool",1)[1]
 assert 'artworks.map(\\.id) == Array(sceneIDs.prefix(artworks.count))' in checkpoint
 assert "!$0.contains(" in checkpoint
 assert "struct MangaStoryPlan: Codable" in story
