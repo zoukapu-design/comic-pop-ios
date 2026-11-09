@@ -492,5 +492,13 @@ assert "store.replaceVideo(url,allowDiscard:allowDiscard)" in journey
 assert "importPhoto(photo,allowDiscard:true)" in journey
 assert "importVideo(url,allowDiscard:true)" in journey
 print("PASS: editor/video/pin story changes require consent and commit before wiping manga drafts")
+assert "continueManga: () -> Void" in journey
+assert "continueManga:{" in popui
+assert "stage = store.hasCompleteComic ? .review : .styles" in popui
+assert "作りかけの漫画が残っています" in journey
+assert "マンガ作成の続きを開く" in journey
+assert "store.hasRecoverableDraft" in journey
+print("PASS: app home exposes resumable manga without asserting a failed backup succeeded")
+
 
 print("PASS: MOVIKOMA 3 reference-faithful native screens, real Rex sprite assets and connected interactions")
