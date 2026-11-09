@@ -296,6 +296,26 @@ assert drawingPrompt.index('HIGHEST PRIORITY USER DIRECTION') < drawingPrompt.in
 assert drawingPrompt.index('ALL INSERTED CARD IDS (ONE SHARED SCENE)') < drawingPrompt.index('DRAW THIS SPECIFIC EVENT AND COMPOSITION')
 assert "maxCharacters=2400" in drawingPrompt and 'noLettering=' in drawingPrompt
 assert "mangaDrawingPromptTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+assert "MangaDrawingPromptInput(" in ai and "MangaDrawingPrompt.compose(" in ai
+assert 'form.add(name:"prompt",value:prompt)' in ai
+assert "maxCharacters=2400" in drawingPrompt
+assert "ALL INSERTED CARD IDS (ONE SHARED SCENE)" in drawingPrompt
+assert "CAUSE" in drawingPrompt and "IMAGE REFS" in drawingPrompt
+assert drawingPrompt.index("HIGHEST PRIORITY USER DIRECTION") < drawingPrompt.index("COMBINED CARD DIRECTIVES (ONE PANEL)")
+assert "packed.count<=MangaDrawingPrompt.maxCharacters" in promptTests
+# Detect distant accidental copy-paste scenes before paying for artwork,
+# while preserving deliberate flashback/replay cards.
+quality=(root / "ios/COMICPOP/MangaStoryQualityAudit.swift").read_text(encoding="utf-8")
+qualityTests=(root / "tests/mangaStoryQualityAuditTests.swift").read_text(encoding="utf-8")
+assert "isIntentionalReplay:Bool = false" in quality
+assert "offset>1 && !scene.isIntentionalReplay" in quality
+assert "sameAction && sameShot" in quality
+assert "offset>0 && !scene.isIntentionalReplay" in quality
+assert "isIntentionalReplay:replay" in draft
+assert '["flashback","replay","beforeafter"]' in draft
+assert "Non-adjacent repeats must be flagged" in qualityTests
+assert "An explicitly requested adjacent replay" in qualityTests
+print("PASS: priority packed card prompts and cross-scene repetition review before image inference")
 assert "allIDs.joined(separator:" in promptTests
 assert "CAUSE_OF_NEXT_SCENE_" in promptTests
 # Prevent accidental repeat inference; only the review screen's confirmed
