@@ -44,6 +44,16 @@ struct MangaStoryPlan: Codable {
     var usedVisualEvidence: Bool = false
 }
 
+/// The same user intent must be applied in storyboard review, image
+/// duplication checks and the AI story decoder.
+enum MangaReplayIntent {
+    static func isIntentional(cardIDs:[String])->Bool {
+        cardIDs.contains { id in
+            ["flashback","replay","beforeafter"].contains(id.lowercased())
+        }
+    }
+}
+
 private struct AIStoryDocument: Decodable {
     let title: String
     let premise: String
@@ -119,6 +129,12 @@ enum MangaStoryPlanner {
         // Repeated clothing/location phrases are fine; identical consecutive
         // action+composition and narration are not a story progression.
         for index in 1..<draft.panels.count {
+            let current=evidence[index]
+            let ids=current.allCardIDs.isEmpty
+                ? [current.cardID] : current.allCardIDs
+            // A flashback/replay card explicitly asks for a reprise, not a
+            // new action; rejecting it would spend text quota unnecessarily.
+            if MangaReplayIntent.isIntentional(cardIDs:ids) {continue}
             let a=draft.panels[index-1], b=draft.panels[index]
             let sceneA=normalized(a.imagePrompt+" "+a.scene)
             let sceneB=normalized(b.imagePrompt+" "+b.scene)
