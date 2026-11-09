@@ -73,7 +73,7 @@ struct PopHomeScreen: View {
                                 .font(.system(size: 15, weight: .black, design: .rounded))
                             Text(store.hasCompleteComic
                                  ? "\(store.generatedPanelCount)コマの漫画を確認・保存できます。"
-                                 : "\(store.generatedPanelCount)/\(store.scenePlan.renderedPanelCount)コマ完成。脚本と描いた画像は端末内に保存されています。")
+                                 : "\(store.generatedPanelCount)/\(store.scenePlan.renderedPanelCount)コマ完成。\(store.hasRecoverableDraft ? "端末に復元データがあります。" : "復元データの保存が未完了です。空き容量を確認してください。")")
                                 .font(.system(size: 11, weight: .medium))
                             PopYellowButton(
                                 title: store.hasCompleteComic ? "完成した漫画を見る" : "マンガ作成の続きを開く",
