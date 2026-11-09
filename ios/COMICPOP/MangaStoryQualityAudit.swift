@@ -10,6 +10,8 @@ struct StoryReviewScene {
     var narrativeRole:String = ""
     var causalLink:String = ""
     var requiresCausalLink:Bool = false
+    /// Flashbacks/replays may deliberately recreate a previously shown event.
+    var isIntentionalReplay:Bool = false
 }
 
 struct StoryReviewWarning: Identifiable, Equatable {
@@ -48,6 +50,29 @@ enum MangaStoryQualityAudit {
                     sceneNumber:scene.index,
                     message:"物語の役割に対して出来事が曖昧です。何をして何が変化するのか記入してください。"
                 ))
+            }
+            // Distant scenes can accidentally become the *same* picture even
+            // when their neighbors differ. Warn only when both the visible
+            // event AND image composition are near-clones; a repeated setting
+            // alone is not a story defect. Do not reject intentional replays.
+            if offset>1 && !scene.isIntentionalReplay {
+                for earlierIndex in 0..<(offset-1) {
+                    let earlier=scenes[earlierIndex]
+                    guard !earlier.isIntentionalReplay else {continue}
+                    let olderPlot=normalize(earlier.plot)
+                    let olderVisual=normalize(earlier.imagePrompt)
+                    let sameAction=plot.count>=8 && olderPlot.count>=8 &&
+                        (plot==olderPlot || nearlySame(plot,olderPlot))
+                    let sameShot=visual.count>=12 && olderVisual.count>=12 &&
+                        (visual==olderVisual || nearlySame(visual,olderVisual))
+                    if sameAction && sameShot {
+                        warnings.append(StoryReviewWarning(
+                            sceneNumber:scene.index,
+                            message:"シーン\(earlier.index)と出来事・構図が重複しています。意図的な回想でなければ新しい展開に修正してください。"
+                        ))
+                        break
+                    }
+                }
             }
             if offset>0 {
                 let before=scenes[offset-1]
