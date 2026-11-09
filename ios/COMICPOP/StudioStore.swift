@@ -38,6 +38,9 @@ struct PreviewPanel: Identifiable {
     private var videoSession = UUID()
     private var pinsResetEpoch = UUID()
     private var pinsRevision = UUID()
+    // Any persisted or reset screenplay/artwork invalidates an in-flight
+    // delayed frame acquisition started against an older draft.
+    private var draftRevision = UUID()
     // A partial AI result can only be resumed with exactly the same style and colour.
     private var generatedStyle: String?
     private var generatedColor: String?
@@ -84,6 +87,7 @@ struct PreviewPanel: Identifiable {
     var hasUncommittedGeneration: Bool { !generated.isEmpty || storyPlan != nil }
     func clearGenerated() {
         removeDraftCheckpoint()
+        draftRevision = UUID()
         generated = []; pageImages = []
         generatedStyle = nil; generatedColor = nil; generatedMode = nil
         storyPlan = nil;storySummary = "";storyCreationMode = ""
@@ -236,6 +240,7 @@ struct PreviewPanel: Identifiable {
             try StudioAtomicPersistence.write(checkpoint,to:draftURL)
             storedArtworkFiles=next
             dirtyArtworkIDs.removeAll()
+            draftRevision=UUID()
             for (id,file) in previous where next[id] != file {
                 try? fm.removeItem(at:support.appendingPathComponent(file))
             }
@@ -354,12 +359,14 @@ struct PreviewPanel: Identifiable {
         let capturedSession=videoSession
         let capturedReset=pinsResetEpoch
         let capturedRevision=pinsRevision
+        let capturedDraftRevision=draftRevision
         do {
             let frame=try await VideoFrameService.frame(at:seconds,from:url)
             // A pending frame cannot add a stale pin to a new video or cleared session.
             guard capturedSession == videoSession &&
                   capturedReset == pinsResetEpoch &&
-                  capturedRevision == pinsRevision else {return}
+                  capturedRevision == pinsRevision &&
+                  capturedDraftRevision == draftRevision else {return}
             // Frame extraction can finish while the user starts AI generation.
             // Do not append a late pin and invalidate already paid AI calls.
             guard !isGenerating else {
