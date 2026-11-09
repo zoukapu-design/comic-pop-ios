@@ -85,7 +85,7 @@ struct PopEditorScreen: View {
             Button("すべて削除",role:.destructive) {store.clearPins()}
             Button("キャンセル",role:.cancel) {}
         }
-        .confirmationDialog("未保存の漫画とAI脚本を破棄しますか？",
+        .confirmationDialog("現在の生成結果とAI脚本を破棄しますか？",
                             isPresented:$askDiscardDraft,titleVisibility:.visible) {
             Button("生成結果を破棄してカードを編集",role:.destructive) {
                 guard !store.isGenerating,let action=pendingDraftAction else {return}
