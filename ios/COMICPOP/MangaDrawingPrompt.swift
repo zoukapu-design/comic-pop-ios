@@ -68,12 +68,13 @@ enum MangaDrawingPrompt {
             max:330,required:true)
         add("DRAW THIS SPECIFIC EVENT AND COMPOSITION",input.visualInstruction,
             max:380,required:true)
+        // Causality and continuity refs are short enough to fit even when all
+        // high-priority storyboard and multi-card fields reach their caps.
+        add("CAUSE",input.causalLink,max:110,required:true)
+        add("IMAGE REFS",input.referenceInstruction,max:105,required:true)
 
-        // Optional context improves composition and identity when capacity
-        // permits, without ever hiding higher-priority scene instructions.
-        add("REFERENCE IMAGES",input.referenceInstruction,max:175,required:false)
-        add("CAUSAL CONNECTION TO PREVIOUS SCENE",input.causalLink,
-            max:105,required:false)
+        // Optional context improves composition when capacity permits,
+        // without ever hiding user-authored directions or required cards.
         add("STORY ROLE",input.narrativeRole,max:95,required:false)
         add("SHOT VARIETY",input.alternateInstruction,max:150,required:false)
         add("WHOLE CHAPTER",input.seriesPremise,max:145,required:false)
