@@ -312,7 +312,12 @@ assert "offset>1 && !scene.isIntentionalReplay" in quality
 assert "sameAction && sameShot" in quality
 assert "offset>0 && !scene.isIntentionalReplay" in quality
 assert "isIntentionalReplay:replay" in draft
-assert '["flashback","replay","beforeafter"]' in draft
+assert "MangaReplayIntent.isIntentional(cardIDs:" in draft
+assert "enum MangaReplayIntent" in story
+assert "if MangaReplayIntent.isIntentional(cardIDs:ids) {continue}" in story
+assert story.count("MangaReplayIntent.isIntentional(")>=1
+assert store.count("MangaReplayIntent.isIntentional(cardIDs:")>=2
+assert "An explicit flashback must not be discarded" in (root / "tests/mangaStoryTests.swift").read_text(encoding="utf-8")
 assert "Non-adjacent repeats must be flagged" in qualityTests
 assert "An explicitly requested adjacent replay" in qualityTests
 print("PASS: priority packed card prompts and cross-scene repetition review before image inference")
