@@ -10,7 +10,7 @@ workflows:
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR"
-          bash tests/run.sh
+          bash tests/run.sh 2>&1 | tee "$CM_BUILD_DIR/preflight.log"
       - name: Generate Xcode project
         script: |
           set -euo pipefail
@@ -18,7 +18,7 @@ workflows:
             brew install xcodegen
           fi
           cd "$CM_BUILD_DIR/ios"
-          xcodegen generate --spec project.yml
+          xcodegen generate --spec project.yml 2>&1 | tee "$CM_BUILD_DIR/xcodegen.log"
           test -f COMICPOP.xcodeproj/project.pbxproj
       - name: Compile unsigned iOS Simulator app and preserve diagnostics
         script: |
@@ -48,6 +48,8 @@ workflows:
           PY
           exit "$status"
     artifacts:
+      - $CM_BUILD_DIR/preflight.log
+      - $CM_BUILD_DIR/xcodegen.log
       - $CM_BUILD_DIR/ios-build.log
       - $CM_BUILD_DIR/ios-diagnostics.txt
       - $CM_BUILD_DIR/DerivedData/Build/Products/**/*.app
