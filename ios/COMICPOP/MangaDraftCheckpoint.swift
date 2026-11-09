@@ -41,6 +41,7 @@ struct MangaDraftCheckpoint: Codable {
               !sceneIDs.isEmpty && sceneIDs.count <= 12,
               style == currentStyle && colorMode == currentColor,
               mode == "online" || mode == "offline",
+              (mode == "online") == plan.isAIStory,
               plan.beats.map(\.id) == sceneIDs,
               artworks.count <= sceneIDs.count,
               artworks.map(\.id) == Array(sceneIDs.prefix(artworks.count))
