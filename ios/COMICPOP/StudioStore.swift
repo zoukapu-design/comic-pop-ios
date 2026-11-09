@@ -290,6 +290,10 @@ struct PreviewPanel: Identifiable {
             message="漫画の脚本・画像を生成中です。完了後に動画を変更してください。"
             return
         }
+        guard allowDiscard || !hasUncommittedGeneration else {
+            message="未保存の漫画・AI脚本があります。動画変更の確認画面から続行してください。"
+            return
+        }
         do {
             let security=importedURL.startAccessingSecurityScopedResource()
             defer {if security {importedURL.stopAccessingSecurityScopedResource()}}
@@ -336,15 +340,22 @@ struct PreviewPanel: Identifiable {
         guard !isAddingPin else {return}
         guard let url=videoURL else {message="先に動画を選んでください";return}
         guard data.pins.count < 12 else {message="挿入できるカードは一度に12枚までです";return}
+        guard allowDiscard || !hasUncommittedGeneration else {
+            message="未保存の漫画・脚本があります。カード追加前に破棄確認が必要です。"
+            return
+        }
         isAddingPin=true
         defer {isAddingPin=false}
         let seconds=currentTime
         let capturedSession=videoSession
         let capturedReset=pinsResetEpoch
+        let capturedRevision=pinsRevision
         do {
             let frame=try await VideoFrameService.frame(at:seconds,from:url)
             // A pending frame cannot add a stale pin to a new video or cleared session.
-            guard capturedSession == videoSession && capturedReset == pinsResetEpoch else {return}
+            guard capturedSession == videoSession &&
+                  capturedReset == pinsResetEpoch &&
+                  capturedRevision == pinsRevision else {return}
             // Frame extraction can finish while the user starts AI generation.
             // Do not append a late pin and invalidate already paid AI calls.
             guard !isGenerating else {
@@ -352,6 +363,10 @@ struct PreviewPanel: Identifiable {
                 return
             }
             guard data.pins.count < 12 else {message="カードは最大12枚です";return}
+            guard allowDiscard || !hasUncommittedGeneration else {
+                message="カード取得中に未保存の漫画ができました。既存の漫画を保護するため挿入を中止しました。"
+                return
+            }
             guard let bytes=VideoFrameService.compactJPEG(frame) else {throw MangaError.invalidImage}
             let file="pin-\(UUID().uuidString).jpg"
             let snapshotURL=support.appendingPathComponent(file)
@@ -371,19 +386,24 @@ struct PreviewPanel: Identifiable {
     /// User notes and dialogue are stronger evidence than automatically
     /// inferred actions and are included in the whole-series story script.
     @discardableResult func updatePinStory(_ id:UUID,note:String,dialogue:String,allowDiscard:Bool = false) -> Bool {
-        guard !isGenerating else {message="漫画生成中はカードを編集できません";return}
-        guard let index=data.pins.firstIndex(where:{$0.id==id}) else {return}
+        guard !isGenerating else {message="漫画生成中はカードを編集できません";return false}
+        guard let index=data.pins.firstIndex(where:{$0.id==id}) else {return false}
         let cleanNote=String(note.prefix(260))
         let cleanDialogue=String(dialogue.prefix(160))
         guard data.pins[index].note != cleanNote ||
-              data.pins[index].dialogue != cleanDialogue else {return}
+              data.pins[index].dialogue != cleanDialogue else {return true}
+        guard allowDiscard || !hasUncommittedGeneration else {
+            message="未保存の漫画・脚本があります。メモ変更前に破棄確認が必要です。"
+            return false
+        }
         var candidate=data
         candidate.pins[index].note=cleanNote
         candidate.pins[index].dialogue=cleanDialogue
-        guard commit(candidate) else {return}
+        guard commit(candidate) else {return false}
         pinsRevision=UUID()
         clearGenerated()
         message="カードの物語メモとセリフを保存しました"
+        return true
     }
 
     /// Edits Japanese lettering without another paid image-generation call.
@@ -406,6 +426,10 @@ struct PreviewPanel: Identifiable {
     func removePin(_ pin:MangaPin,allowDiscard:Bool = false){
         guard !isGenerating else {message="漫画生成中はカードを削除できません";return}
         guard let existing=data.pins.first(where:{$0.id==pin.id}) else {return}
+        guard allowDiscard || !hasUncommittedGeneration else {
+            message="未保存の漫画・脚本があります。カード削除前に破棄確認が必要です。"
+            return
+        }
         var candidate=data
         candidate.pins.removeAll{$0.id==existing.id}
         // Commit first: if disk write fails, both the pin and JPEG remain.
@@ -417,6 +441,10 @@ struct PreviewPanel: Identifiable {
     }
     func clearPins(allowDiscard:Bool = false){
         guard !isGenerating else {message="漫画生成中はカードを全削除できません";return}
+        guard allowDiscard || !hasUncommittedGeneration else {
+            message="未保存の漫画・脚本があります。全削除前に破棄確認が必要です。"
+            return
+        }
         let oldSnapshots=data.pins.map(\.snapshotFile)
         var candidate=data
         candidate.pins=[]
