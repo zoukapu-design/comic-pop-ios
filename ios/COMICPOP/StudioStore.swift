@@ -729,6 +729,11 @@ struct PreviewPanel: Identifiable {
             generatedMode=="online"
         if !resumable && !preparedDraft {clearGenerated()}
         generatedStyle=style;generatedColor=colorMode;generatedMode="online"
+        // An earlier save may have failed after the AI already returned an
+        // image. Retry the local checkpoint BEFORE spending another credit.
+        if storyPlan != nil {
+            guard saveDraftCheckpoint() else {return}
+        }
         isGenerating=true;pageImages=[]
         defer {isGenerating=false}
         if storyPlan == nil {
@@ -837,6 +842,9 @@ struct PreviewPanel: Identifiable {
             storyPlan?.beats.map(\.id) == pins.map(\.id)
         if !resumable {clearGenerated()}
         generatedStyle=style;generatedColor=colorMode;generatedMode="offline"
+        if storyPlan != nil {
+            guard saveDraftCheckpoint() else {return}
+        }
         isGenerating=true;pageImages=[]
         defer {isGenerating=false}
         if storyPlan == nil {
