@@ -51,7 +51,7 @@ struct PopPinStorySheet: View {
                         .foregroundStyle(PopColor.ink)
                     }
                     Text(store.hasUncommittedGeneration
-                         ? "未保存の漫画・脚本があります。メモを変更すると生成結果を破棄します。確認画面から実行できます。"
+                         ? "現在の漫画・脚本があります。メモを変更する場合は、生成結果を破棄する確認画面が表示されます。"
                          : "ここに入力した内容は、次に漫画を作るときの脚本へ優先して反映されます。")
                         .font(.caption)
                         .foregroundStyle(.white)
