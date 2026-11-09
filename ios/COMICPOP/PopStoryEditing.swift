@@ -7,6 +7,7 @@ struct PopPinStorySheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var note: String
     @State private var dialogue: String
+    @State private var askDiscardDraft = false
 
     init(store:StudioStore,pin:MangaPin) {
         self.store=store
@@ -49,21 +50,45 @@ struct PopPinStorySheet: View {
                         }
                         .foregroundStyle(PopColor.ink)
                     }
-                    Text("メモを保存すると、古い生成結果は無効になります。もう一度生成すると、更新した脚本が使われます。")
+                    Text(store.hasUncommittedGeneration
+                         ? "未保存の漫画・脚本があります。メモを変更すると生成結果を破棄します。確認画面から実行できます。"
+                         : "ここに入力した内容は、次に漫画を作るときの脚本へ優先して反映されます。")
                         .font(.caption)
                         .foregroundStyle(.white)
                     PopYellowButton(title:"このカードの物語を保存",icon:"checkmark.circle.fill") {
-                        store.updatePinStory(pin.id,note:note,dialogue:dialogue)
-                        dismiss()
+                        let changes=pin.note != String(note.prefix(260)) ||
+                                    pin.dialogue != String(dialogue.prefix(160))
+                        if changes && store.hasUncommittedGeneration {
+                            askDiscardDraft=true
+                        } else {
+                            saveNotes(allowDiscard:false)
+                        }
                     }
                 }.padding(13)
             }
             .background(PopBackground())
             .navigationTitle("物語メモ")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmationDialog("生成済みの漫画と脚本を破棄しますか？",
+                                isPresented:$askDiscardDraft,titleVisibility:.visible) {
+                Button("生成結果を破棄してメモを保存",role:.destructive) {
+                    saveNotes(allowDiscard:true)
+                }
+                Button("キャンセル",role:.cancel) {}
+            } message: {
+                Text("カードのメモを変更すると今のAI脚本と生成画像を作り直す必要があります。保存済みの作品と元動画は保持します。")
+            }
             .toolbar {ToolbarItem(placement:.topBarLeading) {
                 Button("キャンセル") {dismiss()}
             }}
+        }
+    }
+
+    private func saveNotes(allowDiscard:Bool) {
+        if store.updatePinStory(
+            pin.id,note:note,dialogue:dialogue,allowDiscard:allowDiscard
+        ) {
+            dismiss()
         }
     }
 }
