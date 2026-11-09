@@ -290,7 +290,9 @@ struct PreviewPanel: Identifiable {
             message="漫画の脚本・画像を生成中です。完了後に動画を変更してください。"
             return
         }
-        guard allowDiscard || !hasUncommittedGeneration else {
+        guard MangaDraftEditGuard.allowsChange(
+            hasDraft:hasUncommittedGeneration,confirmed:allowDiscard
+        ) else {
             message="未保存の漫画・AI脚本があります。動画変更の確認画面から続行してください。"
             return
         }
@@ -340,7 +342,9 @@ struct PreviewPanel: Identifiable {
         guard !isAddingPin else {return}
         guard let url=videoURL else {message="先に動画を選んでください";return}
         guard data.pins.count < 12 else {message="挿入できるカードは一度に12枚までです";return}
-        guard allowDiscard || !hasUncommittedGeneration else {
+        guard MangaDraftEditGuard.allowsChange(
+            hasDraft:hasUncommittedGeneration,confirmed:allowDiscard
+        ) else {
             message="未保存の漫画・脚本があります。カード追加前に破棄確認が必要です。"
             return
         }
@@ -363,7 +367,9 @@ struct PreviewPanel: Identifiable {
                 return
             }
             guard data.pins.count < 12 else {message="カードは最大12枚です";return}
-            guard allowDiscard || !hasUncommittedGeneration else {
+            guard MangaDraftEditGuard.allowsChange(
+            hasDraft:hasUncommittedGeneration,confirmed:allowDiscard
+        ) else {
                 message="カード取得中に未保存の漫画ができました。既存の漫画を保護するため挿入を中止しました。"
                 return
             }
@@ -392,7 +398,9 @@ struct PreviewPanel: Identifiable {
         let cleanDialogue=String(dialogue.prefix(160))
         guard data.pins[index].note != cleanNote ||
               data.pins[index].dialogue != cleanDialogue else {return true}
-        guard allowDiscard || !hasUncommittedGeneration else {
+        guard MangaDraftEditGuard.allowsChange(
+            hasDraft:hasUncommittedGeneration,confirmed:allowDiscard
+        ) else {
             message="未保存の漫画・脚本があります。メモ変更前に破棄確認が必要です。"
             return false
         }
@@ -426,7 +434,9 @@ struct PreviewPanel: Identifiable {
     func removePin(_ pin:MangaPin,allowDiscard:Bool = false){
         guard !isGenerating else {message="漫画生成中はカードを削除できません";return}
         guard let existing=data.pins.first(where:{$0.id==pin.id}) else {return}
-        guard allowDiscard || !hasUncommittedGeneration else {
+        guard MangaDraftEditGuard.allowsChange(
+            hasDraft:hasUncommittedGeneration,confirmed:allowDiscard
+        ) else {
             message="未保存の漫画・脚本があります。カード削除前に破棄確認が必要です。"
             return
         }
@@ -441,7 +451,9 @@ struct PreviewPanel: Identifiable {
     }
     func clearPins(allowDiscard:Bool = false){
         guard !isGenerating else {message="漫画生成中はカードを全削除できません";return}
-        guard allowDiscard || !hasUncommittedGeneration else {
+        guard MangaDraftEditGuard.allowsChange(
+            hasDraft:hasUncommittedGeneration,confirmed:allowDiscard
+        ) else {
             message="未保存の漫画・脚本があります。全削除前に破棄確認が必要です。"
             return
         }
