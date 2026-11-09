@@ -284,9 +284,20 @@ assert clear.index("guard commit(candidate) else {return}") < clear.index("remov
 assert 'userSceneNoteJP:clip(source.userNote,160)' in story
 assert "userSceneNoteJP:old.userSceneNoteJP" in store
 assert "挿入カードのメモ（優先）" in draft
-assert "USER'S ORIGINAL CARD NOTE (HIGH PRIORITY)" in ai
-assert ai.index("USER'S ORIGINAL CARD NOTE (HIGH PRIORITY)") < ai.index("DRAW THIS SPECIFIC EVENT AND COMPOSITION")
-assert ai.index('HIGHEST PRIORITY USER DIRECTION') < ai.index('DRAW THIS SPECIFIC EVENT AND COMPOSITION')
+drawingPrompt=(root / "ios/COMICPOP/MangaDrawingPrompt.swift").read_text(encoding="utf-8")
+promptTests=(root / "tests/mangaDrawingPromptTests.swift").read_text(encoding="utf-8")
+assert "MangaDrawingPrompt.compose(MangaDrawingPromptInput(" in ai
+assert 'form.add(name:"prompt",value:prompt)' in ai
+assert "String(prompt.prefix(2400))" not in ai
+assert "USER'S ORIGINAL CARD NOTE (HIGH PRIORITY)" in drawingPrompt
+assert "HIGHEST PRIORITY USER DIRECTION" in drawingPrompt
+assert drawingPrompt.index("USER'S ORIGINAL CARD NOTE (HIGH PRIORITY)") < drawingPrompt.index("DRAW THIS SPECIFIC EVENT AND COMPOSITION")
+assert drawingPrompt.index('HIGHEST PRIORITY USER DIRECTION') < drawingPrompt.index('DRAW THIS SPECIFIC EVENT AND COMPOSITION')
+assert drawingPrompt.index('ALL INSERTED CARD IDS (ONE SHARED SCENE)') < drawingPrompt.index('DRAW THIS SPECIFIC EVENT AND COMPOSITION')
+assert "maxCharacters=2400" in drawingPrompt and 'noLettering=' in drawingPrompt
+assert "mangaDrawingPromptTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+assert "allIDs.joined(separator:" in promptTests
+assert "CAUSE_OF_NEXT_SCENE_" in promptTests
 # Prevent accidental repeat inference; only the review screen's confirmed
 # "rewrite screenplay" control may intentionally spend text/vision quota again.
 storyPreparation=store.split("private func prepareStoryboard(force:Bool) async {",1)[1].split("func updateStoryboardBeat(",1)[0]
