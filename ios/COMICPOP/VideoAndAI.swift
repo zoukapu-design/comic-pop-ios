@@ -132,7 +132,7 @@ struct CloudflareAIService {
             visualInstruction:plannedIllustration,
             causalLink:story?.causalLinkJP ?? "",
             narrativeRole:story?.narrativeDutyJP ?? "",
-            referenceInstruction:"Image 0 = current video event. Image 1 (if included) = previous manga panel. Image 2 (if included) = opening manga panel. Copy identity and line style, never duplicate poses.",
+            referenceInstruction:"0=video moment; 1=previous manga; 2=opening manga, if present. Same identity/line style, NEW action.",
             alternateInstruction:alternate,
             seriesPremise:seriesPremise,
             sceneContext:story?.scene ?? "",
