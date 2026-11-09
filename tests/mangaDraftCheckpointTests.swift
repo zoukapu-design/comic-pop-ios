@@ -41,8 +41,14 @@ import Foundation
         precondition(decoded.artworks.first?.drawingFile=="draft-art-test1.png")
         precondition(valid(checkpoint(artworks:[])),
                      "Script-only checkpoint should resume without image calls")
-        precondition(valid(checkpoint(mode:"offline")),
+        let offlinePlan=MangaStoryPlan(title:plan.title,premise:plan.premise,
+                                        beats:beats,isAIStory:false)
+        precondition(valid(checkpoint(mode:"offline",plan:offlinePlan)),
                      "Offline partial manga should resume without Cloudflare")
+        precondition(!valid(checkpoint(mode:"offline")),
+                     "Never mistake an AI screenplay for an offline draft")
+        precondition(!valid(checkpoint(plan:offlinePlan)),
+                     "Never mistake an offline script for an online AI draft")
         precondition(!valid(checkpoint(version:2)),"Reject unknown checkpoint version")
         precondition(!valid(checkpoint(video:"other.mov")),"Never restore another movie")
         var editedPins=pins
