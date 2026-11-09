@@ -10,16 +10,19 @@ struct PopStoryboardDraft: View {
     @State private var confirmDrawWithWarnings=false
 
     private var storyWarnings:[StoryReviewWarning] {
-        MangaStoryQualityAudit.warnings(for:store.storyboardBeats.map {
-            StoryReviewScene(
-                index:$0.index,plot:$0.plotDescriptionJP,
-                caption:$0.caption,
-                imagePrompt:$0.userVisualDirection.isEmpty
-                    ? $0.imagePrompt : $0.userVisualDirection,
-                transition:$0.transition,
-                narrativeRole:$0.narrativeDutyJP,
-                causalLink:$0.causalLinkJP,
-                requiresCausalLink:$0.index>1
+        MangaStoryQualityAudit.warnings(for:store.storyboardBeats.map { beat in
+            let replay=store.scenePlan.scenes.first(where:{$0.id==beat.id})?
+                .cardIDs.contains(where:{["flashback","replay","beforeafter"].contains($0)}) ?? false
+            return StoryReviewScene(
+                index:beat.index,plot:beat.plotDescriptionJP,
+                caption:beat.caption,
+                imagePrompt:beat.userVisualDirection.isEmpty
+                    ? beat.imagePrompt : beat.userVisualDirection,
+                transition:beat.transition,
+                narrativeRole:beat.narrativeDutyJP,
+                causalLink:beat.causalLinkJP,
+                requiresCausalLink:beat.index>1,
+                isIntentionalReplay:replay
             )
         })
     }
