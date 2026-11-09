@@ -11,8 +11,10 @@ struct PopStoryboardDraft: View {
 
     private var storyWarnings:[StoryReviewWarning] {
         MangaStoryQualityAudit.warnings(for:store.storyboardBeats.map { beat in
-            let replay=store.scenePlan.scenes.first(where:{$0.id==beat.id})?
-                .cardIDs.contains(where:{["flashback","replay","beforeafter"].contains($0)}) ?? false
+            let scene=store.scenePlan.scenes.first(where:{$0.id==beat.id})
+            let replay=scene?.cardIDs.contains(where:{
+                ["flashback","replay","beforeafter"].contains($0)
+            }) ?? false
             return StoryReviewScene(
                 index:beat.index,plot:beat.plotDescriptionJP,
                 caption:beat.caption,
