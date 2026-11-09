@@ -19,7 +19,7 @@ assert "comic-pop-preview.vercel.app" not in api
 assert "input_image_0" in api and "multipart/form-data" in api
 assert (src / "Security.swift").read_text().count("kSecClassGenericPassword") >= 3
 assert "CloudflareCredentialVault.save(token)" in store
-assert "guard capturedSession == videoSession && capturedReset == pinsResetEpoch" in store
+assert "capturedSession == videoSession &&" in store and "capturedReset == pinsResetEpoch &&" in store and "capturedRevision == pinsRevision" in store
 assert "startingSession == videoSession && startingRevision == pinsRevision" in store
 assert "data.pins=[]" in store
 assert "iOS v2.1" in ui
