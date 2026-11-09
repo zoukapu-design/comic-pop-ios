@@ -77,7 +77,10 @@ import Foundation
         precondition(MangaStoryQualityAudit.warnings(
             for:[sceneA,sceneB,sceneC,flashback]).isEmpty,
             "Explicit flashback cards are allowed to reprise an older composition")
-        var adjacentFlashback=sceneA
+        var adjacentFlashback=StoryReviewScene(
+            index:2,plot:sceneA.plot,caption:"意図的な回想",
+            imagePrompt:sceneA.imagePrompt,transition:"flashback"
+        )
         adjacentFlashback.isIntentionalReplay=true
         precondition(MangaStoryQualityAudit.warnings(
             for:[sceneA,adjacentFlashback]).isEmpty,
