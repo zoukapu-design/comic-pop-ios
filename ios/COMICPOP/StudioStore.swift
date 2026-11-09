@@ -1111,9 +1111,7 @@ struct PreviewPanel: Identifiable {
         guard generated.count>1 else {return}
         for later in 1..<generated.count {
             let isFlashback=scenePlan.scenes.indices.contains(later) &&
-                scenePlan.scenes[later].cardIDs.contains(where: {
-                    ["flashback","replay","beforeafter"].contains($0)
-                })
+                MangaReplayIntent.isIntentional(cardIDs:scenePlan.scenes[later].cardIDs)
             let comparisons=(0..<later).map { earlier in
                 MangaArtworkComparison(
                     earlier:earlier,later:later,
@@ -1151,9 +1149,7 @@ struct PreviewPanel: Identifiable {
         if generated.count>1 {
             for later in 1..<generated.count {
                 let intentionalReplay=scenePlan.scenes.indices.contains(later) &&
-                    scenePlan.scenes[later].cardIDs.contains(where: {
-                        ["flashback","replay","beforeafter"].contains($0)
-                    })
+                    MangaReplayIntent.isIntentional(cardIDs:scenePlan.scenes[later].cardIDs)
                 for earlier in 0..<later {
                     visualComparisons.append(MangaArtworkComparison(
                         earlier:earlier,later:later,
