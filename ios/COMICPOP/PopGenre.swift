@@ -133,7 +133,7 @@ struct PopGenreScreen: View {
                             Toggle("動画のシーンをAIで理解して脚本に使う",isOn:$useVisualAI)
                                 .font(.system(size:12,weight:.bold))
                                 .tint(PopColor.blue)
-                            Text("AIモードでは、選んだ場面の一覧画像をあなたのCloudflare AIに送り、人物・行動・場面の流れを解釈します。非対応時は従来の文字情報から脚本を作ります。無料枠を使います。")
+                            Text("AIモードでは、選んだ場面の一覧画像をあなたのCloudflare AIに送り、人物・行動・場面の流れを解釈します。画像AIモデルが非対応の場合のみ文字情報からの脚本に切り替えます。通信・脚本エラーでは追加のAI呼出しを自動実行しません。無料枠を使います。")
                                 .font(.system(size:10))
                             Toggle("動画の日本語音声も物語に使う",isOn:$useVoice)
                                 .font(.system(size:12,weight:.bold))
@@ -276,7 +276,7 @@ struct PopGenreScreen: View {
             }
             Button("キャンセル",role:.cancel) {}
         } message: {
-            Text("AIモードはまず動画と複合カードから脚本を生成し、画面で確認・セリフ修正してから、別操作で漫画の絵を生成します。高品質映像理解ONでは選んだ場面の一覧画像をCloudflareへ送信します。脚本AI＋シーン数分の画像AI利用枠を消費し、非対応時の脚本再試行で増える場合があります。端末内モードは画像送信なしです。")
+            Text("AIモードはまず脚本を生成し、内容とセリフを確認してから別操作で画像を生成します。高品質映像理解ONでは選んだ場面の一覧画像をCloudflareへ送信します。モデル非対応の場合だけ、文字情報による脚本生成を自動で追加実行することがあります。サーバー障害や不完全な脚本では追加実行しません。端末内モードは画像送信なしです。")
         }
         .onDisappear {store.refreshPageTitle()}
     }
