@@ -83,7 +83,7 @@ assert "PopHomeScreen(store:store" in popui and "PopVideoChooseScreen(store:stor
 assert "PopSavedConfirmation(store:store" in popui and "PopWelcomeScreen" in popui
 assert "PopSettingsPanel(store:store)" in popui
 assert "pop.didSeeWelcome" in popui and "onChange(of:stage)" in popui
-assert "PopYellowButton(title: \"動画からマンガを作る\"" in journey
+assert "PopYellowButton(title: \"新しい動画で漫画を作る\"" in journey
 assert "PhotosPicker(selection: $chosenPhoto" in journey
 assert "await store.replaceVideo(movie.url,allowDiscard:allowDiscard)" in journey
 assert "変更してカードをリセット" in journey
@@ -569,8 +569,8 @@ print("PASS: editor/video/pin story changes require consent and commit before wi
 assert "continueManga: () -> Void" in journey
 assert "continueManga:{" in popui
 assert "stage = store.hasCompleteComic ? .review : .styles" in popui
-assert "作りかけの漫画が残っています" in journey
-assert "マンガ作成の続きを開く" in journey
+assert "作りかけの漫画を再開" in journey
+assert "popResumeComic" in journey
 assert "store.hasRecoverableDraft" in journey
 print("PASS: app home exposes resumable manga without asserting a failed backup succeeded")
 
