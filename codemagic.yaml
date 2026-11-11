@@ -55,7 +55,7 @@ workflows:
       - $CM_BUILD_DIR/DerivedData/Build/Products/**/*.app
 
   ios-signed-ipa:
-    name: COMIC POP iOS / Signed IPA (managed signing, no publish)
+    name: ムビコマ iOS / 署名付きIPA（アップロードなし）
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -212,7 +212,7 @@ workflows:
     # Uploads the signed IPA to App Store Connect only. The owner adds the build to internal testers manually.
 
   ios-simulator-screenshot:
-    name: COMIC POP iOS / Simulator screenshot (no Team required)
+    name: ムビコマ iOS / 初回案内＋実ホーム画面キャプチャ
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -250,10 +250,16 @@ workflows:
           xcrun simctl boot "$SIMULATOR_ID" || true
           xcrun simctl bootstatus "$SIMULATOR_ID" -b
           xcrun simctl install "$SIMULATOR_ID" "$APP_PATH"
-          xcrun simctl launch "$SIMULATOR_ID" com.example.comicpop.dev
-          sleep 6
           mkdir -p "$CM_BUILD_DIR/screenshots"
-          xcrun simctl io "$SIMULATOR_ID" screenshot "$CM_BUILD_DIR/screenshots/comicpop-launch.png"
+          # Capture onboarding, then launch the ACTUAL home by bypassing only
+          # the one-time welcome flag. Never substitute a static reference JPG.
+          xcrun simctl launch "$SIMULATOR_ID" com.example.comicpop.dev
+          sleep 4
+          xcrun simctl io "$SIMULATOR_ID" screenshot "$CM_BUILD_DIR/screenshots/movikoma-welcome.png"
+          xcrun simctl terminate "$SIMULATOR_ID" com.example.comicpop.dev
+          xcrun simctl launch "$SIMULATOR_ID" com.example.comicpop.dev -pop.didSeeWelcome YES
+          sleep 5
+          xcrun simctl io "$SIMULATOR_ID" screenshot "$CM_BUILD_DIR/screenshots/movikoma-home.png"
           xcrun simctl shutdown "$SIMULATOR_ID" || true
     artifacts:
       - $CM_BUILD_DIR/screenshots/*.png
