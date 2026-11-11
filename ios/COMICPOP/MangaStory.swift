@@ -104,7 +104,10 @@ enum MangaStoryPlanner {
                 transition:index==0 ? "Opening" : "Continue directly from preceding panel",
                 // Story roles are *instructions*, not observed events.
                 // Keep the factual scene description empty without a note.
-                plotDescriptionJP:clip(e.userNote,100),
+                // A note may describe a feeling or desired effect, not a filmed
+                // physical event. Keep it as a user note until an action is
+                // independently described by the story model or the editor.
+                plotDescriptionJP:"",
                 narrativeDutyJP:cue.role.japanese,
                 causalLinkJP:"",
                 userSceneNoteJP:clip(e.userNote,160))
@@ -165,8 +168,7 @@ enum MangaStoryPlanner {
                 // A note such as "怖い" is not a literal physical action.
                 plotDescriptionJP:japanese(
                     line.plotDescriptionJP ?? "",
-                    otherwise:source.userNote.isEmpty
-                        ? "" : clip(source.userNote,100),
+                    otherwise:"",
                     limit:100),
                 narrativeDutyJP:cues[index].role.japanese,
                 causalLinkJP:index==0 ? "" : japanese(
