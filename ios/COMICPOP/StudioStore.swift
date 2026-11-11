@@ -354,7 +354,10 @@ struct PreviewPanel: Identifiable {
         }
         guard !isAddingPin else {return}
         guard let url=videoURL else {message="先に動画を選んでください";return}
-        guard data.pins.count < 12 else {message="挿入できるカードは一度に12枚までです";return}
+        guard MangaSceneCapacity.canInsert(into:data.pins,at:currentTime) else {
+            message="1作品は最大12シーン、同じ場面はカード3枚までです。時間を変えるか、別のカードを外してください。"
+            return
+        }
         guard MangaDraftEditGuard.allowsChange(
             hasDraft:hasUncommittedGeneration,confirmed:allowDiscard
         ) else {
@@ -381,7 +384,10 @@ struct PreviewPanel: Identifiable {
                 message="漫画生成が始まったため、処理中のカード追加は見送りました。"
                 return
             }
-            guard data.pins.count < 12 else {message="カードは最大12枚です";return}
+            guard MangaSceneCapacity.canInsert(into:data.pins,at:seconds) else {
+                message="カードの追加により12シーンまたは同じ場面の3枚を超えるため、挿入しませんでした。"
+                return
+            }
             guard MangaDraftEditGuard.allowsChange(
             hasDraft:hasUncommittedGeneration,confirmed:allowDiscard
         ) else {
