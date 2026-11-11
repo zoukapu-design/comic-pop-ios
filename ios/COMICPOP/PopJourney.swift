@@ -1,7 +1,28 @@
+import ImageIO
 import PhotosUI
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
+
+/// Read work covers as cached thumbnails, not full-resolution PDF-like pages.
+/// Full-size images are loaded only when the reader actually opens a work.
+@MainActor private enum PopWorkCover {
+    private static let cache = NSCache<NSString, UIImage>()
+    static func image(at url: URL) -> UIImage? {
+        let key = url.path as NSString
+        if let image = cache.object(forKey: key) {return image}
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let thumb = CGImageSourceCreateThumbnailAtIndex(
+                source, 0, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 360
+                ] as CFDictionary) else {return nil}
+        let result = UIImage(cgImage: thumb)
+        cache.setObject(result, forKey: key)
+        return result
+    }
+}
 
 /// Active production home. Every action routes to a real StudioStore flow;
 /// only the approved Rex illustrations, never entire screens, are bitmaps.
@@ -193,7 +214,7 @@ struct PopHomeScreen: View {
                                         RoundedRectangle(cornerRadius: 12).fill(.white)
                                         if let first = work.files.first,
                                            let url = store.existingWorkURL(first),
-                                           let image = UIImage(contentsOfFile: url.path) {
+                                           let image = PopWorkCover.image(at: url) {
                                             Image(uiImage: image)
                                                 .resizable().scaledToFit().padding(3)
                                         } else {
