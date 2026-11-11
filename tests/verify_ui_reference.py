@@ -603,3 +603,13 @@ assert "denseNotes=input.userNote.count>160" in drawingPrompt
 assert "max:denseNotes ? 800 : 160" in drawingPrompt
 assert "densePrompt.contains(longNotes)" in promptTests
 print("PASS: active Rex home, lightweight gallery, safe scene navigation and combined note preservation")
+
+# Simulator diagnostics must capture the actual production home, not only the
+# welcome modal that obscures it on a clean install.
+codemagic=(root / "codemagic.yaml").read_text(encoding="utf-8")
+assert 'movikoma-welcome.png' in codemagic
+assert 'movikoma-home.png' in codemagic
+assert 'com.example.comicpop.dev -pop.didSeeWelcome YES' in codemagic
+assert 'ios-unsigned-check:' in codemagic
+assert 'ios-testflight-upload:' in codemagic
+print("PASS: one-shot Codemagic QA captures both first launch and active Rex home")
