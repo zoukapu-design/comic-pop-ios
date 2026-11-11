@@ -165,7 +165,8 @@ enum MangaStoryAIService {
                     throw MangaError.server("Cloudflareの利用枠を確認してください。画像理解AIの呼出しで制限に達しました。")
                 } catch MangaVisualStoryError.credentials {
                     throw MangaError.server("Cloudflareの認証・Workers AIの権限を確認してください。認証エラー時は追加のAI呼出しを行いません。")
-                } catch MangaVisualStoryError.unsupported {
+                } catch let failure as MangaVisualStoryError
+                    where MangaVisualStoryRetryPolicy.allowsAutomaticTextFallback(after:failure) {
                     // A truly unsupported model/endpoint may use the prior
                     // text-only screenplay path. This is NOT an image retry.
                 } catch MangaVisualStoryError.invalidResponse {
