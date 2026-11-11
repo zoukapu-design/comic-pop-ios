@@ -197,6 +197,18 @@ assert "MangaVisualStoryError.credentials" in observations
 assert "CloudflareStoryResponse.text(from:data)" in observations
 assert "choices" in response_parser and "response" in response_parser
 assert "cloudflareStoryResponseTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
+# Only explicitly unsupported vision models may fall back to a second
+# inference call; never use a second API request after malformed JSON or 5xx.
+visualPolicy=(root / "ios/COMICPOP/MangaVisualStoryRetryPolicy.swift").read_text(encoding="utf-8")
+visualPolicyTests=(root / "tests/mangaVisualStoryRetryPolicyTests.swift").read_text(encoding="utf-8")
+assert "MangaVisualStoryRetryPolicy.failure(" in observations
+assert "catch MangaVisualStoryError.invalidResponse" in observations
+assert "catch MangaVisualStoryError.unsupported" in observations
+assert "throw MangaVisualStoryError.invalidResponse" in observations
+assert "case 404,405,415,422: return .unsupported" in visualPolicy
+assert "default: return .serverFailure" in visualPolicy
+assert "Do not silently spend more free quota" in visualPolicyTests
+assert "mangaVisualStoryRetryPolicyTests.swift" in preflight
 assert "MangaPageIntegrity.firstDuplicatePage(encodedPages)" in store
 assert "MangaArtworkUniqueness.firstUnintendedDuplicate(visualComparisons)" in store
 assert "MangaArtworkUniqueness.firstUnintendedSimilarity(comparisons)" in store
@@ -444,6 +456,14 @@ assert "mangaDraftCheckpointTests.swift" in preflight
 assert "Valid partial AI draft should resume" in checkpointTests
 assert "Editing notes must invalidate old storyboard" in checkpointTests
 assert "Reject path traversal" in checkpointTests
+# Successful retake attempts are durable and cannot repeat the old seed after
+# app restart. Old v1 checkpoints without the optional field still decode.
+assert "var retryCounts: [UUID: Int]? = nil" in checkpoint
+assert "let validRetries=retryCounts?.allSatisfy" in checkpoint
+assert "panelRetryCount=(saved.retryCounts ?? [:]).filter" in store
+assert "retryCounts:panelRetryCount.filter" in store
+assert "Retake seeds must survive app restarts" in checkpointTests
+assert "Legacy version-1 checkpoint without retry counts" in checkpointTests
 assert "restoreDraftCheckpoint()" in store
 assert "private func saveDraftCheckpoint() -> Bool" in store
 assert "StudioAtomicPersistence.write(checkpoint,to:draftURL)" in store
