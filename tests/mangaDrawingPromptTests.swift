@@ -51,6 +51,38 @@ import Foundation
                      packed.range(of:"MANGA_COMPOSITION_")!.lowerBound,
                      "Direct user edits must not be truncated behind suggestions")
 
+        // Three emotional/directing cards at one time may each contain a
+        // 260-character personal note. No third note may be silently dropped
+        // merely because the whole chapter has many scene constraints.
+        let longNotes=[
+            "カード1："+String(repeating:"始",count:255),
+            "カード2："+String(repeating:"驚",count:255),
+            "カード3："+String(repeating:"終",count:255)
+        ].joined(separator:" / ")
+        let dense=MangaDrawingPromptInput(
+            stylePrompt:String(repeating:"s",count:120),
+            colorInstruction:String(repeating:"c",count:80),
+            plotAction:"主人公が新しい行動を始める",
+            userNote:longNotes,
+            userDirection:String(repeating:"D",count:280),
+            cardIDs:["dramatic","horror","punch"],
+            cardInstruction:String(repeating:"E",count:110),
+            visualInstruction:String(repeating:"V",count:120),
+            causalLink:String(repeating:"C",count:70),
+            narrativeRole:String(repeating:"R",count:95),
+            referenceInstruction:String(repeating:"P",count:90),
+            alternateInstruction:"",seriesPremise:"",
+            sceneContext:"",transition:"",consistencyHints:""
+        )
+        let densePrompt=MangaDrawingPrompt.compose(dense)
+        precondition(densePrompt.count<=MangaDrawingPrompt.maxCharacters)
+        precondition(densePrompt.hasSuffix(MangaDrawingPrompt.noLettering))
+        precondition(densePrompt.contains(longNotes),
+                     "All 3 original notes must survive prompt packing, in full")
+        precondition(densePrompt.contains("dramatic,horror,punch"),
+                     "All merged card identities must remain in the drawing prompt")
+        precondition(densePrompt.contains("HIGHEST PRIORITY USER DIRECTION"),
+                     "Manually reviewed drawing direction must not disappear")
         let short=MangaDrawingPromptInput(
             stylePrompt:"shonen ink",colorInstruction:"black ink",
             plotAction:"主人公が鍋を持ち上げる",
