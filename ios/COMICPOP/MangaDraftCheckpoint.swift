@@ -24,6 +24,10 @@ struct MangaDraftCheckpoint: Codable {
     let summary: String
     let creationMode: String
     let artworks: [MangaDraftArtwork]
+    /// Retake attempts alter the deterministic FLUX seed. Persist them so
+    /// restarting the app cannot silently reuse an already-spent AI seed.
+    /// Optional for compatibility with all existing version-1 checkpoints.
+    var retryCounts: [UUID: Int]? = nil
 
     /// Never restore images from another video, different card notes,
     /// another scene grouping, or a different rendering style.
@@ -46,8 +50,14 @@ struct MangaDraftCheckpoint: Codable {
               artworks.count <= sceneIDs.count,
               artworks.map(\.id) == Array(sceneIDs.prefix(artworks.count))
         else { return false }
+        let renderedIDs=Set(artworks.map(\.id))
+        // Only already-rendered panels can have a retake count. A bounded
+        // nonnegative number prevents invalid or overflowing retry seeds.
+        let validRetries=retryCounts?.allSatisfy {
+            renderedIDs.contains($0.key) && (0...100_000).contains($0.value)
+        } ?? true
         let filenames=artworks.map(\.drawingFile)
-        return Set(filenames).count == filenames.count && filenames.allSatisfy {
+        return validRetries && Set(filenames).count == filenames.count && filenames.allSatisfy {
             $0.hasPrefix("draft-art-") && $0.hasSuffix(".png") &&
             !$0.contains("/") && !$0.contains("\\") && !$0.contains("..")
         }
