@@ -1070,11 +1070,25 @@ struct PreviewPanel: Identifiable {
                   generated.indices.contains(index) && generated[index].id==id else {
                 message="元データが変更されたため再生成を破棄しました";return
             }
+            // Publish the new drawing only if the durable checkpoint can
+            // be written. On disk failure keep the previous visual, filters,
+            // retry seed and dirty markers consistent with the saved draft.
+            let previousDrawing=generated[index].drawing
+            let previousFinishingBase=finishingBase[id]
+            let previousRetryCount=panelRetryCount[id]
+            let previousDirty=dirtyArtworkIDs
             panelRetryCount[id]=attempt
             finishingBase[id]=updated
             generated[index].drawing=updated
             dirtyArtworkIDs.insert(id)
-            guard saveDraftCheckpoint() else {return}
+            guard saveDraftCheckpoint() else {
+                generated[index].drawing=previousDrawing
+                finishingBase[id]=previousFinishingBase
+                panelRetryCount[id]=previousRetryCount
+                dirtyArtworkIDs=previousDirty
+                message += "。再生成前の絵は保持されています。"
+                return
+            }
             refreshArtworkSimilarityWarnings()
             rebuildPages()
             message="選択コマを再生成しました。保存前に結果を確認してください。"
