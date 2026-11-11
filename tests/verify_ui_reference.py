@@ -282,6 +282,11 @@ assert remove.index("guard commit(candidate) else {return}") < remove.index("rem
 clear=store.split("func clearPins(allowDiscard:Bool = false)",1)[1].split("func snapshot(for pin:",1)[0]
 assert clear.index("guard commit(candidate) else {return}") < clear.index("removeItem(at:")
 assert 'userSceneNoteJP:clip(source.userNote,160)' in story
+# A creative/emotional note is an instruction, not proof that a physical
+# action occurred in the video. The reviewed plot remains independently editable.
+assert 'plotDescriptionJP:""' in story
+assert 'otherwise:"",\n                    limit:100)' in story
+assert 'story?.plotDescriptionJP ?? ""' in ai
 assert "userSceneNoteJP:old.userSceneNoteJP" in store
 assert "挿入カードのメモ（優先）" in draft
 drawingPrompt=(root / "ios/COMICPOP/MangaDrawingPrompt.swift").read_text(encoding="utf-8")
@@ -417,6 +422,19 @@ assert "Never mistake an AI screenplay for an offline draft" in checkpointTests
 assert "Never mistake an offline script for an online AI draft" in checkpointTests
 retake=store.split("func regeneratePanel(",1)[1].split("isGenerating=true",1)[0]
 assert "guard saveDraftCheckpoint() else {return}" in retake
+retakeCommit=store.split("func regeneratePanel(",1)[1].split("func chooseOriginal(",1)[0]
+# A failed PNG/JSON checkpoint must restore both the prior image and the
+# in-memory state; the retry seed must not advance when nothing was saved.
+for before in ("let previousDrawing=generated[index].drawing",
+               "let previousFinishingBase=finishingBase[id]",
+               "let previousRetryCount=panelRetryCount[id]",
+               "let previousDirty=dirtyArtworkIDs"):
+    assert before in retakeCommit,before
+assert "generated[index].drawing=previousDrawing" in retakeCommit
+assert "finishingBase[id]=previousFinishingBase" in retakeCommit
+assert "panelRetryCount[id]=previousRetryCount" in retakeCommit
+assert "dirtyArtworkIDs=previousDirty" in retakeCommit
+assert retakeCommit.index("guard saveDraftCheckpoint() else {\n                generated[index].drawing=previousDrawing") < retakeCommit.index("refreshArtworkSimilarityWarnings()")
 assert "guard saveDraftCheckpoint() else {return false}" in store.split("func saveWork() -> Bool",1)[1]
 assert 'artworks.map(\\.id) == Array(sceneIDs.prefix(artworks.count))' in checkpoint
 assert "!$0.contains(" in checkpoint
