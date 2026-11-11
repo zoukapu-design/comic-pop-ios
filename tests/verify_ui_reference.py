@@ -203,7 +203,7 @@ visualPolicy=(root / "ios/COMICPOP/MangaVisualStoryRetryPolicy.swift").read_text
 visualPolicyTests=(root / "tests/mangaVisualStoryRetryPolicyTests.swift").read_text(encoding="utf-8")
 assert "MangaVisualStoryRetryPolicy.failure(" in observations
 assert "catch MangaVisualStoryError.invalidResponse" in observations
-assert "catch MangaVisualStoryError.unsupported" in observations
+assert "where MangaVisualStoryRetryPolicy.allowsAutomaticTextFallback(after:failure)" in observations
 assert "throw MangaVisualStoryError.invalidResponse" in observations
 assert "case 404,405,415,422: return .unsupported" in visualPolicy
 assert "default: return .serverFailure" in visualPolicy
