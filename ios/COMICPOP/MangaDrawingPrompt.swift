@@ -49,29 +49,36 @@ enum MangaDrawingPrompt {
             }
         }
 
+        // Dense combined moments can contain three separate 260-character
+        // user notes. Preserve all notes before spending space on optional
+        // artistic details and long image-model scene speculation.
+        let denseNotes=input.userNote.count>160
+        // The maximum required fields for denseNotes occupy at most 2397
+        // characters including labels and the reserved NO-LETTERING rule.
         // The order is intentional. Never put long AI speculation before the
         // user's original notes or the simultaneous-card instructions.
         add("", "Create ONE new sequential Japanese manga illustration, not a photo filter.",
             max:80,required:true)
         add("STYLE",input.stylePrompt,max:120,required:true)
-        add("COLOR",input.colorInstruction,max:95,required:true)
-        add("ACTUAL PLOT EVENT (reviewed storyboard)",input.plotAction,max:150,required:true)
+        add("COLOR",input.colorInstruction,max:denseNotes ? 80 : 95,required:true)
+        add("ACTUAL PLOT EVENT (reviewed storyboard)",input.plotAction,
+            max:denseNotes ? 105 : 150,required:true)
         add("USER'S ORIGINAL CARD NOTE (HIGH PRIORITY)",input.userNote,
-            max:160,required:true)
+            max:denseNotes ? 800 : 160,required:true)
         add("HIGHEST PRIORITY USER DIRECTION",input.userDirection,
-            max:300,required:true)
+            max:denseNotes ? 280 : 300,required:true)
         // Each card ID appears in full, even when a long card subtitle needs
         // shortening. One scene, not one separate illustration per card.
         add("ALL INSERTED CARD IDS (ONE SHARED SCENE)",
-            input.cardIDs.joined(separator:","),max:150,required:true)
+            input.cardIDs.joined(separator:","),max:denseNotes ? 140 : 150,required:true)
         add("COMBINED CARD DIRECTIVES (ONE PANEL)",input.cardInstruction,
-            max:330,required:true)
+            max:denseNotes ? 110 : 330,required:true)
         add("DRAW THIS SPECIFIC EVENT AND COMPOSITION",input.visualInstruction,
-            max:380,required:true)
+            max:denseNotes ? 120 : 380,required:true)
         // Causality and continuity refs are short enough to fit even when all
         // high-priority storyboard and multi-card fields reach their caps.
-        add("CAUSE",input.causalLink,max:110,required:true)
-        add("IMAGE REFS",input.referenceInstruction,max:105,required:true)
+        add("CAUSE",input.causalLink,max:denseNotes ? 70 : 110,required:true)
+        add("IMAGE REFS",input.referenceInstruction,max:denseNotes ? 90 : 105,required:true)
 
         // Optional context improves composition when capacity permits,
         // without ever hiding user-authored directions or required cards.
