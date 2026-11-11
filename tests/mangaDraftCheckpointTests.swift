@@ -21,13 +21,15 @@ import Foundation
             version:Int=1,video:String="video.mov",sourcePins:[MangaPin]?=nil,
             sceneIDs:[UUID]?=nil,style:String="shonen",color:String="mono",
             mode:String="online",plan suppliedPlan:MangaStoryPlan?=nil,
-            artworks:[MangaDraftArtwork]?=nil
+            artworks:[MangaDraftArtwork]?=nil,
+            retries:[UUID:Int]?=nil
         )->MangaDraftCheckpoint {
             MangaDraftCheckpoint(version:version,videoFile:video,
                                  sourcePins:sourcePins ?? pins,sceneIDs:sceneIDs ?? ids,
                                  style:style,colorMode:color,mode:mode,
                                  plan:suppliedPlan ?? plan,summary:"前半と後半",
-                                 creationMode:"画像AI分析",artworks:artworks ?? [art])
+                                 creationMode:"画像AI分析",artworks:artworks ?? [art],
+                                 retryCounts:retries)
         }
         func valid(_ draft:MangaDraftCheckpoint)->Bool {
             draft.isCompatible(videoFile:"video.mov",pins:pins,sceneIDs:ids,
@@ -39,6 +41,24 @@ import Foundation
         precondition(valid(decoded) && decoded.plan.beats[0].userSceneNoteJP=="始まり",
                      "Story and user directions must survive JSON round trip")
         precondition(decoded.artworks.first?.drawingFile=="draft-art-test1.png")
+        // Existing JSON from previous app builds lacks this optional field.
+        // It must continue to load without losing the storyboard or images.
+        let legacy=try JSONDecoder().decode(MangaDraftCheckpoint.self,from:encoded)
+        precondition(valid(legacy) && legacy.retryCounts == nil,
+                     "Legacy version-1 checkpoint without retry counts must load")
+        let retried=checkpoint(retries:[first.id:3])
+        let retriedData=try JSONEncoder().encode(retried)
+        let resumed=try JSONDecoder().decode(MangaDraftCheckpoint.self,from:retriedData)
+        precondition(valid(resumed) && resumed.retryCounts?[first.id] == 3,
+                     "Retake seeds must survive app restarts to avoid duplicate GPU calls")
+        precondition(!valid(checkpoint(retries:[second.id:1])),
+                     "A non-rendered panel cannot carry a retake count")
+        precondition(!valid(checkpoint(retries:[UUID():1])),
+                     "Foreign card IDs cannot contribute retake seed state")
+        precondition(!valid(checkpoint(retries:[first.id:-1])),
+                     "Negative retry attempts must never enter generation")
+        precondition(!valid(checkpoint(retries:[first.id:100_001])),
+                     "Out-of-range retry counts must be rejected")
         precondition(valid(checkpoint(artworks:[])),
                      "Script-only checkpoint should resume without image calls")
         let offlinePlan=MangaStoryPlan(title:plan.title,premise:plan.premise,
@@ -81,6 +101,6 @@ import Foundation
                                        storyPrompt:"",storyScene:"")
         precondition(!valid(checkpoint(artworks:[art,extraArt])),
                      "Reject duplicate image file references")
-        print("PASS: manga draft checkpoint — restart, modes, exact pin identity, edited notes, scene order, style, path safety")
+        print("PASS: manga draft checkpoint — restart-safe retake seeds, modes, exact pin identity, scene order, path safety")
     }
 }
