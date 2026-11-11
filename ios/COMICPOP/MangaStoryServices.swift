@@ -95,12 +95,6 @@ enum MangaSpeechEvidence {
     }
 }
 
-private enum MangaVisualStoryError: Error {
-    case unsupported
-    case quota
-    case credentials
-}
-
 /// A single, whole-story text request BEFORE individual image generation.
 /// This is the user's own Workers AI account, under the same free-tier consent.
 enum MangaStoryAIService {
@@ -171,9 +165,16 @@ enum MangaStoryAIService {
                     throw MangaError.server("Cloudflareの利用枠を確認してください。画像理解AIの呼出しで制限に達しました。")
                 } catch MangaVisualStoryError.credentials {
                     throw MangaError.server("Cloudflareの認証・Workers AIの権限を確認してください。認証エラー時は追加のAI呼出しを行いません。")
+                } catch MangaVisualStoryError.unsupported {
+                    // A truly unsupported model/endpoint may use the prior
+                    // text-only screenplay path. This is NOT an image retry.
+                } catch MangaVisualStoryError.invalidResponse {
+                    throw MangaError.server("画像AIの脚本データが不完全です。追加のAI呼出しは停止しました。画風選択画面で画像理解をOFFにすれば、文字情報だけで再試行できます。")
                 } catch {
-                    // Unsupported model and malformed JSON can use GLM as a
-                    // fallback. Auth/quota failures MUST NOT retry automatically.
+                    // A network timeout or transient server failure might
+                    // already have consumed the first request's free quota.
+                    // Never silently start a second model inference.
+                    throw MangaError.server("画像AIの解析に失敗しました。無料枠保護のため追加呼出しを停止しました。画像理解をOFFにすれば文字情報だけで再試行できます。")
                 }
             }
         }
@@ -242,20 +243,27 @@ enum MangaStoryAIService {
         request.setValue("application/json",forHTTPHeaderField:"Content-Type")
         request.httpBody=try JSONSerialization.data(withJSONObject:body)
         let (data,response)=try await URLSession.shared.data(for:request)
-        guard let http=response as? HTTPURLResponse else {throw MangaVisualStoryError.unsupported}
-        if http.statusCode==429 || http.statusCode==402 {
-            throw MangaVisualStoryError.quota
+        guard let http=response as? HTTPURLResponse else {
+            throw MangaVisualStoryError.serverFailure
         }
-        if http.statusCode==401 || http.statusCode==403 {
-            throw MangaVisualStoryError.credentials
+        if let failure=MangaVisualStoryRetryPolicy.failure(
+            forHTTPStatus:http.statusCode
+        ) {
+            throw failure
         }
-        guard (200...299).contains(http.statusCode),
-              let raw=CloudflareStoryResponse.text(from:data),!raw.isEmpty else {
-            throw MangaVisualStoryError.unsupported
+        guard let raw=CloudflareStoryResponse.text(from:data),!raw.isEmpty else {
+            throw MangaVisualStoryError.invalidResponse
         }
-        var visual=try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
-        visual.usedVisualEvidence=true
-        return visual
+        do {
+            var visual=try MangaStoryPlanner.decodeAIStory(raw,evidence:evidence)
+            visual.usedVisualEvidence=true
+            return visual
+        } catch {
+            // JSON may be syntactically valid but omit or duplicate scenes.
+            // This is NOT an unsupported endpoint; do not spend more quota
+            // by launching GLM automatically after a consumed image request.
+            throw MangaVisualStoryError.invalidResponse
+        }
     }
 }
 
