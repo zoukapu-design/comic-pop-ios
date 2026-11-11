@@ -115,7 +115,7 @@ struct CloudflareAIService {
             title:card.title,subtitle:card.subtitle
         )
         let approvedDirection=story?.userVisualDirection ?? ""
-        let userSceneNote=String((story?.userSceneNoteJP ?? pin.note).prefix(160))
+        let userSceneNote=String((story?.userSceneNoteJP ?? pin.note).prefix(800))
         // User-authored emotions/intent live in userNote, not in the
         // physical event field. An absent storyboard action stays absent.
         let plotAction=String((story?.plotDescriptionJP ?? "").prefix(150))
