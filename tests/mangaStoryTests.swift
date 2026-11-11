@@ -62,6 +62,29 @@ import Foundation
                      "Narrative duty is not factual evidence of an event")
         precondition(evidenceFree.beats[0].narrativeDutyJP=="一場面の見せ場",
                      "The emotional card still retains its stylistic intent")
+        let emotionNote=MangaStoryEvidence(
+            pinID:UUID(),seconds:7,cardID:"horror",cardTitle:"恐怖",
+            cardHint:"暗い演出",visual:"unknown indoor video",neighborVisual:"",
+            heard:"",userNote:"怖く演出して",userDialogue:""
+        )
+        let emotionFallback=MangaStoryPlanner.fallback([emotionNote])
+        precondition(emotionFallback.beats[0].plotDescriptionJP.isEmpty,
+                     "Emotion-only card notes are directions, not observed motion")
+        precondition(emotionFallback.beats[0].userSceneNoteJP=="怖く演出して",
+                     "Emotional directions must not disappear")
+        let emotionMissingPlot=try JSONSerialization.data(withJSONObject:[
+            "title":"恐怖の場面","premise":"緊張感のある映像",
+            "panels":[[
+                "index":1,"caption":"静かな夜","dialogue":"",
+                "scene":"dark room","imagePrompt":"person standing in a dim interior",
+                "transition":"opening"
+            ]]
+        ])
+        let emotionAI=try MangaStoryPlanner.decodeAIStory(
+            String(decoding:emotionMissingPlot,as:UTF8.self),evidence:[emotionNote])
+        precondition(emotionAI.beats[0].plotDescriptionJP.isEmpty,
+                     "An absent AI plot stays empty even when a user asks for horror")
+        precondition(emotionAI.beats[0].userSceneNoteJP=="怖く演出して")
         let missingPlotJSON=try JSONSerialization.data(withJSONObject:[
             "title":"出来事","premise":"緊張が走る",
             "panels":[[
@@ -80,8 +103,8 @@ import Foundation
         precondition(outline.beats[0].narrativeDutyJP.contains("導入"))
         precondition(outline.beats[1].causalLinkJP.contains("前の作業"))
         precondition(outline.beats.last?.narrativeDutyJP.contains("結末")==true)
-        precondition(!outline.beats[0].plotDescriptionJP.isEmpty,
-                     "Every panel should have a Japanese action summary")
+        precondition(outline.beats[0].plotDescriptionJP.isEmpty,
+                     "A missing AI action must not turn a user's emotional note into a filmed event")
         precondition(outline.beats[0].userSceneNoteJP==inputs[0].userNote,
                      "Story notes must never be discarded when decoding the AI response")
         let englishCaption=try JSONSerialization.data(withJSONObject:["title":"English only","premise":"Something","panels":beats.enumerated().map { i,row in var v=row;v["caption"]="random glyph 123";return v}])
