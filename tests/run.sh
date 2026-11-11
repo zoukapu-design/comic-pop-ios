@@ -45,6 +45,11 @@ swiftc "$ROOT/ios/COMICPOP/MangaPageIntegrity.swift" "$ROOT/tests/mangaPageInteg
 # Pure-Foundation Cloudflare text envelope regression (no network and no credits).
 swiftc "$ROOT/ios/COMICPOP/CloudflareStoryResponse.swift" "$ROOT/tests/cloudflareStoryResponseTests.swift" -o "$BIN"
 "$BIN"
+# Do not silently consume a second free AI request after malformed visual
+# model output, temporary server errors, authentication or quota failures.
+swiftc "$ROOT/ios/COMICPOP/MangaVisualStoryRetryPolicy.swift" \
+  "$ROOT/tests/mangaVisualStoryRetryPolicyTests.swift" -o "$BIN"
+"$BIN"
 # Timeline pin markers: preserve all card IDs and group only overlapping UI positions.
 swiftc "$ROOT/ios/COMICPOP/TimelinePinLayout.swift" "$ROOT/tests/timelinePinLayoutTests.swift" -o "$BIN"
 "$BIN"
