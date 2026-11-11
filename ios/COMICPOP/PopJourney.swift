@@ -1,9 +1,10 @@
 import PhotosUI
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
-/// Production navigation extensions for the approved high-gloss Rex look.
-/// These remain native controls; the only bitmap elements are Rex illustrations.
+/// Active production home. Every action routes to a real StudioStore flow;
+/// only the approved Rex illustrations, never entire screens, are bitmaps.
 struct PopHomeScreen: View {
     @ObservedObject var store: StudioStore
     let chooseVideo: () -> Void
@@ -15,144 +16,299 @@ struct PopHomeScreen: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                ZStack(alignment: .bottomLeading) {
-                    PopArtwork(kind: .hero)
-                        .frame(height: 240)
-                        .clipShape(RoundedRectangle(cornerRadius: 22))
-                    LinearGradient(colors: [.clear, PopColor.royal.opacity(0.96)],
-                                   startPoint: .center, endPoint: .bottom)
-                        .clipShape(RoundedRectangle(cornerRadius: 22))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("ムビコマ")
-                            .font(.system(size: 37, weight: .black, design: .rounded))
-                            .foregroundStyle(PopColor.yellow)
-                        Text("動画を、マンガに変えよう！")
-                            .font(.system(size: 15, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                    }
-                    .shadow(color: PopColor.navy, radius: 4, y: 2)
-                    .padding(14)
-                }
-                .overlay(RoundedRectangle(cornerRadius: 22)
-                    .stroke(PopColor.edge, lineWidth: 3))
-                .shadow(color: PopColor.navy.opacity(0.45), radius: 10, y: 4)
-
-                PopSurface(accent: true) {
-                    VStack(spacing: 12) {
-                        HStack(spacing: 7) {
-                            Image(systemName: "sparkles")
-                                .foregroundStyle(PopColor.royal)
-                            Text("動画を選んで漫画を作ろう！")
-                                .font(.system(size: 17, weight: .black, design: .rounded))
-                                .foregroundStyle(PopColor.ink)
-                        }
-                        PopYellowButton(title: "動画からマンガを作る",
-                                        icon: "movieclapper.fill", action: chooseVideo)
-                        if store.videoURL != nil {
-                            Button(action: continueEditing) {
-                                Label("前回の動画の編集を続ける", systemImage: "play.rectangle.fill")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 11)
-                                    .foregroundStyle(PopColor.ink)
-                                    .background(.white, in: Capsule())
-                                    .overlay(Capsule().stroke(PopColor.edge, lineWidth: 2))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                if store.hasUncommittedGeneration {
-                    PopSurface(accent: true) {
-                        VStack(alignment: .leading, spacing: 9) {
-                            Label(store.hasCompleteComic
-                                  ? "完成した漫画を再開できます"
-                                  : "作りかけの漫画が残っています",
-                                  systemImage: "externaldrive.fill.badge.checkmark")
-                                .font(.system(size: 15, weight: .black, design: .rounded))
-                            Text(store.hasCompleteComic
-                                 ? "\(store.generatedPanelCount)コマの漫画を確認・保存できます。"
-                                 : "\(store.generatedPanelCount)/\(store.scenePlan.renderedPanelCount)コマ完成。\(store.hasRecoverableDraft ? "端末に復元データがあります。" : "復元データの保存が未完了です。空き容量を確認してください。")")
-                                .font(.system(size: 11, weight: .medium))
-                            PopYellowButton(
-                                title: store.hasCompleteComic ? "完成した漫画を見る" : "マンガ作成の続きを開く",
-                                icon: "book.closed.fill",
-                                enabled: !store.isGenerating,
-                                action: continueManga
-                            )
-                        }
-                        .foregroundStyle(PopColor.ink)
-                    }
-                }
-                VStack(spacing: 9) {
-                    feature("作品一覧", "作ったマンガを読む・共有", icon: "books.vertical.fill", action: openWorks)
-                    feature("マイデッキ", "好きなカードをまとめる", icon: "star.square.fill", action: openDeck)
-                    feature("設定", "画風・アカウント・ヘルプ", icon: "gearshape.fill", action: openSettings)
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("３ステップで、マンガができる！")
-                        .font(.system(size: 16, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                    HStack(spacing: 5) {
-                        miniStep("1", "動画を選ぶ", icon: "film.fill")
-                        Image(systemName: "chevron.right").foregroundStyle(PopColor.yellow)
-                        miniStep("2", "カードを挿す", icon: "pin.fill")
-                        Image(systemName: "chevron.right").foregroundStyle(PopColor.yellow)
-                        miniStep("3", "漫画に変換", icon: "book.fill")
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(10)
-                .background(PopColor.navy.opacity(0.45), in: RoundedRectangle(cornerRadius: 16))
+            VStack(alignment: .leading, spacing: 17) {
+                hero
+                createPanel
+                if store.hasUncommittedGeneration { resumeCard }
+                worksGallery
+                creatorTools
+                steps
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 18)
+            .padding(.horizontal, 14)
+            .padding(.top, 7)
+            .padding(.bottom, 30)
         }
         .accessibilityIdentifier("popHomeScreen")
     }
 
-    private func feature(_ title: String, _ subtitle: String, icon: String,
-                         action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 22, weight: .heavy))
-                    .frame(width: 36)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 16, weight: .black, design: .rounded))
-                    Text(subtitle)
-                        .font(.system(size: 11, weight: .medium))
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .heavy))
+    private var hero: some View {
+        ZStack(alignment: .bottomLeading) {
+            PopArtwork(kind: .hero).frame(height: 244)
+            LinearGradient(
+                stops: [
+                    .init(color: PopColor.navy.opacity(0.04), location: 0),
+                    .init(color: PopColor.navy.opacity(0.35), location: 0.43),
+                    .init(color: PopColor.navy.opacity(0.96), location: 1)
+                ],
+                startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("MOVIE × MANGA")
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .tracking(2).foregroundStyle(PopColor.cyan)
+                Text("ムビコマ")
+                    .font(.system(size: 38, weight: .black, design: .rounded))
+                    .italic().foregroundStyle(PopColor.yellow)
+                    .shadow(color: PopColor.navy, radius: 3, x: 2, y: 3)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                Text("動画の一瞬が、物語の1コマになる。")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .foregroundStyle(PopColor.ink)
-            .padding(.horizontal, 15)
-            .padding(.vertical, 13)
-            .background(LinearGradient(colors: [.white, PopColor.paper],
-                                       startPoint: .top, endPoint: .bottom),
-                        in: RoundedRectangle(cornerRadius: 17))
-            .overlay(RoundedRectangle(cornerRadius: 17)
-                .stroke(PopColor.edge, lineWidth: 2))
+            .padding(18)
         }
-        .buttonStyle(.plain)
+        .frame(height: 244)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22).stroke(PopColor.edge, lineWidth: 2))
+        .shadow(color: PopColor.navy.opacity(0.45), radius: 12, y: 5)
+        .accessibilityElement(children: .combine)
     }
 
-    private func miniStep(_ number: String, _ title: String, icon: String) -> some View {
-        VStack(spacing: 4) {
-            Label(number, systemImage: icon)
-                .font(.system(size: 15, weight: .black))
-                .foregroundStyle(PopColor.yellow)
-            Text(title)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
+    private var createPanel: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(spacing: 11) {
+                Image(systemName: "film.stack.fill")
+                    .font(.system(size: 23, weight: .black))
+                    .foregroundStyle(.white)
+                    .frame(width: 45, height: 45)
+                    .background(PopColor.blue, in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("さあ、漫画を作ろう！")
+                        .font(.system(size: 18, weight: .black, design: .rounded))
+                    Text("好きな動画から、オチも感動も1冊に。")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(PopColor.ink.opacity(0.75))
+                }
+                Spacer(minLength: 0)
+            }
+            PopYellowButton(title: "新しい動画で漫画を作る",
+                            icon: "video.fill", action: chooseVideo)
+                .accessibilityIdentifier("popCreateFromVideo")
+            if store.videoURL != nil {
+                Button(action: continueEditing) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "play.rectangle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("前回の動画の編集を続ける")
+                                .font(.system(size: 13, weight: .bold))
+                            Text(store.data.videoTitle.isEmpty
+                                 ? "選択中の動画" : store.data.videoTitle)
+                                .font(.system(size: 10)).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "arrow.right")
+                    }
+                    .padding(.horizontal, 13).frame(minHeight: 49)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 13))
+                    .overlay(RoundedRectangle(cornerRadius: 13)
+                             .stroke(PopColor.edge, lineWidth: 1.5))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("popContinueVideo")
+            }
         }
+        .foregroundStyle(PopColor.ink)
+        .padding(15)
+        .background(
+            LinearGradient(colors: [.white, PopColor.paper],
+                           startPoint: .top, endPoint: .bottom),
+            in: RoundedRectangle(cornerRadius: 21))
+        .overlay(RoundedRectangle(cornerRadius: 21).stroke(PopColor.edge, lineWidth: 2))
+        .shadow(color: PopColor.navy.opacity(0.25), radius: 8, y: 4)
+    }
+
+    private var resumeCard: some View {
+        Button(action: continueManga) {
+            HStack(spacing: 11) {
+                Image(systemName: store.hasCompleteComic
+                      ? "checkmark.seal.fill" : "clock.arrow.circlepath")
+                    .font(.system(size: 27, weight: .heavy))
+                    .foregroundStyle(PopColor.yellow)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(store.hasCompleteComic
+                         ? "完成済み漫画を開く" : "作りかけの漫画を再開")
+                        .font(.system(size: 15, weight: .black, design: .rounded))
+                    Text(store.hasCompleteComic
+                         ? "\(store.generatedPanelCount)コマ完成。レビューから保存できます。"
+                         : "\(store.generatedPanelCount) / \(store.scenePlan.renderedPanelCount) コマ。続きを作成できます。")
+                        .font(.system(size: 11, weight: .medium))
+                    if !store.hasRecoverableDraft {
+                        Text("端末への復元データ保存は未確認")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(PopColor.yellow)
+                    }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+            }
+            .foregroundStyle(.white)
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+            .background(
+                LinearGradient(colors: [PopColor.royal, PopColor.navy],
+                               startPoint: .topLeading, endPoint: .bottomTrailing),
+                in: RoundedRectangle(cornerRadius: 17))
+            .overlay(RoundedRectangle(cornerRadius: 17)
+                     .stroke(PopColor.yellow, lineWidth: 2))
+        }
+        .disabled(store.isGenerating)
+        .opacity(store.isGenerating ? 0.6 : 1)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("popResumeComic")
+    }
+
+    private var worksGallery: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            heading("マイコミックス", caption: "保存したマンガはここに並びます")
+            if store.data.works.isEmpty {
+                Button(action: openWorks) {
+                    HStack(spacing: 13) {
+                        PopArtwork(kind: .genres, index: 0)
+                            .frame(width: 90, height: 82)
+                            .clipShape(RoundedRectangle(cornerRadius: 11))
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("最初の1冊を作ろう")
+                                .font(.system(size: 15, weight: .black, design: .rounded))
+                            Text("まだ保存した作品はありません")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .foregroundStyle(PopColor.ink)
+                    .padding(11)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16)
+                             .stroke(PopColor.edge, lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 12) {
+                        ForEach(Array(store.data.works.prefix(5))) { work in
+                            Button(action: openWorks) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 12).fill(.white)
+                                        if let first = work.files.first,
+                                           let url = store.existingWorkURL(first),
+                                           let image = UIImage(contentsOfFile: url.path) {
+                                            Image(uiImage: image)
+                                                .resizable().scaledToFit().padding(3)
+                                        } else {
+                                            PopArtwork(kind: .genres, index: 1)
+                                        }
+                                    }
+                                    .frame(height: 174)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(RoundedRectangle(cornerRadius: 12)
+                                             .stroke(PopColor.edge, lineWidth: 2))
+                                    Text(work.title)
+                                        .font(.system(size: 12, weight: .black, design: .rounded))
+                                        .lineLimit(2).foregroundStyle(.white)
+                                    Text("\(work.sceneCount)コマ · \(work.files.count)ページ")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.78))
+                                }
+                                .frame(width: 132, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                Button(action: openWorks) {
+                    Label("作品一覧を開く", systemImage: "books.vertical.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(PopColor.royal, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var creatorTools: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            heading("クリエイターメニュー", caption: "カードと作品を管理")
+            HStack(spacing: 11) {
+                tool(title: "マイデッキ", detail: "自分だけのカード",
+                     art: 1, action: openDeck)
+                tool(title: "作品ライブラリ", detail: "マンガを保存・共有",
+                     art: 2, action: openWorks)
+            }
+            Button(action: openSettings) {
+                HStack(spacing: 9) {
+                    Image(systemName: "slider.horizontal.3")
+                    Text("画風・音声・AI接続の設定")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 46)
+                .background(PopColor.navy.opacity(0.8),
+                            in: RoundedRectangle(cornerRadius: 13))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func tool(title: String, detail: String, art: Int,
+                      action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 5) {
+                PopArtwork(kind: .cards, index: art)
+                    .frame(height: 103).clipShape(RoundedRectangle(cornerRadius: 11))
+                Text(title).font(.system(size: 14, weight: .black, design: .rounded))
+                Text(detail).font(.system(size: 10, weight: .medium))
+            }
+            .foregroundStyle(PopColor.ink)
+            .padding(9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(PopColor.paper, in: RoundedRectangle(cornerRadius: 17))
+            .overlay(RoundedRectangle(cornerRadius: 17)
+                     .stroke(PopColor.edge, lineWidth: 2))
+        }
+        .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+        .accessibilityLabel(title)
+    }
+
+    private var steps: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            heading("3ステップで完成", caption: "動画 × カード × マンガ")
+            HStack(alignment: .top, spacing: 8) {
+                step("01", "動画を選ぶ", art: 0)
+                step("02", "カードを挿す", art: 3)
+                step("03", "漫画に変換", art: 5)
+            }
+        }
+    }
+
+    private func step(_ number: String, _ name: String, art: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            PopArtwork(kind: .genres, index: art)
+                .frame(height: 77)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            Text(number).font(.system(size: 11, weight: .black))
+                .foregroundStyle(PopColor.yellow)
+            Text(name).font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func heading(_ title: String, caption: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.system(size: 19, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+            Text(caption).font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.76))
+        }
     }
 }
 
