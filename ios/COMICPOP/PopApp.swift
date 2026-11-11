@@ -63,7 +63,7 @@ struct MovikomaPopRootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             if journey == .workspace {
-                PopStepNavigation(stage:$stage)
+                PopStepNavigation(stage:$stage, canReview:!store.pageImages.isEmpty && !store.isGenerating)
             }
         }
         .background(PopBackground())
@@ -80,7 +80,7 @@ struct MovikomaPopRootView: View {
         .alert("ムビコマの使い方",isPresented:$showHelp) {
             Button("OK",role:.cancel){}
         } message:{
-            Text("① 動画を選ぶ → ② タイムラインで場面を選び、カードをタップ → ③ 画風を選んで生成 → ④ 元動画と比較し、保存・書き出し。カードは最大12枚です。")
+            Text("① 動画を選ぶ → ② タイムラインで場面を選び、カードをタップ → ③ 画風を選んで生成 → ④ 元動画と比較し、保存・書き出し。一度に生成できるのは最大12シーンです。同じ場面の複数カードは一緒に合成します。")
         }
         .alert("書き出す作品がありません",isPresented:$showExportWarning) {
             Button("OK",role:.cancel){}
@@ -105,6 +105,11 @@ struct MovikomaPopRootView: View {
             set:{if !$0 {didSeeWelcome=true}}
         )) {
             PopWelcomeScreen {didSeeWelcome=true}
+        }
+        .onChange(of:store.generatedPanelCount) { _, count in
+            if stage == .review && count == 0 && store.pageImages.isEmpty {
+                stage = .styles
+            }
         }
         .onChange(of:stage) { _,next in
             if next != .editor {store.player.pause()}
