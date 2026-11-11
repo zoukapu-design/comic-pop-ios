@@ -116,7 +116,9 @@ struct CloudflareAIService {
         )
         let approvedDirection=story?.userVisualDirection ?? ""
         let userSceneNote=String((story?.userSceneNoteJP ?? pin.note).prefix(160))
-        let plotAction=String((story?.plotDescriptionJP ?? pin.note).prefix(150))
+        // User-authored emotions/intent live in userNote, not in the
+        // physical event field. An absent storyboard action stays absent.
+        let plotAction=String((story?.plotDescriptionJP ?? "").prefix(150))
         let plannedIllustration=String((story?.imagePrompt ?? pin.note).prefix(540))
         // Serialize the storyboard with hard priority for actual user notes,
         // the reviewed plot, manual drawing directions, and every card in a
