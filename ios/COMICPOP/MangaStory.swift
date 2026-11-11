@@ -110,7 +110,7 @@ enum MangaStoryPlanner {
                 plotDescriptionJP:"",
                 narrativeDutyJP:cue.role.japanese,
                 causalLinkJP:"",
-                userSceneNoteJP:clip(e.userNote,160))
+                userSceneNoteJP:clip(e.userNote,800))
         }
         return MangaStoryPlan(title:"動画から生まれた物語",premise:"カードから組み立てた仮の構成",beats:beats,isAIStory:false)
     }
@@ -173,7 +173,7 @@ enum MangaStoryPlanner {
                 narrativeDutyJP:cues[index].role.japanese,
                 causalLinkJP:index==0 ? "" : japanese(
                     line.causalLinkJP ?? "",otherwise:"",limit:110),
-                userSceneNoteJP:clip(source.userNote,160))
+                userSceneNoteJP:clip(source.userNote,800))
         }
         return MangaStoryPlan(title:japanese(draft.title,otherwise:backup.title,limit:38),
             premise:japanese(draft.premise,otherwise:backup.premise,limit:145),beats:beats,isAIStory:true)
@@ -197,7 +197,7 @@ enum MangaStoryPlanner {
                 "suggestedShot":cue.role.imageComposition,
                 "isCombinedMoment":cue.isCombinedMoment,
                 "image":clip(e.visual,140),"betweenFrames":clip(e.neighborVisual,130),
-                "speech":clip(e.heard,180),"note":clip(e.userNote,160),
+                "speech":clip(e.heard,180),"note":clip(e.userNote,800),
                 "dialogue":clip(e.userDialogue,110)
             ]
         }
