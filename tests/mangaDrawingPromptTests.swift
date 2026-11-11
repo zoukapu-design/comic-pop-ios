@@ -71,6 +71,24 @@ import Foundation
         precondition(!compact.contains("SOFT_HINT"))
         precondition(compact.count<=MangaDrawingPrompt.maxCharacters)
         precondition(compact.hasSuffix(MangaDrawingPrompt.noLettering))
+        // A user's request for a scary tone is not proof of a filmed scary
+        // action. It must remain an artistic direction, not a fabricated fact.
+        let emotionOnly=MangaDrawingPromptInput(
+            stylePrompt:"noir ink",colorInstruction:"monochrome",
+            plotAction:"",userNote:"怖く演出して",userDirection:"",
+            cardIDs:["horror"],cardInstruction:"Make the atmosphere unsettling",
+            visualInstruction:"dim corridor from the source video",
+            causalLink:"",narrativeRole:"crisis",
+            referenceInstruction:"0=video moment",
+            alternateInstruction:"",seriesPremise:"",
+            sceneContext:"",transition:"",consistencyHints:""
+        )
+        let emotionPrompt=MangaDrawingPrompt.compose(emotionOnly)
+        precondition(!emotionPrompt.contains("ACTUAL PLOT EVENT"),
+                     "Missing observed action must not be replaced by a mood")
+        precondition(emotionPrompt.contains("USER'S ORIGINAL CARD NOTE (HIGH PRIORITY): 怖く演出して"),
+                     "Emotional direction must still reach image inference")
+        precondition(emotionPrompt.count<=MangaDrawingPrompt.maxCharacters)
         print("PASS: manga drawing prompt priorities — 12 card IDs, manual notes, causality, continuity and no AI lettering")
     }
 }
