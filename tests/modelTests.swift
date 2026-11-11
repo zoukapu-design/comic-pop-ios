@@ -58,6 +58,31 @@ import Foundation
         let planNear=ScenePlan(pins:near)
         precondition(planNear.renderedPanelCount==2 && planNear.scenes[0].pins.count==2)
         precondition(planNear.scenes[1].pins.count==1)
+        // Card capacity is based on manga scenes, not the raw count of
+        // user-inserted emotion cards. The third card on one moment is
+        // allowed, but a fourth or a 13th unique scene is rejected.
+        precondition(MangaSceneCapacity.canInsert(into:[],at:0))
+        precondition(MangaSceneCapacity.canInsert(into:twelve,at:0.5),
+                     "Adding another emotion to an existing scene must be allowed")
+        precondition(!MangaSceneCapacity.canInsert(into:twelve,at:98),
+                     "Thirteen actual scenes would exceed the 12-panel budget")
+        let threeTogether=(0..<3).map { index in
+            MangaPin(cardID:"dramatic",seconds:40+Double(index)*0.2,
+                     snapshotFile:"combined\(index).jpg")
+        }
+        precondition(MangaSceneCapacity.canInsert(into:Array(threeTogether.prefix(2)),at:40.3))
+        precondition(!MangaSceneCapacity.canInsert(into:threeTogether,at:40.4),
+                     "More than three cards per one scene obscures original notes")
+        let fullyPopulated=(0..<12).flatMap { scene in
+            (0..<3).map { card in
+                MangaPin(cardID:"reaction",seconds:Double(scene*10)+Double(card)*0.2,
+                         snapshotFile:"s\(scene)c\(card).jpg")
+            }
+        }
+        precondition(fullyPopulated.count == MangaSceneCapacity.maxTotalCards)
+        precondition(!MangaSceneCapacity.canInsert(into:fullyPopulated,at:0.5))
+        precondition(!MangaSceneCapacity.canInsert(into:[],at:.nan))
+        precondition(!MangaSceneCapacity.canInsert(into:[],at:.infinity))
         let backup=try JSONEncoder().encode(StudioData())
         let restored=try JSONDecoder().decode(StudioData.self,from:backup)
         precondition(restored.decks.count==4)
