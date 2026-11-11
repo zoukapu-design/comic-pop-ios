@@ -245,7 +245,7 @@ assert "mangaJapaneseLetteringTests.swift" in (root / "tests/run.sh").read_text(
 assert "story?.narrativeDutyJP" in ai and "story?.causalLinkJP" in ai
 assert "前のコマとのつながり" in draft
 assert "causalLink:causal" in draft
-assert "requiresCausalLink:$0.index>1" in draft
+assert "requiresCausalLink:beat.index>1" in draft
 assert "MangaStoryQualityAudit.warnings" in draft
 assert "confirmDrawWithWarnings" in draft
 assert "nearlySame(" in quality and "isGeneric(" in quality
@@ -271,7 +271,7 @@ for mutator, following in (
     assert "guard !isGenerating" in operation, mutator
 # No fabricated narration when there is no video evidence or user-supplied text.
 assert 'else {caption=""}' in story
-assert "plotDescriptionJP:clip(e.userNote,100)" in story
+assert 'plotDescriptionJP:""' in story
 # A failed save must not delete existing pins, snapshots, or story notes.
 atomicStore=(root / "ios/COMICPOP/StudioAtomicPersistence.swift").read_text(encoding="utf-8")
 atomicTests=(root / "tests/studioAtomicPersistenceTests.swift").read_text(encoding="utf-8")
