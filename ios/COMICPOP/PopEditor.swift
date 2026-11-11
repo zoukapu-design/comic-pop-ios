@@ -45,8 +45,9 @@ struct PopEditorScreen: View {
         store.cards.first(where:{$0.id == id})
     }
     private var canInsert: Bool {
-        store.videoURL != nil && card(selectedID) != nil && store.data.pins.count < 12
-            && !store.isAddingPin && !store.isGenerating
+        store.videoURL != nil && card(selectedID) != nil &&
+            MangaSceneCapacity.canInsert(into:store.data.pins,at:store.currentTime) &&
+            !store.isAddingPin && !store.isGenerating
     }
 
     var body: some View {
@@ -279,7 +280,7 @@ struct PopEditorScreen: View {
         PopSurface {
             VStack(alignment:.leading,spacing:7) {
                 HStack {
-                    Text("挿入したカード \(store.data.pins.count)枚")
+                    Text("挿入カード \(store.data.pins.count)枚 / \(store.scenePlan.renderedPanelCount)シーン")
                         .font(.system(size:14,weight:.black,design:.rounded))
                         .foregroundStyle(PopColor.ink)
                     Spacer()
@@ -327,8 +328,8 @@ struct PopEditorScreen: View {
             store.message="先に動画を選んでください"
             return
         }
-        guard store.data.pins.count < 12 else {
-            store.message="無料枠保護のため一度に最大12コマです"
+        guard MangaSceneCapacity.canInsert(into:store.data.pins,at:store.currentTime) else {
+            store.message="この動画は最大12シーン、同じシーンは3カードまでです。カードの時刻か構成を調整してください。"
             return
         }
         if store.hasUncommittedGeneration {
