@@ -16,7 +16,7 @@ genre = (root / "ios/COMICPOP/PopGenre.swift").read_text(encoding="utf-8")
 review = (root / "ios/COMICPOP/PopReview.swift").read_text(encoding="utf-8")
 theme = (root / "ios/COMICPOP/PopTheme.swift").read_text(encoding="utf-8")
 finisher = (root / "ios/COMICPOP/PopPageFinisher.swift").read_text(encoding="utf-8")
-assert "PopBrandHeader" in popui and "PopStepNavigation(stage:$stage)" in popui
+assert "PopBrandHeader" in popui and "PopStepNavigation(stage:$stage, canReview:" in popui
 assert "PopEditorScreen" in popui and "PopGenreScreen" in popui and "PopReviewScreen" in popui
 assert "PopAVPlayerSurface(player:store.player)" in editor and "PopTimeline(store:store,onDelete:requestDelete)" in editor
 # Every inserted card must appear at the correct time on the *live* editor bar.
@@ -219,7 +219,7 @@ artSimilarity=(root / "ios/COMICPOP/MangaArtworkUniqueness.swift").read_text(enc
 assert "similarReviewThreshold" in artSimilarity
 assert "firstUnintendedSimilarity" in artSimilarity
 assert "mangaArtworkUniquenessTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
-assert 'userSceneNoteJP:clip(source.userNote,160)' in story
+assert 'userSceneNoteJP:clip(source.userNote,800)' in story
 assert "mangaPageIntegrityTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "PopStoryboardDraft(store:store)" in genre
 assert "MangaSceneContactSheet.motionJPEG" in observations
@@ -293,7 +293,7 @@ remove=store.split("func removePin(",1)[1].split("func clearPins(allowDiscard:Bo
 assert remove.index("guard commit(candidate) else {return}") < remove.index("removeItem(at:")
 clear=store.split("func clearPins(allowDiscard:Bool = false)",1)[1].split("func snapshot(for pin:",1)[0]
 assert clear.index("guard commit(candidate) else {return}") < clear.index("removeItem(at:")
-assert 'userSceneNoteJP:clip(source.userNote,160)' in story
+assert 'userSceneNoteJP:clip(source.userNote,800)' in story
 # A creative/emotional note is an instruction, not proof that a physical
 # action occurred in the video. The reviewed plot remains independently editable.
 assert 'plotDescriptionJP:""' in story
@@ -576,3 +576,30 @@ print("PASS: app home exposes resumable manga without asserting a failed backup 
 
 
 print("PASS: MOVIKOMA 3 reference-faithful native screens, real Rex sprite assets and connected interactions")
+
+# Launchable UI and real comic cover art: do not "fix" an unused SwiftUI root.
+journey=(root / "ios/COMICPOP/PopJourney.swift").read_text(encoding="utf-8")
+assert "WindowGroup { MovikomaPopRootView() }" in app
+assert "struct PopHomeScreen: View" in journey
+assert "popCreateFromVideo" in journey and "popResumeComic" in journey
+assert "PopArtwork(kind: .hero)" in journey
+assert "PopArtwork(kind: .cards, index: art)" in journey
+assert "CGImageSourceCreateThumbnailAtIndex" in journey
+assert "PopWorkCover.image(at: url)" in journey
+assert "var canReview: Bool = false" in theme
+assert 'Label("作品に保存"' in theme
+# Scene quota is not the number of cards: 12 scenes with up to 3 combined
+# pin-card notes each, no card loss or fake separate panels.
+capacity=(root / "ios/COMICPOP/MangaSceneCapacity.swift").read_text(encoding="utf-8")
+capacityTests=(root / "tests/modelTests.swift").read_text(encoding="utf-8")
+assert "maxScenes=12" in capacity and "maxCardsPerScene=3" in capacity
+assert "ScenePlan(pins:pins+[planned]).scenes" in capacity
+assert store.count("MangaSceneCapacity.canInsert(")>=2
+assert editor.count("MangaSceneCapacity.canInsert(")>=2
+assert "MangaSceneCapacity.swift" in preflight
+assert "Thirteen actual scenes" in capacityTests
+assert "More than three cards" in capacityTests
+assert "denseNotes=input.userNote.count>160" in drawingPrompt
+assert "max:denseNotes ? 800 : 160" in drawingPrompt
+assert "densePrompt.contains(longNotes)" in promptTests
+print("PASS: active Rex home, lightweight gallery, safe scene navigation and combined note preservation")
