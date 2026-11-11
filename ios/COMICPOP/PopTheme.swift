@@ -205,7 +205,7 @@ struct PopBrandHeader: View {
                     .overlay(Circle().stroke(PopColor.edge,lineWidth:2))
             }.accessibilityLabel("ヘルプ")
             Button(action:onExport) {
-                Label("書き出し",systemImage:"square.and.arrow.up")
+                Label("作品に保存",systemImage:"square.and.arrow.down.fill")
                     .font(.system(size:12,weight:.black,design:.rounded))
                     .foregroundStyle(PopColor.ink).lineLimit(1)
                     .padding(.horizontal,9).padding(.vertical,10)
@@ -224,6 +224,7 @@ enum PopStage: Int, CaseIterable { case editor = 0, styles = 1, review = 2 }
 
 struct PopStepNavigation: View {
     @Binding var stage: PopStage
+    var canReview: Bool = false
     var body: some View {
         HStack(spacing:3) {
             item(.editor,icon:"play.rectangle",text:"編集")
@@ -250,7 +251,11 @@ struct PopStepNavigation: View {
             .padding(.vertical,8)
             .background(stage==current ? PopColor.blue.opacity(0.9) : .clear,in:Capsule())
             .overlay(Capsule().stroke(stage==current ? PopColor.cyan : .clear,lineWidth:2))
-        }.buttonStyle(.plain)
+        }
+        .disabled(current == .review && !canReview)
+        .opacity(current == .review && !canReview ? 0.5 : 1)
+        .accessibilityHint(current == .review && !canReview ? "漫画のページができると開けます" : "")
+        .buttonStyle(.plain)
     }
 }
 
