@@ -170,6 +170,12 @@ struct PreviewPanel: Identifiable {
         storyCreationMode=saved.creationMode
         generated=recovered
         storedArtworkFiles=recoveredFiles
+        // A partially missing PNG truncates the recovered prefix. Only
+        // restore retake seeds for drawings that actually survived.
+        let recoveredIDs=Set(recovered.map(\.id))
+        panelRetryCount=(saved.retryCounts ?? [:]).filter {
+            recoveredIDs.contains($0.key)
+        }
         if recovered.count != saved.artworks.count {
             // Repair the metadata: missing file(s) must not create holes in
             // the completed prefix or cause an unnecessary repeat AI call.
@@ -225,12 +231,14 @@ struct PreviewPanel: Identifiable {
                     storyPrompt:panel.storyPrompt,storyScene:panel.storyScene
                 )
             }
+            let currentArtworkIDs=Set(artworks.map(\.id))
             let checkpoint=MangaDraftCheckpoint(
                 version:1,videoFile:movie,sourcePins:data.pins,
                 sceneIDs:scenePlan.renderPins.map(\.id),
                 style:style,colorMode:color,mode:mode,plan:plan,
                 summary:storySummary,creationMode:storyCreationMode,
-                artworks:artworks
+                artworks:artworks,
+                retryCounts:panelRetryCount.filter {currentArtworkIDs.contains($0.key)}
             )
             guard checkpoint.isCompatible(
                 videoFile:movie,pins:data.pins,
