@@ -74,8 +74,13 @@ import Foundation
                      "Emotional directions must not disappear")
         precondition(emotionFallback.beats[0].caption.isEmpty,
                      "Do not print an art-direction-only note as manga narration")
-        var spokenEmotion=emotionNote
-        spokenEmotion.heard="うわっ！"
+        let spokenEmotion=MangaStoryEvidence(
+            pinID:emotionNote.pinID,seconds:emotionNote.seconds,
+            cardID:emotionNote.cardID,cardTitle:emotionNote.cardTitle,
+            cardHint:emotionNote.cardHint,visual:emotionNote.visual,
+            neighborVisual:emotionNote.neighborVisual,
+            heard:"うわっ！",userNote:emotionNote.userNote,userDialogue:""
+        )
         let withSpeech=MangaStoryPlanner.fallback([spokenEmotion])
         precondition(withSpeech.beats[0].caption=="うわっ！",
                      "Actual recognized speech should take the place of art directions")
