@@ -85,7 +85,11 @@ jobs:
           cd ios
           sed -i '' "s/com.example.comicpop.dev/$BUNDLE_ID/g" project.yml
           xcodegen generate --spec project.yml
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" COMICPOP/Info.plist
+          # UTC timestamp: monotonic across CI workflow migrations and
+          # distinct from older Codemagic build sequences.
+          BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
+          echo "APP_BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" COMICPOP/Info.plist
           test -f COMICPOP.xcodeproj/project.pbxproj
 
       - name: Archive signed iPhone app using Apple cloud signing
@@ -105,7 +109,7 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            CURRENT_PROJECT_VERSION="$APP_BUILD_NUMBER" \
             archive
           test -d "$RUNNER_TEMP/MOVIKOMA.xcarchive"
 
