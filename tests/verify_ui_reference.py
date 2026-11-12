@@ -276,7 +276,7 @@ captionTests=(root / "tests/mangaCaptionNotePolicyTests.swift").read_text(encodi
 assert "MangaCaptionNotePolicy.trustedFallback(" in story
 assert "enum MangaCaptionNotePolicy" in captionPolicy
 assert "productionMarkers" in captionPolicy and "productionEndings" in captionPolicy
-assert "mangaCaptionNotePolicyTests.swift" in preflight
+assert "mangaCaptionNotePolicyTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "Creative notes are never fallback narration" in (root / "tests/mangaStoryTests.swift").read_text(encoding="utf-8")
 assert "On-device speech should replace a creative instruction" in captionTests
 assert 'plotDescriptionJP:""' in story
