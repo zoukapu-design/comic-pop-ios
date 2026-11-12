@@ -119,18 +119,9 @@ workflows:
     # TestFlight publishing is intentionally disabled until owner reviews IPA.
 
   ios-testflight-upload:
-    name: ムビコマ iOS / Signed IPA → TestFlight (release branch only)
-    # Build automatically only when the dedicated release branch is updated.
-    # Development commits must NEVER spend a signed IPA / upload build.
-    # Requires Codemagic's existing GitHub webhook to be active.
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: 'release/testflight'
-          include: true
-          source: true
-      cancel_previous_builds: true
+    name: ムビコマ iOS / Legacy manual only (unused)
+    # No automatic Codemagic triggers. All future TestFlight uploads use
+    # .github/workflows/movikoma-testflight.yml (GitHub Actions).
     integrations:
       app_store_connect: Codemagic Cybernetic
     instance_type: mac_mini_m2
