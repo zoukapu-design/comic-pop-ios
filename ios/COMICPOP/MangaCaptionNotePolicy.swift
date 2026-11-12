@@ -12,10 +12,13 @@ enum MangaCaptionNotePolicy {
         // Conservative: classify unmistakable production vocabulary rather
         // than filtering arbitrary imperative speech from the source video.
         let productionMarkers = [
-            "演出", "カメラ", "アングル", "構図", "ズーム",
-            "エフェクト", "画風", "漫画風", "タッチ", "集中線",
-            "効果音", "色調", "色味", "ライティング", "フォント",
-            "トーン", "ぼかし", "背景を", "絵柄", "作画"
+            "演出", "アングル", "構図", "ズーム",
+            "エフェクト", "画風", "漫画風", "絵のタッチ", "集中線",
+            "効果音", "色調", "ライティング", "フォント",
+            "スクリーントーン", "ぼかし", "絵柄", "作画",
+            "カメラワーク", "カメラアングル", "カメラ目線",
+            "カメラ位置", "カメラを斜め", "カメラを寄せ",
+            "背景を描いて", "背景をぼかして"
         ]
         if productionMarkers.contains(where: { value.contains($0) }) { return "" }
 
