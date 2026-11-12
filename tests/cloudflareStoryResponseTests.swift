@@ -30,7 +30,8 @@ import Foundation
         precondition(CloudflareStoryResponse.text(from:error)==nil,
                      "Failed Cloudflare responses cannot masquerade as stories")
         precondition(CloudflareStoryResponse.text(from:Data("not JSON".utf8))==nil)
-        precondition(CloudflareStoryResponse.text(from:try json(["result":[:]]))==nil)
+        let emptyResult=try json(["result":[:]])
+        precondition(CloudflareStoryResponse.text(from:emptyResult)==nil)
         print("PASS: Workers AI choices[], wrapped choices[], legacy response, Japanese content and error parsing")
     }
 }
