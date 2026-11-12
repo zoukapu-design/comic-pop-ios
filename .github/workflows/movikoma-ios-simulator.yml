@@ -1,25 +1,90 @@
 name: Movikoma native iOS Simulator compile
-# macOS CI is intentionally manual to preserve scarce build minutes.
-# Run once after the Ubuntu source preflight passes.
+# Public repositories can use free standard GitHub-hosted macOS runners.
+# The macOS build job never runs while this repository remains private.
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ios/**'
+      - 'tests/**'
+      - '.github/workflows/movikoma-ios-simulator.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: movikoma-ios-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   native-ios:
-    runs-on: macos-15
-    timeout-minutes: 20
+    if: ${{ github.event.repository.private == false }}
+    runs-on: macos-26
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - name: Verify Xcode environment
-        run: xcodebuild -version
-      - name: Install XcodeGen
+
+      - name: Prepare diagnostics
+        run: mkdir -p "$RUNNER_TEMP/movikoma"
+
+      - name: Run all Swift and resource preflight tests
+        shell: bash
         run: |
-          if ! command -v xcodegen >/dev/null 2>&1; then brew install xcodegen; fi
-      - name: Generate native iPhone project
-        run: cd ios && xcodegen generate --spec project.yml
-      - name: Compile unsigned iOS Simulator app
+          set -euo pipefail
+          swiftc --version
+          bash tests/run.sh 2>&1 | tee "$RUNNER_TEMP/movikoma/preflight.log"
+
+      - name: Check Xcode and install XcodeGen
+        shell: bash
         run: |
+          set -euo pipefail
+          xcodebuild -version
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Generate native iOS project
+        shell: bash
+        run: |
+          set -euo pipefail
           cd ios
-          xcodebuild -project COMICPOP.xcodeproj -scheme COMICPOP \
-            -configuration Debug -sdk iphonesimulator \
+          xcodegen generate --spec project.yml 2>&1 | tee "$RUNNER_TEMP/movikoma/xcodegen.log"
+          test -f COMICPOP.xcodeproj/project.pbxproj
+
+      - name: Compile unsigned iOS Simulator app
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ios
+          xcodebuild \
+            -project COMICPOP.xcodeproj \
+            -scheme COMICPOP \
+            -configuration Debug \
+            -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO build
+            -derivedDataPath "$RUNNER_TEMP/movikoma-derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/movikoma/ios-build.log"
+
+      - name: Package built Simulator app
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/movikoma-derived/Build/Products/Debug-iphonesimulator/COMICPOP.app"
+          test -d "$app"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$app" "$RUNNER_TEMP/movikoma/COMICPOP-simulator.zip"
+
+      - name: Upload logs and compiled app even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: movikoma-ios-simulator-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/movikoma/*.log
+            ${{ runner.temp }}/movikoma/*.zip
+          if-no-files-found: warn
+          retention-days: 7
