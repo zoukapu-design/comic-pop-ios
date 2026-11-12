@@ -156,7 +156,8 @@ enum MangaStoryPlanner {
             let trustedCaption = clip(MangaCaptionNotePolicy.trustedFallback(
                 note:source.userNote,heard:source.heard),46)
             return MangaStoryBeat(id:source.pinID,index:index+1,
-                caption:japanese(line.caption,otherwise:trustedCaption,limit:46),
+                caption:MangaCaptionNotePolicy.captionCandidate(
+                    japanese(line.caption,otherwise:trustedCaption,limit:46)),
                 dialogue:!source.userDialogue.isEmpty ? clip(source.userDialogue,35) : japanese(line.dialogue,otherwise:"",limit:35),
                 scene:clip(line.scene,120).isEmpty ? standard.scene : clip(line.scene,120),
                 imagePrompt:"Shot \(index+1): \(shotHint(for:index)). "+(clip(line.imagePrompt,590).isEmpty ? standard.imagePrompt : clip(line.imagePrompt,590)),
