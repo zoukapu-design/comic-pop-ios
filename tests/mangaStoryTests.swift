@@ -112,6 +112,21 @@ import Foundation
         precondition(fixedEmotion.beats[0].caption.isEmpty,
                      "Creative notes are never fallback narration after gibberish output")
         precondition(fixedEmotion.beats[0].userSceneNoteJP=="怖く演出して")
+        // The model may output a perfectly Japanese caption that merely
+        // copies the card's visual instruction. This must not be typeset.
+        let leakedJapaneseCaption=try JSONSerialization.data(withJSONObject:[
+            "title":"恐怖の場面","premise":"緊張感",
+            "panels":[[
+                "index":1,"caption":"怖く演出して","dialogue":"",
+                "scene":"dim room","imagePrompt":"person in dim room",
+                "transition":"opening"
+            ]]
+        ])
+        let sanitized=try MangaStoryPlanner.decodeAIStory(
+            String(decoding:leakedJapaneseCaption,as:UTF8.self),evidence:[emotionNote])
+        precondition(sanitized.beats[0].caption.isEmpty,
+                     "An LLM repeating the creative direction must not become printed narration")
+        precondition(sanitized.beats[0].userSceneNoteJP=="怖く演出して")
         let missingPlotJSON=try JSONSerialization.data(withJSONObject:[
             "title":"出来事","premise":"緊張が走る",
             "panels":[[
