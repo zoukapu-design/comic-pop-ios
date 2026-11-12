@@ -15,7 +15,9 @@ import Foundation
         let sceneDescriptions = [
             "主人公が鍋を持ち上げる", "最初はうまくいくと思った",
             "完成した作品に大爆笑", "また挑戦しよう",
-            "今すぐ帰ってきて"
+            "今すぐ帰ってきて", "主人公がカメラを落とした",
+            "友達の肩にタッチした", "料理の色味が変わった",
+            "主人公が背景を見て驚いた"
         ]
         for note in sceneDescriptions {
             precondition(MangaCaptionNotePolicy.captionCandidate(note) == note,
