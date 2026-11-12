@@ -57,6 +57,10 @@ swiftc "$ROOT/ios/COMICPOP/TimelinePinLayout.swift" "$ROOT/tests/timelinePinLayo
 # Native Japanese text preflight, no Cloudflare usage.
 swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" "$ROOT/tests/mangaJapaneseLetteringTests.swift" -o "$BIN"
 "$BIN"
+# Do not print a production direction ("make it scary") as narration.
+swiftc "$ROOT/ios/COMICPOP/MangaCaptionNotePolicy.swift" \
+  "$ROOT/tests/mangaCaptionNotePolicyTests.swift" -o "$BIN"
+"$BIN"
 # Inspect screenplay structure without API calls or image quota.
 swiftc "$ROOT/ios/COMICPOP/MangaStoryQualityAudit.swift" "$ROOT/tests/mangaStoryQualityAuditTests.swift" -o "$BIN"
 "$BIN"
@@ -69,14 +73,15 @@ swiftc "$ROOT/ios/COMICPOP/MangaDraftFilePolicy.swift" \
 # round trips, exact pin identity, and rejection of unrelated video/style.
 swiftc "$ROOT/ios/COMICPOP/CardSceneGrouping.swift" "$ROOT/ios/COMICPOP/Models.swift" \
   "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" \
+  "$ROOT/ios/COMICPOP/MangaCaptionNotePolicy.swift" \
   "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" \
   "$ROOT/ios/COMICPOP/MangaDraftCheckpoint.swift" \
   "$ROOT/tests/mangaDraftCheckpointTests.swift" -o "$BIN"
 "$BIN"
 # Verify exactly one story beat per inserted card and natural Japanese captions.
-swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" "$ROOT/tests/mangaStoryTests.swift" -o "$BIN"
+swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" "$ROOT/ios/COMICPOP/MangaCaptionNotePolicy.swift" "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" "$ROOT/tests/mangaStoryTests.swift" -o "$BIN"
 "$BIN"
-swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" "$ROOT/tests/mangaNarrativeDirectorTests.swift" -o "$BIN"
+swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" "$ROOT/ios/COMICPOP/MangaCaptionNotePolicy.swift" "$ROOT/ios/COMICPOP/MangaNarrativeDirector.swift" "$ROOT/ios/COMICPOP/MangaStory.swift" "$ROOT/tests/mangaNarrativeDirectorTests.swift" -o "$BIN"
 "$BIN"
 for source in "$ROOT"/ios/COMICPOP/*.swift; do swiftc -frontend -parse "$source"; done
 python3 "$ROOT/tests/verify_sources.py"
