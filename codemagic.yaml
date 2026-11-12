@@ -119,7 +119,18 @@ workflows:
     # TestFlight publishing is intentionally disabled until owner reviews IPA.
 
   ios-testflight-upload:
-    name: ムビコマ iOS / Upload to TestFlight (manual trigger)
+    name: ムビコマ iOS / Signed IPA → TestFlight (release branch only)
+    # Build automatically only when the dedicated release branch is updated.
+    # Development commits must NEVER spend a signed IPA / upload build.
+    # Requires Codemagic's existing GitHub webhook to be active.
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'release/testflight'
+          include: true
+          source: true
+      cancel_previous_builds: true
     integrations:
       app_store_connect: Codemagic Cybernetic
     instance_type: mac_mini_m2
@@ -166,7 +177,9 @@ workflows:
           fi
           cd "$CM_BUILD_DIR/ios"
           xcodegen generate --spec project.yml
-          plutil -replace CFBundleVersion -string "${BUILD_NUMBER:-1}" COMICPOP/Info.plist
+          # PROJECT_BUILD_NUMBER increments across all workflows for this app.
+          # Avoid duplicate build numbers on repeated TestFlight uploads.
+          plutil -replace CFBundleVersion -string "${PROJECT_BUILD_NUMBER:-${BUILD_NUMBER:-1}}" COMICPOP/Info.plist
           test -f COMICPOP.xcodeproj/project.pbxproj
       - name: Apply Codemagic managed signing profiles
         script: |
@@ -209,7 +222,9 @@ workflows:
         auth: integration
         submit_to_testflight: false
         submit_to_app_store: false
-    # Uploads the signed IPA to App Store Connect only. The owner adds the build to internal testers manually.
+    # Upload to App Store Connect/TestFlight builds, without automatic external beta review.
+    # A pre-existing internal tester group can make the processed build available
+    # per the user\x27s App Store Connect internal testing setup.
 
   ios-simulator-screenshot:
     name: ムビコマ iOS / 初回案内＋実ホーム画面キャプチャ
