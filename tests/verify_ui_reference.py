@@ -208,7 +208,7 @@ assert "throw MangaVisualStoryError.invalidResponse" in observations
 assert "case 404,405,415,422: return .unsupported" in visualPolicy
 assert "default: return .serverFailure" in visualPolicy
 assert "Do not silently spend more free quota" in visualPolicyTests
-assert "mangaVisualStoryRetryPolicyTests.swift" in preflight
+assert "mangaVisualStoryRetryPolicyTests.swift" in (root / "tests/run.sh").read_text(encoding="utf-8")
 assert "MangaPageIntegrity.firstDuplicatePage(encodedPages)" in store
 assert "MangaArtworkUniqueness.firstUnintendedDuplicate(visualComparisons)" in store
 assert "MangaArtworkUniqueness.firstUnintendedSimilarity(comparisons)" in store
