@@ -361,7 +361,7 @@ style=store.split("func updateStyle(_ style:String)",1)[1].split("func updateCol
 color=store.split("func updateColor(_ value:String)",1)[1].split("func updateTitle(",1)[0]
 title=store.split("func updateTitle(_ value:String)",1)[1].split("func selectDeck(",1)[0]
 assert style.index("guard commit(candidate) else {return}") < style.index("clearGenerated()")
-assert color.index("guard commit(candidate) else {return}") < color.index('UserDefaults.standard.set(true')
+assert color.index("guard commit(candidate) else {return}") < color.rindex('UserDefaults.standard.set(true')
 assert title.index("guard commit(candidate) else {return}") < title.index("rebuildPages()")
 for deckAction, nextAction in (
     ("func selectDeck(", "func addDeck("),
