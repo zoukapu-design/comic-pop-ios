@@ -296,7 +296,7 @@ assert add.index("guard commit(candidate) else {") < add.index("pinsRevision = U
 assert add.index("guard commit(candidate) else {") < add.index("clearGenerated()")
 assert "try? fm.removeItem(at:snapshotURL)" in add
 notes=store.split("func updatePinStory(",1)[1].split("func updatePanelText(",1)[0]
-assert notes.index("guard commit(candidate) else {return}") < notes.index("clearGenerated()")
+assert notes.index("guard commit(candidate) else {return false}") < notes.index("clearGenerated()")
 remove=store.split("func removePin(",1)[1].split("func clearPins(allowDiscard:Bool = false)",1)[0]
 assert remove.index("guard commit(candidate) else {return}") < remove.index("removeItem(at:")
 clear=store.split("func clearPins(allowDiscard:Bool = false)",1)[1].split("func snapshot(for pin:",1)[0]
