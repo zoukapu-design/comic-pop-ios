@@ -95,9 +95,8 @@ enum MangaStoryPlanner {
             // generic "dramatic turn" or fabricated "happy ending" captions.
             // The user can explicitly add narration in the review editor.
             let caption: String
-            if !e.userNote.isEmpty {caption=clip(e.userNote,46)}
-            else if !e.heard.isEmpty {caption=clip(e.heard,46)}
-            else {caption=""}
+            caption=clip(MangaCaptionNotePolicy.trustedFallback(
+                note:e.userNote,heard:e.heard),46)
             return MangaStoryBeat(id:e.pinID,index:index+1,caption:caption,
                 dialogue:clip(e.userDialogue,35),scene:role(for:e.cardID),
                 imagePrompt:"Shot \(index+1): \(cue.role.imageComposition). \(shotHint(for:index)). Story duty: \(cue.role.narrativeRequirement). Constraints: \(cue.evidenceRestrictions). Keep the same protagonists and setting. Combine ALL directions for this single scene: \(e.cardHint). Primary role: \(role(for:e.cardID)). Observed scene: \(e.visual). Transition: \(e.neighborVisual). User note: \(e.userNote).",
@@ -154,9 +153,8 @@ enum MangaStoryPlanner {
             // an unrelated dramatic cliché that was not observed in the video.
             // Keep trusted user notes / recognized speech when available;
             // otherwise leave text empty for the storyboard review.
-            let trustedCaption = !source.userNote.isEmpty
-                ? clip(source.userNote,46)
-                : (!source.heard.isEmpty ? clip(source.heard,46) : "")
+            let trustedCaption = clip(MangaCaptionNotePolicy.trustedFallback(
+                note:source.userNote,heard:source.heard),46)
             return MangaStoryBeat(id:source.pinID,index:index+1,
                 caption:japanese(line.caption,otherwise:trustedCaption,limit:46),
                 dialogue:!source.userDialogue.isEmpty ? clip(source.userDialogue,35) : japanese(line.dialogue,otherwise:"",limit:35),
