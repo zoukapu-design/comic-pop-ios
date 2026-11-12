@@ -30,6 +30,8 @@ jobs:
         run: mkdir -p "$RUNNER_TEMP/movikoma"
 
       - name: Run all Swift and resource preflight tests
+        id: preflight
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -55,6 +57,8 @@ jobs:
           test -f COMICPOP.xcodeproj/project.pbxproj
 
       - name: Compile unsigned iOS Simulator app
+        id: simulator
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -70,6 +74,7 @@ jobs:
             build 2>&1 | tee "$RUNNER_TEMP/movikoma/ios-build.log"
 
       - name: Package built Simulator app
+        if: steps.simulator.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -79,6 +84,8 @@ jobs:
             "$app" "$RUNNER_TEMP/movikoma/COMICPOP-simulator.zip"
 
       - name: Compile unsigned physical iPhone target
+        id: device
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -105,3 +112,17 @@ jobs:
             ${{ runner.temp }}/movikoma/*.zip
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Enforce test and both compiler results
+        if: always()
+        shell: bash
+        run: |
+          echo "Preflight: ${{ steps.preflight.outcome }}"
+          echo "Simulator: ${{ steps.simulator.outcome }}"
+          echo "iPhone: ${{ steps.device.outcome }}"
+          if [[ "${{ steps.preflight.outcome }}" != success || \
+                "${{ steps.simulator.outcome }}" != success || \
+                "${{ steps.device.outcome }}" != success ]]; then
+            echo "FAIL: Review uploaded Swift preflight and Xcode compiler logs."
+            exit 1
+          fi
