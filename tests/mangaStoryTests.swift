@@ -72,6 +72,13 @@ import Foundation
                      "Emotion-only card notes are directions, not observed motion")
         precondition(emotionFallback.beats[0].userSceneNoteJP=="怖く演出して",
                      "Emotional directions must not disappear")
+        precondition(emotionFallback.beats[0].caption.isEmpty,
+                     "Do not print an art-direction-only note as manga narration")
+        var spokenEmotion=emotionNote
+        spokenEmotion.heard="うわっ！"
+        let withSpeech=MangaStoryPlanner.fallback([spokenEmotion])
+        precondition(withSpeech.beats[0].caption=="うわっ！",
+                     "Actual recognized speech should take the place of art directions")
         let emotionMissingPlot=try JSONSerialization.data(withJSONObject:[
             "title":"恐怖の場面","premise":"緊張感のある映像",
             "panels":[[
@@ -85,6 +92,21 @@ import Foundation
         precondition(emotionAI.beats[0].plotDescriptionJP.isEmpty,
                      "An absent AI plot stays empty even when a user asks for horror")
         precondition(emotionAI.beats[0].userSceneNoteJP=="怖く演出して")
+        // If the AI caption is invalid, never silently print the creative note
+        // in its place. The user can review/edit the empty caption before draw.
+        let invalidEmotionCaption=try JSONSerialization.data(withJSONObject:[
+            "title":"恐怖の場面","premise":"緊張感",
+            "panels":[[
+                "index":1,"caption":"bad caption 123","dialogue":"",
+                "scene":"dim room","imagePrompt":"person in dim room",
+                "transition":"opening"
+            ]]
+        ])
+        let fixedEmotion=try MangaStoryPlanner.decodeAIStory(
+            String(decoding:invalidEmotionCaption,as:UTF8.self),evidence:[emotionNote])
+        precondition(fixedEmotion.beats[0].caption.isEmpty,
+                     "Creative notes are never fallback narration after gibberish output")
+        precondition(fixedEmotion.beats[0].userSceneNoteJP=="怖く演出して")
         let missingPlotJSON=try JSONSerialization.data(withJSONObject:[
             "title":"出来事","premise":"緊張が走る",
             "panels":[[
