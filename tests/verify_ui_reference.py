@@ -270,7 +270,15 @@ for mutator, following in (
     operation=store.split(mutator,1)[1].split(following,1)[0]
     assert "guard !isGenerating" in operation, mutator
 # No fabricated narration when there is no video evidence or user-supplied text.
-assert 'else {caption=""}' in story
+# Production directions belong to the artwork prompt, never literal narration.
+captionPolicy=(root / "ios/COMICPOP/MangaCaptionNotePolicy.swift").read_text(encoding="utf-8")
+captionTests=(root / "tests/mangaCaptionNotePolicyTests.swift").read_text(encoding="utf-8")
+assert "MangaCaptionNotePolicy.trustedFallback(" in story
+assert "enum MangaCaptionNotePolicy" in captionPolicy
+assert "productionMarkers" in captionPolicy and "productionEndings" in captionPolicy
+assert "mangaCaptionNotePolicyTests.swift" in preflight
+assert "Creative notes are never fallback narration" in (root / "tests/mangaStoryTests.swift").read_text(encoding="utf-8")
+assert "On-device speech should replace a creative instruction" in captionTests
 assert 'plotDescriptionJP:""' in story
 # A failed save must not delete existing pins, snapshots, or story notes.
 atomicStore=(root / "ios/COMICPOP/StudioAtomicPersistence.swift").read_text(encoding="utf-8")
