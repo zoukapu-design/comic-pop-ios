@@ -1,0 +1,176 @@
+name: ムビコマ TestFlight 自動配信（GitHub Actionsのみ）
+# No Codemagic integration, workflow or API is used.
+on:
+  push:
+    branches:
+      - release/testflight
+    paths:
+      - 'ios/**'
+      - 'tests/**'
+      - '.github/workflows/movikoma-testflight.yml'
+      - 'release/TRIGGER_TESTFLIGHT.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: movikoma-testflight
+  cancel-in-progress: false
+
+jobs:
+  credentials:
+    name: Check Apple signing credentials
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          if [[ -n "$ASC_KEY_ID" && -n "$ASC_ISSUER_ID" && -n "$ASC_PRIVATE_KEY" && -n "$APPLE_TEAM_ID" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Required Apple credentials are present."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::error::TestFlight upload cannot begin. Register repository Actions secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY (whole .p8), and APPLE_TEAM_ID. Never add them to source code."
+            exit 1
+          fi
+
+  archive-and-upload:
+    name: Sign and upload to TestFlight
+    needs: credentials
+    if: needs.credentials.outputs.ready == 'true'
+    runs-on: macos-26-intel
+    timeout-minutes: 55
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      BUNDLE_ID: com.zoukapu.comicpop
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up secure Apple signing key (not committed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
+          [[ -s "$KEY_PATH" ]]
+          grep -q "BEGIN PRIVATE KEY" "$KEY_PATH"
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Run Swift and UI preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tests/run.sh
+
+      - name: Select Xcode and generate the project
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          cd ios
+          sed -i '' "s/com.example.comicpop.dev/$BUNDLE_ID/g" project.yml
+          xcodegen generate --spec project.yml
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" COMICPOP/Info.plist
+          test -f COMICPOP.xcodeproj/project.pbxproj
+
+      - name: Archive signed iPhone app using Apple cloud signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ios/COMICPOP.xcodeproj \
+            -scheme COMICPOP \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/MOVIKOMA.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            archive
+          test -d "$RUNNER_TEMP/MOVIKOMA.xcarchive"
+
+      - name: Export signed App Store Connect IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          plutil -lint "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/MOVIKOMA.xcarchive" \
+            -exportPath "$RUNNER_TEMP/ipa" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          ls "$RUNNER_TEMP"/ipa/*.ipa >/dev/null
+
+      - name: Verify signed IPA identity and App Store requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/ipa" "$BUNDLE_ID" <<'PY'
+          import pathlib, plistlib, sys, zipfile
+          ipas=list(pathlib.Path(sys.argv[1]).glob("*.ipa"))
+          assert len(ipas)==1, "Expected one signed IPA"
+          with zipfile.ZipFile(ipas[0]) as archive:
+              path=next((x for x in archive.namelist() if x.startswith("Payload/") and x.endswith(".app/Info.plist")),None)
+              assert path, "App plist not present"
+              data=plistlib.loads(archive.read(path))
+              assert data["CFBundleIdentifier"]==sys.argv[2], "Wrong app identity"
+              assert data.get("UILaunchStoryboardName")=="LaunchScreen", "LaunchScreen is missing"
+              assert set(("UIInterfaceOrientationPortrait","UIInterfaceOrientationPortraitUpsideDown","UIInterfaceOrientationLandscapeLeft","UIInterfaceOrientationLandscapeRight")).issubset(data.get("UISupportedInterfaceOrientations",[])), "iPad orientations are missing"
+              assert any("LaunchScreen.storyboardc/" in n for n in archive.namelist()), "Compiled LaunchScreen is missing"
+              print("PASS: Signed IPA bundle, launch screen, device orientation")
+          PY
+
+      - name: Upload IPA directly to App Store Connect TestFlight
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          cp "$ASC_KEY_PATH" "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          shopt -s nullglob
+          ipas=("$RUNNER_TEMP"/ipa/*.ipa)
+          [[ "${#ipas[@]}" -eq 1 ]]
+          xcrun altool --upload-app -f "${ipas[0]}" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+          echo "TestFlight IPA upload command accepted by Apple."
+
+      - name: Destroy ephemeral authentication material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP"/AuthKey_*.p8 "$HOME"/.appstoreconnect/private_keys/AuthKey_*.p8
