@@ -28,7 +28,11 @@ struct PreviewPanel: Identifiable {
     @Published private(set) var storyCreationMode: String = ""
     @Published var cloudflareAccount: String = UserDefaults.standard.string(forKey:"cfAccountId") ?? ""
     @Published var isConnected = false
-    @Published var confirmsFree = false
+    /// Remember the user's explicit Workers Free confirmation across app updates.
+    /// Cloudflare plan status still cannot be verified automatically.
+    @Published var confirmsFree = UserDefaults.standard.bool(forKey:"cfWorkersFreeConfirmed") {
+        didSet { UserDefaults.standard.set(confirmsFree,forKey:"cfWorkersFreeConfirmed") }
+    }
     @Published var deckEditing = false
     @Published var titleDraft = ""
     let player = AVPlayer()
@@ -607,6 +611,34 @@ struct PreviewPanel: Identifiable {
             isConnected=true
             message="個人GPU接続を確認しました。契約種別はAPIから確認できません。"
         } catch {message="接続失敗：\(error.localizedDescription)"}
+    }
+    /// Verify a token already stored on this iPhone without asking for it again.
+    /// Does not print, transmit to our server or overwrite the Keychain token.
+    @discardableResult func reconnectSavedCloudflare(account candidate:String) async -> Bool {
+        guard confirmsFree else {
+            message="Workers Free契約を確認してから接続してください"
+            return false
+        }
+        let cleanAccount=candidate.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !cleanAccount.isEmpty else {message="Account IDを入力してください";return false}
+        guard let savedToken=CloudflareCredentialVault.load(),!savedToken.isEmpty else {
+            isConnected=false
+            message="保存済みトークンがありません。新しいAPIトークンを登録してください"
+            return false
+        }
+        do {
+            let valid=try await CloudflareAIService.verify(account:cleanAccount,token:savedToken)
+            guard valid else {throw MangaError.server("保存済みCloudflareトークンが無効です")}
+            cloudflareAccount=cleanAccount
+            UserDefaults.standard.set(cleanAccount,forKey:"cfAccountId")
+            isConnected=true
+            message="保存済みAPIトークンの有効性を確認しました"
+            return true
+        } catch {
+            isConnected=false
+            message="接続確認に失敗しました：\(error.localizedDescription)"
+            return false
+        }
     }
     func disconnect(){CloudflareCredentialVault.remove();isConnected=false;message="個人GPU接続を解除しました"}
     /// Gather evidence around EACH timestamp and build ONE continuous script
