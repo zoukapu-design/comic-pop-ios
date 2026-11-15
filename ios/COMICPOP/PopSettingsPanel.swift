@@ -63,20 +63,38 @@ struct PopSettingsPanel: View {
                                 .font(.system(size:16,weight:.black,design:.rounded))
                             Text("AIで描き直す場合だけ、あなた自身のCloudflareアカウントを接続します。トークンはiPhoneのKeychainに保存されます。")
                                 .font(.system(size:12,weight:.medium))
-                            if store.tokenExists && !store.cloudflareAccount.isEmpty && !editingCredentials {
+                            if store.tokenExists && !editingCredentials {
                                 Label("APIトークンはこのiPhoneに保存済み",systemImage:"lock.shield.fill")
                                     .font(.system(size:12,weight:.bold))
                                     .foregroundStyle(PopColor.royal)
-                                Text("以前のAPIトークンを入力し直す必要はありません。AI漫画化を利用する際は、下のWorkers Free契約を確認してください。")
+                                Text("トークンの再発行・再入力は不要です。保存済みトークンで接続確認できます。")
                                     .font(.system(size:11,weight:.medium))
-                                Text("接続アカウント：\(store.cloudflareAccount)")
-                                    .font(.system(size:10,weight:.medium))
-                                    .textSelection(.enabled)
+                                TextField("Cloudflare Account ID",text:$account)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .textFieldStyle(.roundedBorder)
                                 Toggle("Workers Free契約を確認済み",isOn:$store.confirmsFree)
                                     .font(.system(size:12,weight:.semibold))
                                     .tint(PopColor.blue)
+                                if store.isConnected && account == store.cloudflareAccount {
+                                    Label("接続情報は保存されています。AI漫画化には再接続不要です。",
+                                          systemImage:"checkmark.circle.fill")
+                                        .font(.system(size:11,weight:.semibold))
+                                        .foregroundStyle(PopColor.royal)
+                                }
+                                PopYellowButton(title:isConnecting ? "保存済みトークンを確認中…" : "保存済みトークンで接続確認",
+                                                icon:"checkmark.shield.fill",
+                                                enabled:!isConnecting &&
+                                                !account.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty &&
+                                                store.confirmsFree) {
+                                    isConnecting=true
+                                    Task {
+                                        _ = await store.reconnectSavedCloudflare(account:account)
+                                        isConnecting=false
+                                    }
+                                }
                                 HStack(spacing:14) {
-                                    Button("接続情報を変更") {
+                                    Button("新しいトークンに変更") {
                                         editingCredentials=true
                                     }
                                     Button("接続解除",role:.destructive) {
@@ -97,14 +115,14 @@ struct PopSettingsPanel: View {
                                 Toggle("Workers Free契約を確認済み",isOn:$store.confirmsFree)
                                     .font(.system(size:12,weight:.semibold))
                                     .tint(PopColor.blue)
-                                PopYellowButton(title:isConnecting ? "接続を確認中…" : "AIアカウントを接続",
+                                PopYellowButton(title:isConnecting ? "接続を確認中…" : "新しいAPIトークンを登録",
                                                 icon:"link",enabled:!isConnecting && !account.isEmpty &&
                                                 !token.isEmpty && store.confirmsFree) {
                                     isConnecting=true
                                     store.cloudflareAccount=account
                                     Task {
                                         await store.connect(token:token)
-                                        if store.tokenExists && !store.message.hasPrefix("接続失敗") {
+                                        if store.isConnected {
                                             token=""
                                             editingCredentials=false
                                         }
@@ -112,9 +130,12 @@ struct PopSettingsPanel: View {
                                     }
                                 }
                                 if store.tokenExists {
-                                    Label("元のトークンは保存されています。変更する場合だけ新しいトークンを入力してください。",
-                                          systemImage:"info.circle")
-                                        .font(.system(size:10,weight:.medium))
+                                    Button("保存済みトークンに戻る") {
+                                        token=""
+                                        account=store.cloudflareAccount
+                                        editingCredentials=false
+                                    }
+                                    .font(.system(size:11,weight:.bold))
                                 } else {
                                     Text("保存済みトークンが見つかりません。Cloudflareで新しいAPIトークンを作成して接続してください。")
                                         .font(.system(size:10,weight:.medium))
