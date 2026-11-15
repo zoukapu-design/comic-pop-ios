@@ -620,4 +620,19 @@ assert 'movikoma-home.png' in codemagic
 assert 'com.example.comicpop.dev -pop.didSeeWelcome YES' in codemagic
 assert 'ios-unsigned-check:' in codemagic
 assert 'ios-testflight-upload:' in codemagic
+# Reinstalling a TestFlight build must not make a stored Keychain token
+# appear missing simply because the text field is blank.
+assert "store.tokenExists && !editingCredentials" in settings
+assert "保存済みトークンで接続確認" in settings
+assert "reconnectSavedCloudflare(account:account)" in settings
+assert "新しいトークンに変更" in settings
+assert 'cfWorkersFreeConfirmed' in store
+savedTokenReconnect=store.split("func reconnectSavedCloudflare(account candidate:String) async -> Bool {",1)[1].split("func disconnect()",1)[0]
+assert "CloudflareCredentialVault.load()" in savedTokenReconnect
+assert "CloudflareAIService.verify(account:cleanAccount,token:savedToken)" in savedTokenReconnect
+assert "CloudflareCredentialVault.save(" not in savedTokenReconnect
+assert 'UserDefaults.standard.set(cleanAccount,forKey:"cfAccountId")' in savedTokenReconnect
+assert "APIトークンはiPhone Keychainに保存済み。再入力は不要です。" in popui
+print("PASS: saved Cloudflare Keychain token reconnects without re-entry, and explicit Free confirmation persists")
+
 print("PASS: one-shot Codemagic QA captures both first launch and active Rex home")
