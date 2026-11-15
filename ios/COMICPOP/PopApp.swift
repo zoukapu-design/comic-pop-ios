@@ -439,17 +439,24 @@ struct PopSettingsSheet:View {
                 Section("Cloudflare Workers AI（任意）") {
                     TextField("Account ID",text:$account)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    SecureField("Workers AI API Token",text:$token)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
                     Toggle("Workers Free契約を確認しました",isOn:$store.confirmsFree)
-                    Button("接続する") {
-                        store.cloudflareAccount=account
-                        Task {await store.connect(token:token);token=""}
-                    }
-                    .disabled(account.isEmpty || token.isEmpty || !store.confirmsFree)
                     if store.tokenExists {
-                        Label("APIトークンはiPhone Keychainに保存中",systemImage:"lock.shield")
+                        Label("APIトークンはiPhone Keychainに保存済み。再入力は不要です。",
+                              systemImage:"lock.shield")
+                        Button("保存済みトークンで接続確認") {
+                            Task { _ = await store.reconnectSavedCloudflare(account:account) }
+                        }
+                        .disabled(account.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ||
+                                  !store.confirmsFree)
                         Button("接続解除",role:.destructive) {store.disconnect()}
+                    } else {
+                        SecureField("Workers AI API Token",text:$token)
+                            .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        Button("新しいAPIトークンを登録") {
+                            store.cloudflareAccount=account
+                            Task {await store.connect(token:token);if store.isConnected {token=""}}
+                        }
+                        .disabled(account.isEmpty || token.isEmpty || !store.confirmsFree)
                     }
                     Text("Cloudflareのプラン種別はアプリから検証できません。Paid契約の課金を防止できないため、利用者自身で必ず確認してください。")
                         .font(.caption).foregroundStyle(.secondary)
