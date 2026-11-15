@@ -8,6 +8,7 @@ struct PopSettingsPanel: View {
     @State private var account = ""
     @State private var token = ""
     @State private var isConnecting = false
+    @State private var editingCredentials = false
 
     var body: some View {
         NavigationStack {
@@ -62,36 +63,61 @@ struct PopSettingsPanel: View {
                                 .font(.system(size:16,weight:.black,design:.rounded))
                             Text("AIで描き直す場合だけ、あなた自身のCloudflareアカウントを接続します。トークンはiPhoneのKeychainに保存されます。")
                                 .font(.system(size:12,weight:.medium))
-                            TextField("Cloudflare Account ID",text:$account)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                                .textFieldStyle(.roundedBorder)
-                            SecureField("Workers AI API Token",text:$token)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                                .textFieldStyle(.roundedBorder)
-                            Toggle("Workers Free契約を確認済み",isOn:$store.confirmsFree)
-                                .font(.system(size:12,weight:.semibold))
-                                .tint(PopColor.blue)
-                            PopYellowButton(title:isConnecting ? "接続を確認中…" : "AIアカウントを接続",
-                                            icon:"link",enabled:!isConnecting && !account.isEmpty &&
-                                            !token.isEmpty && store.confirmsFree) {
-                                isConnecting=true
-                                store.cloudflareAccount=account
-                                Task {
-                                    await store.connect(token:token)
-                                    token=""
-                                    isConnecting=false
+                            if store.tokenExists && !store.cloudflareAccount.isEmpty && !editingCredentials {
+                                Label("APIトークンはこのiPhoneに保存済み",systemImage:"lock.shield.fill")
+                                    .font(.system(size:12,weight:.bold))
+                                    .foregroundStyle(PopColor.royal)
+                                Text("以前のAPIトークンを入力し直す必要はありません。AI漫画化を利用する際は、下のWorkers Free契約を確認してください。")
+                                    .font(.system(size:11,weight:.medium))
+                                Text("接続アカウント：\(store.cloudflareAccount)")
+                                    .font(.system(size:10,weight:.medium))
+                                    .textSelection(.enabled)
+                                Toggle("Workers Free契約を確認済み",isOn:$store.confirmsFree)
+                                    .font(.system(size:12,weight:.semibold))
+                                    .tint(PopColor.blue)
+                                HStack(spacing:14) {
+                                    Button("接続情報を変更") {
+                                        editingCredentials=true
+                                    }
+                                    Button("接続解除",role:.destructive) {
+                                        store.disconnect()
+                                        editingCredentials=true
+                                    }
                                 }
-                            }
-                            if store.tokenExists {
-                                HStack(spacing:7) {
-                                    Label("トークン保存済み",systemImage:"lock.shield.fill")
-                                        .font(.system(size:11,weight:.bold))
-                                        .foregroundStyle(PopColor.royal)
-                                    Spacer()
-                                    Button("接続解除",role:.destructive) {store.disconnect()}
-                                        .font(.system(size:11,weight:.bold))
+                                .font(.system(size:11,weight:.bold))
+                            } else {
+                                TextField("Cloudflare Account ID",text:$account)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .textFieldStyle(.roundedBorder)
+                                SecureField("Workers AI API Token",text:$token)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .textFieldStyle(.roundedBorder)
+                                Toggle("Workers Free契約を確認済み",isOn:$store.confirmsFree)
+                                    .font(.system(size:12,weight:.semibold))
+                                    .tint(PopColor.blue)
+                                PopYellowButton(title:isConnecting ? "接続を確認中…" : "AIアカウントを接続",
+                                                icon:"link",enabled:!isConnecting && !account.isEmpty &&
+                                                !token.isEmpty && store.confirmsFree) {
+                                    isConnecting=true
+                                    store.cloudflareAccount=account
+                                    Task {
+                                        await store.connect(token:token)
+                                        if store.tokenExists && !store.message.hasPrefix("接続失敗") {
+                                            token=""
+                                            editingCredentials=false
+                                        }
+                                        isConnecting=false
+                                    }
+                                }
+                                if store.tokenExists {
+                                    Label("元のトークンは保存されています。変更する場合だけ新しいトークンを入力してください。",
+                                          systemImage:"info.circle")
+                                        .font(.system(size:10,weight:.medium))
+                                } else {
+                                    Text("保存済みトークンが見つかりません。Cloudflareで新しいAPIトークンを作成して接続してください。")
+                                        .font(.system(size:10,weight:.medium))
                                 }
                             }
                             Text("注意：アプリは契約が有料か無料かを自動判定できません。接続前にCloudflareの契約・利用枠を必ず確認してください。")
