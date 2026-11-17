@@ -18,7 +18,10 @@ assert "https://api.cloudflare.com/client/v4" in api
 assert "comic-pop-preview.vercel.app" not in api
 assert "input_image_0" in api and "multipart/form-data" in api
 assert (src / "Security.swift").read_text().count("kSecClassGenericPassword") >= 3
-assert "CloudflareCredentialVault.save(token)" in store
+assert "CloudflareCredentialVault.save(cleanToken)" in store
+assert "func connect(account candidate:String,token:String) async -> Bool" in store
+assert "CloudflareCredentialVault.load()" in store
+assert "CloudflareSetupPolicy.shouldShowFirstRun(" in (src / "PopApp.swift").read_text(encoding="utf-8")
 assert "capturedSession == videoSession &&" in store and "capturedReset == pinsResetEpoch &&" in store and "capturedRevision == pinsRevision" in store
 assert "capturedDraftRevision == draftRevision" in store and "draftRevision=UUID()" in store
 assert "startingSession == videoSession && startingRevision == pinsRevision" in store
