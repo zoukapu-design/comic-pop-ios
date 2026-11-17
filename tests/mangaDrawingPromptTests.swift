@@ -121,6 +121,23 @@ import Foundation
         precondition(emotionPrompt.contains("USER'S ORIGINAL CARD NOTE (HIGH PRIORITY): 怖く演出して"),
                      "Emotional direction must still reach image inference")
         precondition(emotionPrompt.count<=MangaDrawingPrompt.maxCharacters)
+        // A source-locked manga must NOT depict the model's invented plot
+        // as a factual visual event. Even saturated combined card notes remain.
+        let strict=MangaDrawingPrompt.compose(dense,sourceLocked:true)
+        precondition(strict.count<=MangaDrawingPrompt.maxCharacters)
+        precondition(strict.hasSuffix(MangaDrawingPrompt.noLettering))
+        precondition(strict.contains("SOURCE-LOCKED IMAGE EDIT OF input_image_0"))
+        precondition(strict.contains(longNotes),"The source lock must not delete original notes")
+        precondition(strict.contains("dramatic,horror,punch"),
+                     "All three same-timestamp cards must survive strict mode")
+        precondition(!strict.contains("ACTUAL PLOT EVENT"),
+                     "Source-locked visuals must ignore unsupported screenplay events")
+        precondition(!strict.contains("SHOT VARIETY"),
+                     "Do not hallucinate another pose to make scenes different")
+        precondition(strict.contains("MANGA STYLE ONLY"))
+        precondition(strict.contains("REFERENCE: input_image_0"),
+                     "Strict mode must use the actual video frame as sole reference")
+        print("PASS: source-locked manga prompt preserves source subject, card notes and all card IDs without invented actions")
         print("PASS: manga drawing prompt priorities — 12 card IDs, manual notes, causality, continuity and no AI lettering")
     }
 }
