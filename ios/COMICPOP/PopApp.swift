@@ -468,8 +468,11 @@ struct PopSettingsSheet:View {
                         SecureField("Workers AI API Token",text:$token)
                             .textInputAutocapitalization(.never).autocorrectionDisabled()
                         Button("新しいAPIトークンを登録") {
-                            store.cloudflareAccount=account
-                            Task {await store.connect(token:token);if store.isConnected {token=""}}
+                            Task {
+                                if await store.connect(account:account,token:token) {
+                                    token=""
+                                }
+                            }
                         }
                         .disabled(account.isEmpty || token.isEmpty || !store.confirmsFree)
                     }
