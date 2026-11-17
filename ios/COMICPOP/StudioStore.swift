@@ -834,7 +834,7 @@ struct PreviewPanel: Identifiable {
               let index=plan.beats.firstIndex(where:{$0.id==id}) else {return}
         var beats=plan.beats
         let old=beats[index]
-        beats[index]=MangaStoryBeat(
+        var approved=MangaStoryBeat(
             id:old.id,index:old.index,
             caption:String(caption.prefix(100)),
             dialogue:String(dialogue.prefix(80)),
@@ -845,6 +845,11 @@ struct PreviewPanel: Identifiable {
             causalLinkJP:old.index==1 ? "" : String(causalLink.prefix(110)),
             userSceneNoteJP:old.userSceneNoteJP
         )
+        // Pressing the storyboard Save button explicitly approves this
+        // Japanese. AI suggestions are otherwise never printed by default.
+        approved.reviewedCaption=approved.caption
+        approved.reviewedDialogue=approved.dialogue
+        beats[index]=approved
         storyPlan=MangaStoryPlan(
             title:plan.title,premise:plan.premise,beats:beats,
             isAIStory:plan.isAIStory,usedVisualEvidence:plan.usedVisualEvidence
@@ -854,6 +859,22 @@ struct PreviewPanel: Identifiable {
             return
         }
         message="脚本の修正を端末に保存しました。画像生成の追加消費はありません。"
+    }
+
+    /// Never print an unconfirmed AI sentence or speech-recognition guess
+    /// as though it was recorded in the video. User notes, explicitly entered
+    /// dialogue and storyboard-approved text are all valid sources.
+    private func visibleLettering(for beat:MangaStoryBeat,pin:MangaPin)
+        -> (caption:String,dialogue:String) {
+        let originalScene=scenePlan.scenes.first(where:{$0.id==pin.id})
+        let originalDialogue=originalScene?.pins.map(\.dialogue)
+            .filter{!$0.isEmpty}.joined(separator:" / ") ?? ""
+        return (
+            MangaVisibleLetteringPolicy.caption(
+                reviewed:beat.reviewedCaption,originalNote:beat.userSceneNoteJP),
+            MangaVisibleLetteringPolicy.dialogue(
+                reviewed:beat.reviewedDialogue,userDialogue:originalDialogue)
+        )
     }
 
     func generate() async {
@@ -981,10 +1002,11 @@ struct PreviewPanel: Identifiable {
                 } else {
                     finishedImage=faithfulImage
                 }
+                let visible=visibleLettering(for:beat,pin:pin)
                 generated.append(PreviewPanel(
                     id:pin.id,cardTitle:card.title,original:original,
                     drawing:finishedImage,warning:nil,
-                    caption:beat.caption,dialogue:beat.dialogue,
+                    caption:visible.caption,dialogue:visible.dialogue,
                     storyPrompt:beat.imagePrompt,storyScene:beat.scene
                 ))
                 dirtyArtworkIDs.insert(pin.id)
@@ -1071,10 +1093,11 @@ struct PreviewPanel: Identifiable {
             guard let beat=storyPlan?.beats.first(where:{$0.id==pin.id}) else {
                 clearGenerated();message="カードの脚本が不足しています";return
             }
+            let visible=visibleLettering(for:beat,pin:pin)
             generated.append(PreviewPanel(
                 id:pin.id,cardTitle:combinedCard(for:pin).title,
                 original:original,drawing:drawing,warning:nil,
-                caption:beat.caption,dialogue:beat.dialogue,
+                caption:visible.caption,dialogue:visible.dialogue,
                 storyPrompt:beat.imagePrompt,storyScene:beat.scene
             ))
             dirtyArtworkIDs.insert(pin.id)
@@ -1289,7 +1312,7 @@ struct PreviewPanel: Identifiable {
     }
 
     func rebuildPages() {
-        let title=data.workTitle.isEmpty ? (storyPlan?.title ?? "ムビコマ") : data.workTitle
+        let title=MangaVisibleLetteringPolicy.pageTitle(userTitle:data.workTitle)
         pageImages=stride(from:0,to:generated.count,by:4).map { offset in
             ComicRenderer.page(
                 panels:Array(generated[offset..<min(offset+4,generated.count)]),
@@ -1356,7 +1379,7 @@ struct PreviewPanel: Identifiable {
         guard filenames.count == scenePlan.pages else {
             message="ページ数が一致しません";return false
         }
-        let work=SavedWork(id:UUID(),title:data.workTitle.isEmpty ? (storyPlan?.title ?? "漫画 \(Date().formatted(date:.abbreviated,time:.shortened))") : data.workTitle,files:filenames,createdAt:Date(),sceneCount:generated.count,style:data.style)
+        let work=SavedWork(id:UUID(),title:MangaVisibleLetteringPolicy.pageTitle(userTitle:data.workTitle),files:filenames,createdAt:Date(),sceneCount:generated.count,style:data.style)
         data.works.insert(work,at:0)
         guard persist() else {
             data.works.removeAll{$0.id==work.id}
