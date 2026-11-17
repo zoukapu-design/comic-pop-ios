@@ -784,9 +784,15 @@ struct PreviewPanel: Identifiable {
             message="脚本は作成済みです。内容を確認してから作画してください。再作成は脚本画面の確認ボタンから行えます。"
             return
         }
-        guard confirmsFree,let token=CloudflareCredentialVault.load(),
+        guard confirmsFree else {
+            message="AI漫画化の前に、設定でWorkers Free契約を確認してください。保存済みトークンの再入力は不要です"
+            return
+        }
+        guard let token=CloudflareCredentialVault.load(),
               !cloudflareAccount.isEmpty else {
-            message="Cloudflareの無料枠を確認してAIアカウントを接続してください"
+            message=tokenExists ?
+                "保存済みトークンはあります。設定でCloudflare Account IDを確認してください" :
+                "初回のみCloudflareのAccount IDとAPIトークンを登録してください"
             return
         }
         let capturedSession=videoSession
@@ -856,7 +862,17 @@ struct PreviewPanel: Identifiable {
         let pins=scenePlan.renderPins
         guard !pins.isEmpty else {message="まずカードを刺してください";return}
         guard pins.count<=12 else {message="無料枠保護のため一度に12コマまでです。カードは削除していません。";return}
-        guard confirmsFree,let token=CloudflareCredentialVault.load(),!cloudflareAccount.isEmpty else {message="自分のWorkers Freeアカウントを接続してください";return}
+        guard confirmsFree else {
+            message="設定でWorkers Free契約を確認してください。保存済みトークンの再入力は不要です"
+            return
+        }
+        guard let token=CloudflareCredentialVault.load(),
+              !cloudflareAccount.isEmpty else {
+            message=tokenExists ?
+                "Cloudflare Account IDを設定で確認してください。トークンは保存済みです" :
+                "初回のみCloudflareアカウントを接続してください"
+            return
+        }
         let startingSession=videoSession
         let startingRevision=pinsRevision
         let style=data.style
