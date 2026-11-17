@@ -633,6 +633,39 @@ assert "CloudflareAIService.verify(account:cleanAccount,token:savedToken)" in sa
 assert "CloudflareCredentialVault.save(" not in savedTokenReconnect
 assert 'UserDefaults.standard.set(cleanAccount,forKey:"cfAccountId")' in savedTokenReconnect
 assert "APIトークンはiPhone Keychainに保存済み。再入力は不要です。" in popui
+# The shipped root must use the first-launch one-time setup (not a
+# decorative settings screen), and all AI entry paths must honor saved credentials.
+onboarding=(root / "ios/COMICPOP/PopCloudflareOnboarding.swift").read_text(encoding="utf-8")
+policy=(root / "ios/COMICPOP/CloudflareSetupPolicy.swift").read_text(encoding="utf-8")
+security=(root / "ios/COMICPOP/Security.swift").read_text(encoding="utf-8")
+setupTests=(root / "tests/cloudflareSetupPolicyTests.swift").read_text(encoding="utf-8")
+assert 'pop.didCompleteCloudflareSetup' in popui
+assert 'CloudflareSetupPolicy.shouldShowFirstRun(' in popui
+assert 'PopCloudflareOnboarding(store:store)' in popui
+assert 'if store.hasCloudflareSetup {' in popui
+assert 'didCompleteCloudflareSetup=true' in popui
+assert 'CloudflareSetupPolicy.shouldShowFirstRun(' in popui
+assert 'PopWelcomeScreen {didSeeWelcome=true}' in popui
+assert 'CloudflareSetupPolicy.mayGenerateWithAI(' in genre
+assert 'var hasCloudflareSetup: Bool {' in store
+assert 'isConnected=hasCloudflareSetup' in store
+assert 'func connect(account candidate:String,token:String) async -> Bool' in store
+saveConnect=store.split('func connect(account candidate:String,token:String) async -> Bool {',1)[1].split('func reconnectSavedCloudflare(',1)[0]
+assert saveConnect.index('CloudflareAIService.verify(') < saveConnect.index('CloudflareCredentialVault.save(')
+assert saveConnect.index('CloudflareCredentialVault.save(') < saveConnect.index('cloudflareAccount=cleanAccount')
+assert 'SecItemUpdate(' in security
+assert 'SecItemDelete(query as CFDictionary)' not in security.split('static func save(',1)[1].split('static func load()',1)[0]
+assert '今は端末内のおためしで始める' in onboarding
+assert 'CloudflareCredentialVault.load()' in savedTokenReconnect
+assert 'reconnectSavedCloudflare(account:trimmedAccount)' in onboarding
+assert 'if !store.tokenExists {' in onboarding
+assert 'CloudflareSetupPolicy.swift' in preflight and 'cloudflareSetupPolicyTests.swift' in preflight
+assert 'A prior completed/declined setup never prompts again' in setupTests
+assert '.navigationBarTitleDisplayMode(.inline)' in settings
+assert 'askDisconnect=true' in settings and 'isPresented:$askDisconnect' in settings
+assert '保存済み情報' in settings or '以前の設定を自動で使います' in settings
+print("PASS: one-time Rex Cloudflare setup, persisted Keychain reuse, safe replacement, offline skip and AI entry gates")
+
 print("PASS: saved Cloudflare Keychain token reconnects without re-entry, and explicit Free confirmation persists")
 
 print("PASS: one-shot Codemagic QA captures both first launch and active Rex home")

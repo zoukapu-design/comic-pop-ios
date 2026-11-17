@@ -62,6 +62,11 @@ struct PreviewPanel: Identifiable {
     private var draftURL: URL { support.appendingPathComponent("manga-draft.json") }
     var videoURL:URL? {data.videoFile.map{support.appendingPathComponent($0)}}
     var tokenExists: Bool {CloudflareCredentialVault.load() != nil}
+    /// A stored credential pair is reusable without a fresh sign-in or token entry.
+    /// isConnected is only a local storage state, not an online plan verification.
+    var hasCloudflareSetup: Bool {
+        tokenExists && !cloudflareAccount.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty
+    }
     var selectedDeck: UserDeck? {data.decks.first(where:{$0.id == data.activeDeckID}) ?? data.decks.first}
     var cards: [PinDefinition] {catalog}
     var scenePlan: ScenePlan {ScenePlan(pins:data.pins)}
@@ -114,7 +119,7 @@ struct PreviewPanel: Identifiable {
         catalog=url.flatMap {try? Data(contentsOf:$0).decodeCards()} ?? []
         data=(try? JSONDecoder().decode(StudioData.self,from:Data(contentsOf:support.appendingPathComponent("studio.json")))) ?? StudioData()
         if data.activeDeckID == nil {data.activeDeckID=data.decks.first?.id}
-        isConnected=CloudflareCredentialVault.load() != nil
+        isConnected=hasCloudflareSetup
         titleDraft=data.workTitle
         if let file=data.videoFile, fm.fileExists(atPath:support.appendingPathComponent(file).path) {
             player.replaceCurrentItem(with:AVPlayerItem(url:support.appendingPathComponent(file)))
@@ -600,17 +605,38 @@ struct PreviewPanel: Identifiable {
         candidate.decks[i].cardIDs.swapAt(start,end)
         commit(candidate)
     }
+    /// Keep the former call site working, but only publish a new account
+    /// after a valid token is securely saved. A failed replacement leaves
+    /// the existing account and Keychain value untouched.
     func connect(token:String) async {
-        guard confirmsFree else {message="Workers Free契約を確認してから接続してください";return}
-        guard !cloudflareAccount.isEmpty else {message="Account IDを入力してください";return}
+        _ = await connect(account:cloudflareAccount,token:token)
+    }
+    @discardableResult func connect(account candidate:String,token:String) async -> Bool {
+        guard confirmsFree else {
+            message="Workers Free契約を確認してから接続してください"
+            return false
+        }
+        let cleanAccount=candidate.trimmingCharacters(in:.whitespacesAndNewlines)
+        let cleanToken=token.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !cleanAccount.isEmpty && !cleanToken.isEmpty else {
+            message="Account IDとAPIトークンを入力してください"
+            return false
+        }
         do {
-            let valid=try await CloudflareAIService.verify(account:cloudflareAccount,token:token)
+            let valid=try await CloudflareAIService.verify(account:cleanAccount,token:cleanToken)
             guard valid else {throw MangaError.server("Cloudflareトークンが無効です")}
-            guard CloudflareCredentialVault.save(token) else {throw MangaError.server("iPhoneのKeychainに保存できませんでした")}
-            UserDefaults.standard.set(cloudflareAccount,forKey:"cfAccountId")
+            guard CloudflareCredentialVault.save(cleanToken) else {
+                throw MangaError.server("iPhoneのKeychainに保存できませんでした")
+            }
+            cloudflareAccount=cleanAccount
+            UserDefaults.standard.set(cleanAccount,forKey:"cfAccountId")
             isConnected=true
-            message="個人GPU接続を確認しました。契約種別はAPIから確認できません。"
-        } catch {message="接続失敗：\(error.localizedDescription)"}
+            message="CloudflareのAPIトークンを安全に保存しました。次回から再入力は不要です。"
+            return true
+        } catch {
+            message="接続失敗：\(error.localizedDescription)"
+            return false
+        }
     }
     /// Verify a token already stored on this iPhone without asking for it again.
     /// Does not print, transmit to our server or overwrite the Keychain token.

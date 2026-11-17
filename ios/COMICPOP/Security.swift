@@ -6,11 +6,17 @@ enum CloudflareCredentialVault {
     private static let account = "api_token"
 
     static func save(_ value:String) -> Bool {
+        guard !value.isEmpty else {return false}
         let query: [String:Any] = [kSecClass as String: kSecClassGenericPassword,
                                    kSecAttrService as String: service,kSecAttrAccount as String:account]
-        SecItemDelete(query as CFDictionary)
+        let data = Data(value.utf8)
+        // Do not delete the previous working token before replacement succeeds.
+        let result = SecItemUpdate(query as CFDictionary,
+                                   [kSecValueData as String:data] as CFDictionary)
+        if result == errSecSuccess {return true}
+        guard result == errSecItemNotFound else {return false}
         var add = query
-        add[kSecValueData as String] = Data(value.utf8)
+        add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         return SecItemAdd(add as CFDictionary,nil) == errSecSuccess
     }

@@ -12,6 +12,10 @@ swiftc "$ROOT/ios/COMICPOP/CardSceneGrouping.swift" "$ROOT/ios/COMICPOP/Models.s
 # Validate all-pin completion, ordering, and quota-safe recovery before iOS build.
 swiftc "$ROOT/ios/COMICPOP/GenerationIntegrity.swift" "$ROOT/tests/generationIntegrityTests.swift" -o "$BIN"
 "$BIN"
+# Cloudflare setup appears only once; saved credentials never ask for a token again.
+swiftc "$ROOT/ios/COMICPOP/CloudflareSetupPolicy.swift" \
+  "$ROOT/tests/cloudflareSetupPolicyTests.swift" -o "$BIN"
+"$BIN"
 # Data loss regression: a failed JSON encode/write must not corrupt saved pins.
 swiftc "$ROOT/ios/COMICPOP/StudioAtomicPersistence.swift" "$ROOT/tests/studioAtomicPersistenceTests.swift" -o "$BIN"
 "$BIN"

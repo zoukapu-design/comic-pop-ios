@@ -4,6 +4,7 @@ import SwiftUI
 struct MovikomaPopRootView: View {
     @StateObject private var store = StudioStore()
     @AppStorage("pop.didSeeWelcome") private var didSeeWelcome = false
+    @AppStorage("pop.didCompleteCloudflareSetup") private var didCompleteCloudflareSetup = false
     private enum Journey: Equatable {case home, selectVideo, workspace}
     @State private var journey:Journey = .home
     @State private var stage:PopStage = .editor
@@ -100,11 +101,34 @@ struct MovikomaPopRootView: View {
         }
         .sheet(isPresented:$showSettings) {PopSettingsPanel(store:store)}
         .sheet(isPresented:$showDeck) {PopDeckSheet(store:store)}
+        // One first-launch journey: Rex welcome -> optional Cloudflare
+        // connection. Existing Keychain credentials bypass the setup page.
         .fullScreenCover(isPresented:Binding(
-            get:{!didSeeWelcome},
-            set:{if !$0 {didSeeWelcome=true}}
+            get:{
+                CloudflareSetupPolicy.shouldShowFirstRun(
+                    hasSeenWelcome:didSeeWelcome,
+                    didFinishSetup:didCompleteCloudflareSetup,
+                    hasSavedCredentials:store.hasCloudflareSetup
+                )
+            },
+            set:{if !$0 {didSeeWelcome=true;didCompleteCloudflareSetup=true}}
         )) {
-            PopWelcomeScreen {didSeeWelcome=true}
+            if !didSeeWelcome {
+                PopWelcomeScreen {didSeeWelcome=true}
+            } else {
+                PopCloudflareOnboarding(store:store) {
+                    didCompleteCloudflareSetup=true
+                }
+            }
+        }
+        // Existing installations may have a valid Keychain pair but no
+        // onboarding completion flag (introduced in a later app version).
+        // Mark them complete so disconnecting later cannot unexpectedly
+        // reopen the first-run wizard.
+        .onAppear {
+            if store.hasCloudflareSetup {
+                didCompleteCloudflareSetup=true
+            }
         }
         .onChange(of:store.generatedPanelCount) { _, count in
             if stage == .review && count == 0 && store.pageImages.isEmpty {
@@ -453,8 +477,11 @@ struct PopSettingsSheet:View {
                         SecureField("Workers AI API Token",text:$token)
                             .textInputAutocapitalization(.never).autocorrectionDisabled()
                         Button("新しいAPIトークンを登録") {
-                            store.cloudflareAccount=account
-                            Task {await store.connect(token:token);if store.isConnected {token=""}}
+                            Task {
+                                if await store.connect(account:account,token:token) {
+                                    token=""
+                                }
+                            }
                         }
                         .disabled(account.isEmpty || token.isEmpty || !store.confirmsFree)
                     }

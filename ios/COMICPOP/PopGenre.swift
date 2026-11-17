@@ -266,7 +266,11 @@ struct PopGenreScreen: View {
                 }
             }
             Button("Cloudflare AI：まず脚本を確認してから漫画化") {
-                guard store.tokenExists && store.confirmsFree else {
+                guard CloudflareSetupPolicy.mayGenerateWithAI(
+                    hasSavedToken:store.tokenExists,
+                    accountID:store.cloudflareAccount,
+                    didConfirmWorkersFree:store.confirmsFree
+                ) else {
                     openSettings()
                     return
                 }
