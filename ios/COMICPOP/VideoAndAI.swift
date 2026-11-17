@@ -42,14 +42,14 @@ struct VideoFrameService {
     }
     static func compactJPEG(_ image:UIImage)->Data? {
         let largest=max(image.size.width,image.size.height)
-        let factor=min(1,480/max(largest,1))
+        let factor=min(1,512/max(largest,1))
         let size=CGSize(width:max(1,round(image.size.width*factor)),height:max(1,round(image.size.height*factor)))
         let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=true
         let scaled=UIGraphicsImageRenderer(size:size,format:format).image{_ in
             UIColor.white.setFill();UIRectFill(CGRect(origin:.zero,size:size))
             image.draw(in:CGRect(origin:.zero,size:size))
         }
-        return scaled.jpegData(compressionQuality:0.7)
+        return scaled.jpegData(compressionQuality:0.85)
     }
 }
 
@@ -98,12 +98,12 @@ struct CloudflareAIService {
         let character=(defaults.object(forKey:"pop.hint.character") as? Bool) ?? true
         let palette=(defaults.object(forKey:"pop.hint.palette") as? Bool) ?? true
         let scene=(defaults.object(forKey:"pop.hint.scene") as? Bool) ?? true
-        let fidelity=(defaults.object(forKey:"pop.hint.fidelity") as? Bool) ?? false
+        let sourceLocked=MangaSourceFidelityPolicy.sourceLocked()
         let hints=[
             character ? "Preserve recognisable facial features and clothing of the original subject in every panel." : "",
             palette ? "Keep a coherent ink density, line weight and limited palette throughout the page." : "",
             scene ? "Place especially strong emphasis on actual shot changes and background transitions." : "",
-            fidelity ? "Prioritise faithful composition and object positions over dramatic embellishment." : ""
+            sourceLocked ? "Only restyle the original video frame; never replace subjects or props." : ""
         ].filter{!$0.isEmpty}.joined(separator:" ")
         // The pin is one dramatic beat in a whole chapter. The source frame is
         // visual evidence, not a command to copy the shot exactly.
@@ -140,7 +140,7 @@ struct CloudflareAIService {
             sceneContext:story?.scene ?? "",
             transition:story?.transition ?? "",
             consistencyHints:hints
-        ))
+        ),sourceLocked:sourceLocked)
         var form=FormDataBuilder()
         form.add(name:"prompt",value:prompt)
         form.add(name:"width",value:String(width))
@@ -148,7 +148,8 @@ struct CloudflareAIService {
         form.add(name:"seed",value:String(seed))
         form.add(name:"guidance",value:"4.5")
         form.addJPEG(name:"input_image_0",bytes:jpg)
-        if let previousDrawing,
+        if MangaSourceFidelityPolicy.useEarlierMangaAsVisualReference(locked:sourceLocked),
+           let previousDrawing,
            let continuityJPEG=VideoFrameService.compactJPEG(previousDrawing),
            continuityJPEG.count<700_000 {
             form.addJPEG(name:"input_image_1",bytes:continuityJPEG)
