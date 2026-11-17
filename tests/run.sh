@@ -30,9 +30,14 @@ swiftc "$ROOT/ios/COMICPOP/MangaDraftEditGuard.swift" \
 # and resume only missing panels after a partial failure.
 swiftc "$ROOT/ios/COMICPOP/MangaGenerationRoute.swift" "$ROOT/tests/mangaGenerationRouteTests.swift" -o "$BIN"
 "$BIN"
-# Image API prompt must preserve a whole scene's user notes, every card,
-# causality, and no-text instruction inside the 2400-character budget.
-swiftc "$ROOT/ios/COMICPOP/MangaDrawingPrompt.swift" \
+# Default source-first mode is deterministic and never uses other AI panels
+# as physical visual evidence. Runs entirely offline with no GPU quota.
+swiftc "$ROOT/ios/COMICPOP/MangaSourceFidelityPolicy.swift" \
+  "$ROOT/tests/mangaSourceFidelityPolicyTests.swift" -o "$BIN"
+"$BIN"
+# Both creative and source-locked prompts must stay below 2400 characters.
+swiftc "$ROOT/ios/COMICPOP/MangaSourceFidelityPolicy.swift" \
+  "$ROOT/ios/COMICPOP/MangaDrawingPrompt.swift" \
   "$ROOT/tests/mangaDrawingPromptTests.swift" -o "$BIN"
 "$BIN"
 # Verify emotional card fusion does not inject horror into unrelated scenes.
