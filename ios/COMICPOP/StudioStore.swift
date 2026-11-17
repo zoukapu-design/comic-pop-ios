@@ -927,6 +927,8 @@ struct PreviewPanel: Identifiable {
                 return
             }
         }
+        let sourceLocked=MangaSourceFidelityPolicy.sourceLocked()
+        var fidelityFallbacks=0
         let startIndex=generated.count
         for index in startIndex..<pins.count {
             let pin=pins[index]
@@ -954,15 +956,30 @@ struct PreviewPanel: Identifiable {
                     message="動画・カード・画風が変更されたため古い生成結果を破棄しました。"
                     return
                 }
+                // AI text and image references can still hallucinate. The
+                // on-device source-relative guard prevents gross scene drift
+                // without spending a second GPU request.
+                let verdict: MangaVisualFidelityResult
+                if sourceLocked {
+                    verdict=await Task.detached(priority:.userInitiated) {
+                        MangaVisualFidelityGuard.protectedImage(
+                            generated:image,original:original,style:style,colorMode:colorMode
+                        )
+                    }.value
+                } else {
+                    verdict=MangaVisualFidelityResult(image:image,usedSafeFallback:false)
+                }
+                if verdict.usedSafeFallback {fidelityFallbacks+=1}
+                let faithfulImage=verdict.image
                 let finishedImage:UIImage
                 if colorMode=="mono" {
                     // Do not allow color to drift between panels when the user
                     // explicitly selected a black-and-white comic.
                     finishedImage=PopPageFinisher.render(
-                        image,contrast:1.05,brightness:0,saturation:0,sharpness:0.15
-                    ) ?? image
+                        faithfulImage,contrast:1.05,brightness:0,saturation:0,sharpness:0.15
+                    ) ?? faithfulImage
                 } else {
-                    finishedImage=image
+                    finishedImage=faithfulImage
                 }
                 generated.append(PreviewPanel(
                     id:pin.id,cardTitle:card.title,original:original,
@@ -990,7 +1007,9 @@ struct PreviewPanel: Identifiable {
             }
         }
         rebuildPages()
-        message="全\(generated.count)コマを脚本の流れに沿って漫画化しました。日本語と展開を確認してください。"
+        message=fidelityFallbacks>0
+            ? "元動画から大きく離れる可能性がある\(fidelityFallbacks)コマを、端末内の忠実な漫画加工に置き換えました。AIリクエストの追加消費はありません。"
+            : "全\(generated.count)コマを元動画優先で漫画化しました。人物・道具・背景の一致を確認してください。"
     }
     /// Always-free trial mode: comic-style image processing happens locally.
     /// No API key, GPU account, uploaded frames or paid service is involved.
@@ -1147,11 +1166,21 @@ struct PreviewPanel: Identifiable {
                     alternateComposition:true,
                     combinedCardIDs:scenePlan.scenes.first(where:{$0.id==pin.id})?.cardIDs ?? [pin.cardID]
                 )
+                let judged: MangaVisualFidelityResult
+                if MangaSourceFidelityPolicy.sourceLocked() {
+                    judged=await Task.detached(priority:.userInitiated) {
+                        MangaVisualFidelityGuard.protectedImage(
+                            generated:redrawn,original:original,style:style,colorMode:colorMode
+                        )
+                    }.value
+                } else {
+                    judged=MangaVisualFidelityResult(image:redrawn,usedSafeFallback:false)
+                }
                 updated=colorMode=="mono"
                     ? (PopPageFinisher.render(
-                        redrawn,contrast:1.05,brightness:0,saturation:0,sharpness:0.15
-                      ) ?? redrawn)
-                    : redrawn
+                        judged.image,contrast:1.05,brightness:0,saturation:0,sharpness:0.15
+                      ) ?? judged.image)
+                    : judged.image
             }
             guard startingSession==videoSession && startingRevision==pinsRevision &&
                   style==data.style && colorMode==data.colorMode &&
