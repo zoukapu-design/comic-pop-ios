@@ -34,6 +34,11 @@ struct MangaStoryBeat: Identifiable, Codable {
     /// Original user-authored card notes, separate from the AI's visible action.
     /// Notes can express emotions/motives and must not be mislabelled as motion.
     var userSceneNoteJP: String = ""
+    /// Only a user explicitly saving this scene in the storyboard editor
+    /// authorizes AI-proposed Japanese to be printed on a manga page.
+    /// Optional fields preserve decoding of older saved storyboard JSON.
+    var reviewedCaption: String? = nil
+    var reviewedDialogue: String? = nil
 }
 
 struct MangaStoryPlan: Codable {
