@@ -121,6 +121,15 @@ struct MovikomaPopRootView: View {
                 }
             }
         }
+        // Existing installations may have a valid Keychain pair but no
+        // onboarding completion flag (introduced in a later app version).
+        // Mark them complete so disconnecting later cannot unexpectedly
+        // reopen the first-run wizard.
+        .onAppear {
+            if store.hasCloudflareSetup {
+                didCompleteCloudflareSetup=true
+            }
+        }
         .onChange(of:store.generatedPanelCount) { _, count in
             if stage == .review && count == 0 && store.pageImages.isEmpty {
                 stage = .styles
