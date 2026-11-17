@@ -105,8 +105,11 @@ struct MovikomaPopRootView: View {
         // connection. Existing Keychain credentials bypass the setup page.
         .fullScreenCover(isPresented:Binding(
             get:{
-                !didSeeWelcome ||
-                (!didCompleteCloudflareSetup && !store.hasCloudflareSetup)
+                CloudflareSetupPolicy.shouldShowFirstRun(
+                    hasSeenWelcome:didSeeWelcome,
+                    didFinishSetup:didCompleteCloudflareSetup,
+                    hasSavedCredentials:store.hasCloudflareSetup
+                )
             },
             set:{if !$0 {didSeeWelcome=true;didCompleteCloudflareSetup=true}}
         )) {
