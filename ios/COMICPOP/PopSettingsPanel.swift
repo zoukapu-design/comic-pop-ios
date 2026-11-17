@@ -216,9 +216,6 @@ struct PopSettingsPanel: View {
                         .foregroundStyle(PopColor.ink)
                         .font(.system(size:12,weight:.medium))
                     }
-                    Text(store.message)
-                        .font(.caption)
-                        .foregroundStyle(.white)
                 }
                 .padding(12)
             }
