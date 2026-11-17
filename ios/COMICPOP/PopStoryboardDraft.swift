@@ -48,6 +48,12 @@ struct PopStoryboardDraft: View {
                 Text(store.storyCreationMode)
                     .font(.system(size:10))
                     .foregroundStyle(PopColor.royal)
+                Label("AIが考えた日本語は下書きです。内容を読んで確定した文章だけ漫画に印字します。未確定の場合はユーザーが入力したメモ・セリフのみを使います。",
+                      systemImage:"text.badge.checkmark")
+                    .font(.system(size:11,weight:.semibold))
+                    .foregroundStyle(PopColor.ink)
+                    .padding(9)
+                    .background(.white,in:RoundedRectangle(cornerRadius:10))
                 if !storyWarnings.isEmpty {
                     VStack(alignment:.leading,spacing:5) {
                         Label("作画前に確認したい点（\(storyWarnings.count)件）",
@@ -82,7 +88,7 @@ struct PopStoryboardDraft: View {
                                 .foregroundStyle(PopColor.ink)
                             Spacer()
                             Button {editingBeat=beat} label: {
-                                Label("シーン修正",systemImage:"pencil")
+                                Label("シーン修正・日本語を確定",systemImage:"pencil")
                                     .font(.system(size:10,weight:.bold))
                             }
                             .buttonStyle(.bordered)
@@ -111,6 +117,13 @@ struct PopStoryboardDraft: View {
                                 .font(.system(size:11,weight:.medium))
                                 .foregroundStyle(PopColor.ink)
                         }
+                        Label(beat.reviewedCaption != nil && beat.reviewedDialogue != nil
+                              ? "日本語：確認済み・漫画に印字"
+                              : "AIの日本語案（未確定・漫画には自動印字しません）",
+                              systemImage:beat.reviewedCaption != nil && beat.reviewedDialogue != nil
+                              ? "checkmark.circle.fill" : "exclamationmark.bubble")
+                            .font(.system(size:10,weight:.heavy))
+                            .foregroundStyle(PopColor.royal)
                         Text(beat.caption.isEmpty ? "（ナレーションなし）" : beat.caption)
                             .font(.system(size:12,weight:.medium))
                             .foregroundStyle(PopColor.ink)
