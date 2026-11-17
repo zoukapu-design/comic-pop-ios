@@ -35,6 +35,11 @@ swiftc "$ROOT/ios/COMICPOP/MangaGenerationRoute.swift" "$ROOT/tests/mangaGenerat
 swiftc "$ROOT/ios/COMICPOP/MangaSourceFidelityPolicy.swift" \
   "$ROOT/tests/mangaSourceFidelityPolicyTests.swift" -o "$BIN"
 "$BIN"
+# The AI output must not silently replace the filmed person or setting.
+# The on-device fallback decision uses the same source-to-comic baseline.
+swiftc "$ROOT/ios/COMICPOP/MangaFidelityDistancePolicy.swift" \
+  "$ROOT/tests/mangaFidelityDistanceTests.swift" -o "$BIN"
+"$BIN"
 # Both creative and source-locked prompts must stay below 2400 characters.
 swiftc "$ROOT/ios/COMICPOP/MangaSourceFidelityPolicy.swift" \
   "$ROOT/ios/COMICPOP/MangaDrawingPrompt.swift" \
