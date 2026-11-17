@@ -1236,6 +1236,43 @@ struct PreviewPanel: Identifiable {
             message="コマ再生成に失敗しました：\(error.localizedDescription)"
         }
     }
+    /// For comics generated with older app versions, remove AI-guessed
+    /// captions that the user has not changed or approved. Never touch
+    /// manually edited panel text or image data; this uses no AI credits.
+    func useOnlyVerifiedLettering() {
+        guard !isGenerating,!generated.isEmpty else {return}
+        let previous=generated
+        var changes=0
+        for index in generated.indices {
+            guard let beat=storyPlan?.beats.first(where:{$0.id==generated[index].id}),
+                  let pin=scenePlan.renderPins.first(where:{$0.id==generated[index].id}) else {
+                continue
+            }
+            let allowed=visibleLettering(for:beat,pin:pin)
+            if beat.reviewedCaption == nil && generated[index].caption == beat.caption &&
+               generated[index].caption != allowed.caption {
+                generated[index].caption=allowed.caption
+                changes+=1
+            }
+            if beat.reviewedDialogue == nil && generated[index].dialogue == beat.dialogue &&
+               generated[index].dialogue != allowed.dialogue {
+                generated[index].dialogue=allowed.dialogue
+                changes+=1
+            }
+        }
+        guard changes>0 else {
+            message="未確認のAI文章はありません。手動編集した日本語は維持しています。"
+            return
+        }
+        guard saveDraftCheckpoint() else {
+            generated=previous
+            rebuildPages()
+            return
+        }
+        rebuildPages()
+        message="未確認のAI文章\(changes)件を非表示にしました。画像の再生成やCloudflareの追加利用はありません。"
+    }
+
     /// Restore the actual camera geometry as a manga-style drawing.
     /// Unlike an AI retake, this cannot invent a new person, vehicle or scene,
     /// and does not send video frames or spend any Workers AI quota.
