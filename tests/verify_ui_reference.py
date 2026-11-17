@@ -664,6 +664,38 @@ assert 'A prior completed/declined setup never prompts again' in setupTests
 assert '.navigationBarTitleDisplayMode(.inline)' in settings
 assert 'askDisconnect=true' in settings and 'isPresented:$askDisconnect' in settings
 assert '保存済み情報' in settings or '以前の設定を自動で使います' in settings
+# The manga IMAGE must reflect the source VIDEO, not a speculative
+# AI screenplay or a previously hallucinated manga panel.
+sourceLock=(root / "ios/COMICPOP/MangaSourceFidelityPolicy.swift").read_text(encoding="utf-8")
+distancePolicy=(root / "ios/COMICPOP/MangaFidelityDistancePolicy.swift").read_text(encoding="utf-8")
+visionGuard=(root / "ios/COMICPOP/MangaVisualFidelityGuard.swift").read_text(encoding="utf-8")
+drawingPrompt=(root / "ios/COMICPOP/MangaDrawingPrompt.swift").read_text(encoding="utf-8")
+assert 'pop.generation.sourceLocked.v1' in sourceLock
+assert '?? true' in sourceLock and 'NO substitute person' in sourceLock
+assert 'sourceLocked:Bool = false' in drawingPrompt
+assert 'if sourceLocked {' in drawingPrompt
+assert 'MangaSourceFidelityPolicy.lockedSourceRule' in drawingPrompt
+assert 'sourceLocked:sourceLocked' in ai
+assert 'MangaSourceFidelityPolicy.useEarlierMangaAsVisualReference(locked:sourceLocked)' in ai
+assert '512/max(largest,1)' in ai
+assert 'MangaSourceFidelityPolicy.sourceLocked()' in ai
+assert 'MangaSourceFidelityPolicy.sourceLocked()' in store
+assert 'MangaVisualFidelityGuard.protectedImage(' in store
+assert 'MangaFidelityDistancePolicy.isUnreliable(' in visionGuard
+assert 'VNGenerateImageFeaturePrintRequest()' in visionGuard
+assert 'OfflineComicFilter.render(original,style:style,colorMode:colorMode)' in visionGuard
+assert 'var fidelityFallbacks=0' in store
+assert 'func chooseSourceFaithfulComic(_ id:UUID)' in store
+assert 'store.chooseSourceFaithfulComic(id)' in review
+assert '元動画に忠実な漫画加工（AI追加消費なし）' in review
+assert '@AppStorage("pop.generation.sourceLocked.v1") private var sourceLocked = true' in genre
+assert '元動画に忠実' in genre
+assert 'NEVER invent a new person' in observations
+assert 'mangaSourceFidelityPolicyTests.swift' in preflight
+assert 'mangaFidelityDistanceTests.swift' in preflight
+assert 'sourceLocked:true' in (root / "tests/mangaDrawingPromptTests.swift").read_text(encoding="utf-8")
+print("PASS: original video retained as only source image, AI semantic drift safely replaced, and recoverable faithful manga")
+
 print("PASS: one-time Rex Cloudflare setup, persisted Keychain reuse, safe replacement, offline skip and AI entry gates")
 
 print("PASS: saved Cloudflare Keychain token reconnects without re-entry, and explicit Free confirmation persists")
