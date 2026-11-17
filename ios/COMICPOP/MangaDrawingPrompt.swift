@@ -55,16 +55,16 @@ enum MangaDrawingPrompt {
             // creativity directive may turn the subject into someone else.
             // The rest of the book's story is lettered separately by the app.
             add("",MangaSourceFidelityPolicy.lockedSourceRule,max:500,required:true)
-            add("MANGA STYLE ONLY",input.stylePrompt,max:120,required:true)
-            add("INK / TONES ONLY",input.colorInstruction,max:90,required:true)
+            add("MANGA STYLE ONLY",input.stylePrompt,max:90,required:true)
+            add("INK / TONES ONLY",input.colorInstruction,max:70,required:true)
             add("USER NOTES: APPLY AS VISUAL MOOD ONLY",
                 input.userNote,max:800,required:true)
             add("USER ART DIRECTION: STYLE ONLY",
-                input.userDirection,max:280,required:true)
+                input.userDirection,max:200,required:true)
             add("ALL INSERTED CARD IDS (SAME VIDEO FRAME)",
                 input.cardIDs.joined(separator:","),max:150,required:true)
             add("CARD MOOD",MangaSourceFidelityPolicy.sceneMood,
-                max:190,required:true)
+                max:100,required:true)
             add("REFERENCE",MangaSourceFidelityPolicy.sourceReference,
                 max:125,required:true)
             return parts.joined(separator:" ")+" "+noLettering
