@@ -4,6 +4,7 @@ import SwiftUI
 struct MovikomaPopRootView: View {
     @StateObject private var store = StudioStore()
     @AppStorage("pop.didSeeWelcome") private var didSeeWelcome = false
+    @AppStorage("pop.didCompleteCloudflareSetup") private var didCompleteCloudflareSetup = false
     private enum Journey: Equatable {case home, selectVideo, workspace}
     @State private var journey:Journey = .home
     @State private var stage:PopStage = .editor
@@ -100,11 +101,22 @@ struct MovikomaPopRootView: View {
         }
         .sheet(isPresented:$showSettings) {PopSettingsPanel(store:store)}
         .sheet(isPresented:$showDeck) {PopDeckSheet(store:store)}
+        // One first-launch journey: Rex welcome -> optional Cloudflare
+        // connection. Existing Keychain credentials bypass the setup page.
         .fullScreenCover(isPresented:Binding(
-            get:{!didSeeWelcome},
-            set:{if !$0 {didSeeWelcome=true}}
+            get:{
+                !didSeeWelcome ||
+                (!didCompleteCloudflareSetup && !store.hasCloudflareSetup)
+            },
+            set:{if !$0 {didSeeWelcome=true;didCompleteCloudflareSetup=true}}
         )) {
-            PopWelcomeScreen {didSeeWelcome=true}
+            if !didSeeWelcome {
+                PopWelcomeScreen {didSeeWelcome=true}
+            } else {
+                PopCloudflareOnboarding(store:store) {
+                    didCompleteCloudflareSetup=true
+                }
+            }
         }
         .onChange(of:store.generatedPanelCount) { _, count in
             if stage == .review && count == 0 && store.pageImages.isEmpty {
