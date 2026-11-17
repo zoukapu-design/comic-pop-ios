@@ -48,7 +48,7 @@ struct PopGenreScreen: View {
     @AppStorage("pop.hint.character") private var characterHint = true
     @AppStorage("pop.hint.palette") private var paletteHint = true
     @AppStorage("pop.hint.scene") private var sceneHint = true
-    @AppStorage("pop.hint.fidelity") private var fidelityHint = false
+    @AppStorage("pop.generation.sourceLocked.v1") private var sourceLocked = true
 
     private var generationRoute:MangaGenerationRoute {
         MangaGenerationRoute.resolve(
@@ -104,7 +104,7 @@ struct PopGenreScreen: View {
                         }
                         HStack(spacing:4) {
                             option("場面切替を優先",enabled:$sceneHint)
-                            option("元動画に忠実",enabled:$fidelityHint)
+                            option("元動画に忠実",enabled:$sourceLocked)
                         }
                         HStack(spacing:7) {
                             Text("色の設定").font(.system(size:12,weight:.bold))
@@ -141,7 +141,7 @@ struct PopGenreScreen: View {
                             Text("オンの場合、端末内の日本語音声認識の許可を求めます。音声認識不可でも動画の場面・カード・入力したメモから脚本を作ります。")
                                 .font(.system(size:10))
                         }
-                        Text("※AI生成は先に全カードから一つのストーリーを組み立て、それに沿って各コマを描きます。設定は人物一致などを保証するものではありません。")
+                        Text(sourceLocked ? "推奨：人物・服装・道具・背景・構図は元動画のまま、漫画の線画とトーンに変換します。AIの完全な一致は保証できません。": "創作モード：AIが新たな構図や表現を作る場合があります。元動画との一致を重視する場合は「元動画に忠実」をONにしてください。")
                             .font(.system(size:10)).foregroundStyle(PopColor.ink.opacity(0.75))
                     }
                 }
