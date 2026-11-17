@@ -68,7 +68,7 @@ assert "URLSession" not in offline, "Offline trial must never upload user video"
 assert "generatedMode == \"offline\"" in store and 'generatedMode="online"' in store
 assert ".task(id:" in ui
 assert "ムビコマ" in app + ui + store
-assert 'storyPlan?.title ?? "ムビコマ"' in store
+assert 'MangaVisibleLetteringPolicy.pageTitle(userTitle:data.workTitle)' in store
 assert "- path: COMICPOP" in project, "New SwiftUI source must be included by XcodeGen"
 m = re.search(r"static let base64 = \"\"\"(.*?)\"\"\"", art, re.S)
 assert m, "Missing in-source Rex artwork"
@@ -694,6 +694,32 @@ assert 'NEVER invent a new person' in observations
 assert 'mangaSourceFidelityPolicyTests.swift' in preflight
 assert 'mangaFidelityDistanceTests.swift' in preflight
 assert 'sourceLocked:true' in (root / "tests/mangaDrawingPromptTests.swift").read_text(encoding="utf-8")
+# AI-generated words may look like Japanese while being nonsensical.
+# They are NEVER auto-lettered as final manga without explicit user review.
+visibleText=(root / "ios/COMICPOP/MangaVisibleLetteringPolicy.swift").read_text(encoding="utf-8")
+visibleTests=(root / "tests/mangaVisibleLetteringPolicyTests.swift").read_text(encoding="utf-8")
+storyEditor=(root / "ios/COMICPOP/PopStoryboardDraft.swift").read_text(encoding="utf-8")
+assert 'var reviewedCaption: String? = nil' in story
+assert 'var reviewedDialogue: String? = nil' in story
+assert 'approved.reviewedCaption=approved.caption' in store
+assert 'approved.reviewedDialogue=approved.dialogue' in store
+assert 'MangaVisibleLetteringPolicy.caption(' in store
+assert 'MangaVisibleLetteringPolicy.dialogue(' in store
+assert 'caption:visible.caption,dialogue:visible.dialogue' in store
+assert 'func useOnlyVerifiedLettering()' in store
+assert 'store.useOnlyVerifiedLettering()' in review
+assert '未確認のAI日本語を非表示（無料）' in review
+assert 'AIが考えた日本語は下書きです' in storyEditor
+assert '日本語：確認済み・漫画に印字' in storyEditor
+assert 'reviewed:nil,originalNote:""' in visibleTests
+assert 'mangaVisibleLetteringPolicyTests.swift' in preflight
+assert 'MangaJapaneseLettering.clean' in visibleText
+assert 'VNRecognizeTextRequest()' in visionGuard
+assert 'MangaFidelityDistancePolicy.hasUnexpectedText(' in visionGuard
+assert 'static func hasUnexpectedText(' in distancePolicy
+assert 'hasUnexpectedText(' in (root / "tests/mangaFidelityDistanceTests.swift").read_text(encoding="utf-8")
+print("PASS: AI Japanese is draft-only until user approval; saved manga can hide AI gibberish without new Cloudflare calls")
+
 print("PASS: original video retained as only source image, AI semantic drift safely replaced, and recoverable faithful manga")
 
 print("PASS: one-time Rex Cloudflare setup, persisted Keychain reuse, safe replacement, offline skip and AI entry gates")

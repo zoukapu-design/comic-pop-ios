@@ -75,6 +75,13 @@ swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" "$ROOT/tests/mangaJapan
 swiftc "$ROOT/ios/COMICPOP/MangaCaptionNotePolicy.swift" \
   "$ROOT/tests/mangaCaptionNotePolicyTests.swift" -o "$BIN"
 "$BIN"
+# AI-generated Japanese must remain an unprinted suggestion until reviewed;
+# user-authored text is immediately safe to typeset natively.
+swiftc "$ROOT/ios/COMICPOP/MangaJapaneseLettering.swift" \
+  "$ROOT/ios/COMICPOP/MangaCaptionNotePolicy.swift" \
+  "$ROOT/ios/COMICPOP/MangaVisibleLetteringPolicy.swift" \
+  "$ROOT/tests/mangaVisibleLetteringPolicyTests.swift" -o "$BIN"
+"$BIN"
 # Inspect screenplay structure without API calls or image quota.
 swiftc "$ROOT/ios/COMICPOP/MangaStoryQualityAudit.swift" "$ROOT/tests/mangaStoryQualityAuditTests.swift" -o "$BIN"
 "$BIN"

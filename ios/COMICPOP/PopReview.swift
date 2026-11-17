@@ -62,6 +62,31 @@ struct PopReviewScreen: View {
                     }
                     comparison
                     panelChooser
+                    PopSurface {
+                        VStack(alignment:.leading,spacing:7) {
+                            Label("日本語の確認",systemImage:"character.book.closed.fill")
+                                .font(.system(size:13,weight:.black))
+                            Text("AIが書いた意味不明な文章が残っている場合、未確認のAI文字だけを非表示にできます。元動画・絵・手動編集した文字は保持し、AI利用枠は消費しません。")
+                                .font(.system(size:11,weight:.medium))
+                            Button {
+                                store.useOnlyVerifiedLettering()
+                            } label:{
+                                Label("未確認のAI日本語を非表示（無料）",
+                                      systemImage:"text.badge.minus")
+                                    .font(.system(size:12,weight:.heavy))
+                                    .frame(maxWidth:.infinity)
+                                    .padding(.vertical,10)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(PopColor.royal)
+                            .background(.white,in:RoundedRectangle(cornerRadius:10))
+                            .overlay(RoundedRectangle(cornerRadius:10)
+                                .stroke(PopColor.edge,lineWidth:1.5))
+                            .disabled(store.isGenerating)
+                        }
+                        .foregroundStyle(PopColor.ink)
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                    }
                 }
                 if let firstRepeated=store.generated.first(where:{$0.warning != nil}) {
                     PopSurface(accent:true) {
