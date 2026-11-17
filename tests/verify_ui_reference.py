@@ -642,6 +642,9 @@ setupTests=(root / "tests/cloudflareSetupPolicyTests.swift").read_text(encoding=
 assert 'pop.didCompleteCloudflareSetup' in popui
 assert 'CloudflareSetupPolicy.shouldShowFirstRun(' in popui
 assert 'PopCloudflareOnboarding(store:store)' in popui
+assert 'if store.hasCloudflareSetup {' in popui
+assert 'didCompleteCloudflareSetup=true' in popui
+assert 'CloudflareSetupPolicy.shouldShowFirstRun(' in popui
 assert 'PopWelcomeScreen {didSeeWelcome=true}' in popui
 assert 'CloudflareSetupPolicy.mayGenerateWithAI(' in genre
 assert 'var hasCloudflareSetup: Bool {' in store
