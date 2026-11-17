@@ -1184,6 +1184,36 @@ struct PreviewPanel: Identifiable {
             message="コマ再生成に失敗しました：\(error.localizedDescription)"
         }
     }
+    /// Restore the actual camera geometry as a manga-style drawing.
+    /// Unlike an AI retake, this cannot invent a new person, vehicle or scene,
+    /// and does not send video frames or spend any Workers AI quota.
+    func chooseSourceFaithfulComic(_ id:UUID) {
+        guard !isGenerating else {message="生成中はコマを変更できません";return}
+        guard let index=generated.firstIndex(where:{$0.id==id}) else {return}
+        let original=generated[index].original
+        guard let faithful=OfflineComicFilter.render(
+            original,style:data.style,colorMode:data.colorMode
+        ) else {
+            message="元動画からの忠実な漫画加工に失敗しました"
+            return
+        }
+        let previousDrawing=generated[index].drawing
+        let previousBase=finishingBase[id]
+        let previousDirty=dirtyArtworkIDs
+        finishingBase[id]=nil
+        generated[index].drawing=faithful
+        dirtyArtworkIDs.insert(id)
+        guard saveDraftCheckpoint() else {
+            generated[index].drawing=previousDrawing
+            finishingBase[id]=previousBase
+            dirtyArtworkIDs=previousDirty
+            return
+        }
+        refreshArtworkSimilarityWarnings()
+        rebuildPages()
+        message="元動画の人物・道具・背景を維持して、このコマを端末内で漫画加工しました（AIの追加利用なし）"
+    }
+
     func chooseOriginal(_ id:UUID){
         guard !isGenerating else {message="漫画生成中は絵を切り替えられません";return}
         guard let i=generated.firstIndex(where:{$0.id==id}) else {return}
