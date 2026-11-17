@@ -26,7 +26,7 @@ enum MangaDrawingPrompt {
     static let maxCharacters=2400
     static let noLettering="ABSOLUTELY NO WORDS, NO KANJI, NO FAKE LETTERS OR SPEECH BALLOONS. APP TYPESETS ALL JAPANESE LETTERING AFTER GENERATION."
 
-    static func compose(_ input:MangaDrawingPromptInput)->String {
+    static func compose(_ input:MangaDrawingPromptInput,sourceLocked:Bool = false)->String {
         var parts:[String]=[]
         let reserved=noLettering.count+1
         var used=reserved
@@ -47,6 +47,27 @@ enum MangaDrawingPrompt {
                 parts.append(String(text.prefix(available)))
                 used+=available+separator
             }
+        }
+
+        if sourceLocked {
+            // A source frame is evidence, NOT a suggestion. Give this the
+            // highest prompt priority: no storyboard, previous drawing or
+            // creativity directive may turn the subject into someone else.
+            // The rest of the book's story is lettered separately by the app.
+            add("",MangaSourceFidelityPolicy.lockedSourceRule,max:500,required:true)
+            add("MANGA STYLE ONLY",input.stylePrompt,max:90,required:true)
+            add("INK / TONES ONLY",input.colorInstruction,max:70,required:true)
+            add("USER NOTES: APPLY AS VISUAL MOOD ONLY",
+                input.userNote,max:800,required:true)
+            add("USER ART DIRECTION: STYLE ONLY",
+                input.userDirection,max:200,required:true)
+            add("ALL INSERTED CARD IDS (SAME VIDEO FRAME)",
+                input.cardIDs.joined(separator:","),max:150,required:true)
+            add("CARD MOOD",MangaSourceFidelityPolicy.sceneMood,
+                max:100,required:true)
+            add("REFERENCE",MangaSourceFidelityPolicy.sourceReference,
+                max:125,required:true)
+            return parts.joined(separator:" ")+" "+noLettering
         }
 
         // Dense combined moments can contain three separate 260-character

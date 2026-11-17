@@ -139,12 +139,17 @@ struct PopReviewScreen: View {
                 guard let id=activePanel?.id else{return}
                 Task {await store.regeneratePanel(id)}
             }
+            Button("元動画に忠実な漫画加工（AI追加消費なし）") {
+                if let id=activePanel?.id {store.chooseSourceFaithfulComic(id)}
+            }
             Button("元動画の画像に戻す") {
                 if let id=activePanel?.id {store.chooseOriginal(id)}
             }
             Button("キャンセル",role:.cancel){}
         } message:{
-            Text(store.generatedOffline ? "端末内加工は無料です。" : "AI再生成はCloudflareの利用枠を追加消費します。")
+            Text(store.generatedOffline ?
+                 "端末内加工は無料です。" :
+                 "AI再生成はCloudflareの利用枠を追加消費します。元動画と人物・道具・背景が違う場合は「元動画に忠実な漫画加工」を選んでください。追加のAI利用枠は消費しません。")
         }
     }
 
