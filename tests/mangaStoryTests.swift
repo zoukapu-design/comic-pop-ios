@@ -20,6 +20,19 @@ import Foundation
         precondition(fallback.beats[2].dialogue=="あれ、曲がってる！")
         precondition(!fallback.isAIStory)
         precondition(MangaStoryPlanner.role(for:"punch").contains("オチ"))
+        // Existing drafts from previous TestFlight versions do not contain
+        // the new Japanese approval fields; they must still decode safely.
+        let oldBeatBytes=try JSONEncoder().encode(fallback.beats[0])
+        let legacyBeat=try JSONDecoder().decode(MangaStoryBeat.self,from:oldBeatBytes)
+        precondition(legacyBeat.reviewedCaption==nil && legacyBeat.reviewedDialogue==nil)
+        var approvedBeat=legacyBeat
+        approvedBeat.reviewedCaption="動画で見たまま"
+        approvedBeat.reviewedDialogue="気をつけて！"
+        let approvedBytes=try JSONEncoder().encode(approvedBeat)
+        let restoredBeat=try JSONDecoder().decode(MangaStoryBeat.self,from:approvedBytes)
+        precondition(restoredBeat.reviewedCaption=="動画で見たまま" &&
+                     restoredBeat.reviewedDialogue=="気をつけて！")
+
         let beats=(1...5).map { index in
             ["index":index,"caption":"そして展開が動いた\(index)。",
              "dialogue":"これはどうなる？",
