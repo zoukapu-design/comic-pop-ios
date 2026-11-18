@@ -445,16 +445,16 @@ assert "guard saveDraftCheckpoint() else {return}" in retake
 retakeCommit=store.split("func regeneratePanel(",1)[1].split("func chooseOriginal(",1)[0]
 # A failed PNG/JSON checkpoint must restore both the prior image and the
 # in-memory state; the retry seed must not advance when nothing was saved.
-for before in ("let previousDrawing=generated[index].drawing",
+for before in ("let previousPanel=generated[index]",
                "let previousFinishingBase=finishingBase[id]",
                "let previousRetryCount=panelRetryCount[id]",
                "let previousDirty=dirtyArtworkIDs"):
     assert before in retakeCommit,before
-assert "generated[index].drawing=previousDrawing" in retakeCommit
+assert "generated[index]=previousPanel" in retakeCommit
 assert "finishingBase[id]=previousFinishingBase" in retakeCommit
 assert "panelRetryCount[id]=previousRetryCount" in retakeCommit
 assert "dirtyArtworkIDs=previousDirty" in retakeCommit
-assert retakeCommit.index("guard saveDraftCheckpoint() else {\n                generated[index].drawing=previousDrawing") < retakeCommit.index("refreshArtworkSimilarityWarnings()")
+assert retakeCommit.index("guard saveDraftCheckpoint() else {\n                generated[index]=previousPanel") < retakeCommit.index("refreshArtworkSimilarityWarnings()")
 assert "guard saveDraftCheckpoint() else {return false}" in store.split("func saveWork() -> Bool",1)[1]
 assert 'artworks.map(\\.id) == Array(sceneIDs.prefix(artworks.count))' in checkpoint
 assert "!$0.contains(" in checkpoint
