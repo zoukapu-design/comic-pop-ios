@@ -624,7 +624,8 @@ assert 'ios-testflight-upload:' in codemagic
 # appear missing simply because the text field is blank.
 assert "store.tokenExists && !editingCredentials" in settings
 assert "保存済みトークンで接続確認" in settings
-assert "reconnectSavedCloudflare(account:account)" in settings
+assert "reconnectSavedCloudflare(account:selectedAccountID)" in settings
+assert "CloudflareSetupPolicy.isValidAccountID(selectedAccountID)" in settings
 assert "新しいトークンに変更" in settings
 assert 'cfWorkersFreeConfirmed' in store
 savedTokenReconnect=store.split("func reconnectSavedCloudflare(account candidate:String) async -> Bool {",1)[1].split("func disconnect()",1)[0]
@@ -657,7 +658,8 @@ assert 'SecItemUpdate(' in security
 assert 'SecItemDelete(query as CFDictionary)' not in security.split('static func save(',1)[1].split('static func load()',1)[0]
 assert '今は端末内のおためしで始める' in onboarding
 assert 'CloudflareCredentialVault.load()' in savedTokenReconnect
-assert 'reconnectSavedCloudflare(account:trimmedAccount)' in onboarding
+assert 'reconnectSavedCloudflare(account:selectedAccountID)' in onboarding
+assert 'CloudflareSetupPolicy.resolvedAccountID(' in onboarding
 assert 'if !store.tokenExists {' in onboarding
 assert 'CloudflareSetupPolicy.swift' in preflight and 'cloudflareSetupPolicyTests.swift' in preflight
 assert 'A prior completed/declined setup never prompts again' in setupTests
@@ -677,7 +679,8 @@ assert 'if sourceLocked {' in drawingPrompt
 assert 'MangaSourceFidelityPolicy.lockedSourceRule' in drawingPrompt
 assert 'sourceLocked:sourceLocked' in ai
 assert 'MangaSourceFidelityPolicy.useEarlierMangaAsVisualReference(locked:sourceLocked)' in ai
-assert '512/max(largest,1)' in ai
+assert 'for maximumSide in [496.0,448.0,384.0]' in ai
+assert 'jpeg.count<680_000' in ai
 assert 'MangaSourceFidelityPolicy.sourceLocked()' in ai
 assert 'MangaSourceFidelityPolicy.sourceLocked()' in store
 assert 'MangaVisualFidelityGuard.protectedImage(' in store
