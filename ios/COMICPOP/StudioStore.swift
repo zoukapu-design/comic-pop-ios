@@ -65,7 +65,7 @@ struct PreviewPanel: Identifiable {
     /// A stored credential pair is reusable without a fresh sign-in or token entry.
     /// isConnected is only a local storage state, not an online plan verification.
     var hasCloudflareSetup: Bool {
-        tokenExists && !cloudflareAccount.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty
+        tokenExists && CloudflareSetupPolicy.isValidAccountID(cloudflareAccount)
     }
     var selectedDeck: UserDeck? {data.decks.first(where:{$0.id == data.activeDeckID}) ?? data.decks.first}
     var cards: [PinDefinition] {catalog}
@@ -618,8 +618,12 @@ struct PreviewPanel: Identifiable {
         }
         let cleanAccount=candidate.trimmingCharacters(in:.whitespacesAndNewlines)
         let cleanToken=token.trimmingCharacters(in:.whitespacesAndNewlines)
-        guard !cleanAccount.isEmpty && !cleanToken.isEmpty else {
-            message="Account IDとAPIトークンを入力してください"
+        guard CloudflareSetupPolicy.isValidAccountID(cleanAccount) else {
+            message="Cloudflare Account IDは32桁の16進数で入力してください。"
+            return false
+        }
+        guard !cleanToken.isEmpty else {
+            message="初回登録または変更時のみAPIトークンを入力してください"
             return false
         }
         do {
@@ -646,7 +650,10 @@ struct PreviewPanel: Identifiable {
             return false
         }
         let cleanAccount=candidate.trimmingCharacters(in:.whitespacesAndNewlines)
-        guard !cleanAccount.isEmpty else {message="Account IDを入力してください";return false}
+        guard CloudflareSetupPolicy.isValidAccountID(cleanAccount) else {
+            message="Account IDは32桁の16進数で入力してください。保存済みトークンは維持しています。"
+            return false
+        }
         guard let savedToken=CloudflareCredentialVault.load(),!savedToken.isEmpty else {
             isConnected=false
             message="保存済みトークンがありません。新しいAPIトークンを登録してください"
@@ -789,7 +796,7 @@ struct PreviewPanel: Identifiable {
             return
         }
         guard let token=CloudflareCredentialVault.load(),
-              !cloudflareAccount.isEmpty else {
+              hasCloudflareSetup else {
             message=tokenExists ?
                 "保存済みトークンはあります。設定でCloudflare Account IDを確認してください" :
                 "初回のみCloudflareのAccount IDとAPIトークンを登録してください"
@@ -1301,6 +1308,53 @@ struct PreviewPanel: Identifiable {
         refreshArtworkSimilarityWarnings()
         rebuildPages()
         message="元動画の人物・道具・背景を維持して、このコマを端末内で漫画加工しました（AIの追加利用なし）"
+    }
+
+    /// Restore previously generated draft artwork from actual filmed frames.
+    /// Never send video, spend AI credits, or change saved works or captions.
+    func repairAllPanelsFromSource() async {
+        guard !isGenerating,!generated.isEmpty else {return}
+        let session=videoSession,revision=pinsRevision
+        let style=data.style,colorMode=data.colorMode
+        let previous=generated
+        let previousBases=finishingBase
+        let previousDirty=dirtyArtworkIDs
+        isGenerating=true
+        defer {isGenerating=false}
+        var repaired:[PreviewPanel]=[]
+        for (index,panel) in previous.enumerated() {
+            message="元動画から全コマを修復中 \(index+1)/\(previous.count)"
+            let original=panel.original
+            let drawing=await Task.detached(priority:.userInitiated) {
+                OfflineComicFilter.render(original,style:style,colorMode:colorMode)
+            }.value
+            guard session==videoSession && revision==pinsRevision &&
+                  style==data.style && colorMode==data.colorMode else {
+                message="元動画・カード・画風が変更されたため修復を中止しました"
+                return
+            }
+            guard let drawing else {
+                message="\(index+1)コマ目の加工に失敗したため、元の漫画を保持しました"
+                return
+            }
+            var fixed=panel
+            fixed.drawing=drawing
+            repaired.append(fixed)
+        }
+        // Publish only after all image work succeeds. Failed durable writes
+        // must restore the original draft and finishing-filter baselines.
+        generated=repaired
+        finishingBase.removeAll()
+        dirtyArtworkIDs.formUnion(repaired.map(\.id))
+        guard saveDraftCheckpoint() else {
+            generated=previous
+            finishingBase=previousBases
+            dirtyArtworkIDs=previousDirty
+            return
+        }
+        refreshArtworkSimilarityWarnings()
+        rebuildPages()
+        message="全\(repaired.count)コマを元動画から漫画加工しました。セリフ・カード・保存済み作品は維持。追加AI利用なし。"
     }
 
     func chooseOriginal(_ id:UUID){

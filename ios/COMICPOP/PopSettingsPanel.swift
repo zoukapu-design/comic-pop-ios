@@ -10,6 +10,9 @@ struct PopSettingsPanel: View {
     @State private var isConnecting = false
     @State private var editingCredentials = false
     @State private var askDisconnect = false
+    private var selectedAccountID:String {
+        CloudflareSetupPolicy.resolvedAccountID(entered:account,saved:store.cloudflareAccount)
+    }
 
     var body: some View {
         NavigationStack {
@@ -110,7 +113,7 @@ struct PopSettingsPanel: View {
                                     Button {
                                         isConnecting=true
                                         Task {
-                                            _ = await store.reconnectSavedCloudflare(account:account)
+                                            _ = await store.reconnectSavedCloudflare(account:selectedAccountID)
                                             isConnecting=false
                                         }
                                     } label: {
@@ -121,7 +124,7 @@ struct PopSettingsPanel: View {
                                             .padding(.vertical,11)
                                     }
                                     .disabled(isConnecting ||
-                                              account.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ||
+                                              !CloudflareSetupPolicy.isValidAccountID(selectedAccountID) ||
                                               !store.confirmsFree)
                                     .background(.white,in:Capsule())
                                     .overlay(Capsule().stroke(PopColor.edge,lineWidth:1.6))
@@ -132,6 +135,13 @@ struct PopSettingsPanel: View {
                                     .padding(.horizontal,8)
                                 }
                                 .buttonStyle(.plain)
+                                if let hint=CloudflareSetupPolicy.connectionHint(
+                                    accountID:selectedAccountID,confirmedFree:store.confirmsFree
+                                ) {
+                                    Text(hint)
+                                        .font(.system(size:11,weight:.semibold))
+                                        .foregroundStyle(PopColor.royal)
+                                }
                                 HStack {
                                     Button("新しいトークンに変更") {
                                         editingCredentials=true
@@ -165,12 +175,12 @@ struct PopSettingsPanel: View {
                                 PopYellowButton(title:isConnecting ? "接続を確認中…" : "AIアカウントを接続",
                                                 icon:"link",
                                                 enabled:!isConnecting &&
-                                                !account.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty &&
+                                                CloudflareSetupPolicy.isValidAccountID(selectedAccountID) &&
                                                 !token.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty &&
                                                 store.confirmsFree) {
                                     isConnecting=true
                                     Task {
-                                        let success=await store.connect(account:account,token:token)
+                                        let success=await store.connect(account:selectedAccountID,token:token)
                                         if success {
                                             token=""
                                             editingCredentials=false

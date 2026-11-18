@@ -41,15 +41,30 @@ struct VideoFrameService {
         return UIImage(cgImage:cg)
     }
     static func compactJPEG(_ image:UIImage)->Data? {
+        // Retain facial and prop detail before downsampling or compressing.
+        // Prefer 768px, then shrink only if the encoded size is too large.
         let largest=max(image.size.width,image.size.height)
-        let factor=min(1,512/max(largest,1))
-        let size=CGSize(width:max(1,round(image.size.width*factor)),height:max(1,round(image.size.height*factor)))
-        let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=true
-        let scaled=UIGraphicsImageRenderer(size:size,format:format).image{_ in
-            UIColor.white.setFill();UIRectFill(CGRect(origin:.zero,size:size))
-            image.draw(in:CGRect(origin:.zero,size:size))
+        guard largest.isFinite,largest>0 else {return nil}
+        let format=UIGraphicsImageRendererFormat()
+        format.scale=1
+        format.opaque=true
+        for maximumSide in [768.0,640.0,512.0] {
+            let factor=min(1,maximumSide/largest)
+            let size=CGSize(width:max(1,round(image.size.width*factor)),
+                            height:max(1,round(image.size.height*factor)))
+            let scaled=UIGraphicsImageRenderer(size:size,format:format).image{_ in
+                UIColor.white.setFill()
+                UIRectFill(CGRect(origin:.zero,size:size))
+                image.draw(in:CGRect(origin:.zero,size:size))
+            }
+            for quality in [0.86,0.76,0.66] {
+                if let jpeg=scaled.jpegData(compressionQuality:quality),
+                   jpeg.count<680_000 {
+                    return jpeg
+                }
+            }
         }
-        return scaled.jpegData(compressionQuality:0.85)
+        return nil
     }
 }
 
@@ -71,7 +86,7 @@ struct CloudflareAIService {
     private static let root="https://api.cloudflare.com/client/v4"
     private static let model="@cf/black-forest-labs/flux-2-klein-4b"
     private static func accountURL(_ id:String)->URL? {
-        guard id.count==32,id.utf8.allSatisfy({("0123456789abcdefABCDEF").utf8.contains($0)}) else{return nil}
+        guard CloudflareSetupPolicy.isValidAccountID(id) else{return nil}
         return URL(string:"\(root)/accounts/\(id)/ai/run/\(model)")
     }
     static func verify(account:String,token:String) async throws -> Bool {

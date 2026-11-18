@@ -21,6 +21,13 @@ assert (src / "Security.swift").read_text().count("kSecClassGenericPassword") >=
 assert "CloudflareCredentialVault.save(cleanToken)" in store
 assert "func connect(account candidate:String,token:String) async -> Bool" in store
 assert "CloudflareCredentialVault.load()" in store
+assert "func repairAllPanelsFromSource() async" in store
+assert "previousBases=finishingBase" in store and "generated=previous" in store
+review = (src / "PopReview.swift").read_text(encoding="utf-8")
+assert "confirmRepairAll" in review and "repairAllPanelsFromSource()" in review
+assert "元動画から修復" in review
+assert "for maximumSide in [768.0,640.0,512.0]" in api
+assert "CloudflareSetupPolicy.isValidAccountID" in api
 assert "CloudflareSetupPolicy.shouldShowFirstRun(" in (src / "PopApp.swift").read_text(encoding="utf-8")
 assert "capturedSession == videoSession &&" in store and "capturedReset == pinsResetEpoch &&" in store and "capturedRevision == pinsRevision" in store
 assert "capturedDraftRevision == draftRevision" in store and "draftRevision=UUID()" in store

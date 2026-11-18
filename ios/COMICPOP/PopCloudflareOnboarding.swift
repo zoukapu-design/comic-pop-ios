@@ -12,11 +12,12 @@ struct PopCloudflareOnboarding: View {
     @State private var isConnecting = false
     @State private var didAttempt = false
 
-    private var trimmedAccount: String {
-        account.trimmingCharacters(in:.whitespacesAndNewlines)
+    private var selectedAccountID:String {
+        CloudflareSetupPolicy.resolvedAccountID(entered:account,saved:store.cloudflareAccount)
     }
     private var canConnect: Bool {
-        !isConnecting && !trimmedAccount.isEmpty && store.confirmsFree &&
+        !isConnecting && CloudflareSetupPolicy.isValidAccountID(selectedAccountID) &&
+        store.confirmsFree &&
         (store.tokenExists || !token.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
     }
 
@@ -76,6 +77,13 @@ struct PopCloudflareOnboarding: View {
                             Toggle("Workers Free契約を確認しました",isOn:$store.confirmsFree)
                                 .font(.system(size:12,weight:.semibold))
                                 .tint(PopColor.blue)
+                            if let hint=CloudflareSetupPolicy.connectionHint(
+                                accountID:selectedAccountID,confirmedFree:store.confirmsFree
+                            ) {
+                                Text(hint)
+                                    .font(.system(size:11,weight:.semibold))
+                                    .foregroundStyle(PopColor.royal)
+                            }
                             Text("契約の種類はアプリから確認できません。Workers Paid契約ではCloudflare側の課金が発生する場合があります。")
                                 .font(.system(size:10,weight:.medium))
                             PopYellowButton(
@@ -89,9 +97,9 @@ struct PopCloudflareOnboarding: View {
                                 Task {
                                     let success:Bool
                                     if store.tokenExists {
-                                        success=await store.reconnectSavedCloudflare(account:trimmedAccount)
+                                        success=await store.reconnectSavedCloudflare(account:selectedAccountID)
                                     } else {
-                                        success=await store.connect(account:trimmedAccount,token:token)
+                                        success=await store.connect(account:selectedAccountID,token:token)
                                     }
                                     if success {
                                         token=""

@@ -10,6 +10,7 @@ struct PopReviewScreen: View {
     @State private var selectedPanel:UUID?
     @State private var fullScreen = false
     @State private var confirmRegenerate = false
+    @State private var confirmRepairAll = false
     @State private var editingLettering:PreviewPanel?
     @State private var contrast = 1.05
     @State private var brightness = 0.0
@@ -83,6 +84,23 @@ struct PopReviewScreen: View {
                             .overlay(RoundedRectangle(cornerRadius:10)
                                 .stroke(PopColor.edge,lineWidth:1.5))
                             .disabled(store.isGenerating)
+                            if !store.generatedOffline {
+                                Button {
+                                    confirmRepairAll=true
+                                } label:{
+                                    Label("全コマの絵を元動画から修復（無料）",
+                                          systemImage:"photo.stack.fill")
+                                        .font(.system(size:12,weight:.heavy))
+                                        .frame(maxWidth:.infinity)
+                                        .padding(.vertical,10)
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(PopColor.ink)
+                                .background(PopColor.yellow,in:RoundedRectangle(cornerRadius:10))
+                                .disabled(store.isGenerating)
+                                Text("以前のAI画像に偽文字や別人物が描かれた場合、編集中の全コマを実動画から再加工します。セリフ・カード・保存済み作品は維持します。")
+                                    .font(.system(size:10,weight:.medium))
+                            }
                         }
                         .foregroundStyle(PopColor.ink)
                         .frame(maxWidth:.infinity,alignment:.leading)
@@ -158,6 +176,14 @@ struct PopReviewScreen: View {
         }
         .sheet(item:$editingLettering) { panel in
             PopPanelLetteringSheet(store:store,panel:panel)
+        }
+        .confirmationDialog("全コマの絵を元動画に戻しますか？",isPresented:$confirmRepairAll) {
+            Button("全コマを元動画から漫画加工（AI追加消費なし）") {
+                Task {await store.repairAllPanelsFromSource()}
+            }
+            Button("キャンセル",role:.cancel) {}
+        } message:{
+            Text("編集中のAI生成画像を実動画の漫画風加工に置き換えます。AIによる描き直しではありません。セリフ・カード・保存済み作品は維持します。")
         }
         .confirmationDialog("選んだコマを再生成しますか？",isPresented:$confirmRegenerate) {
             Button(store.generatedOffline ? "端末内で再加工" : "Cloudflare AIで再生成") {

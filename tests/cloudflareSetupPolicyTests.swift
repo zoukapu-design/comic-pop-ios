@@ -29,8 +29,23 @@ import Foundation
             hasSavedToken:true,accountID:"abc",didConfirmWorkersFree:false))
         precondition(!CloudflareSetupPolicy.mayGenerateWithAI(
             hasSavedToken:false,accountID:"abc",didConfirmWorkersFree:true))
+        let validAccount="0123456789abcdefABCDEF0123456789"
         precondition(CloudflareSetupPolicy.mayGenerateWithAI(
+            hasSavedToken:true,accountID:validAccount,didConfirmWorkersFree:true))
+        precondition(!CloudflareSetupPolicy.mayGenerateWithAI(
             hasSavedToken:true,accountID:"account-id",didConfirmWorkersFree:true))
+        precondition(CloudflareSetupPolicy.resolvedAccountID(
+            entered:" ",saved:validAccount)==validAccount)
+        precondition(CloudflareSetupPolicy.resolvedAccountID(
+            entered:"  abc ",saved:validAccount)=="abc")
+        precondition(CloudflareSetupPolicy.isValidAccountID(validAccount))
+        precondition(!CloudflareSetupPolicy.isValidAccountID("wrong-id"))
+        precondition(CloudflareSetupPolicy.connectionHint(
+            accountID:validAccount,confirmedFree:true)==nil)
+        precondition(CloudflareSetupPolicy.connectionHint(
+            accountID:"",confirmedFree:true)?.contains("Account ID")==true)
+        precondition(CloudflareSetupPolicy.connectionHint(
+            accountID:validAccount,confirmedFree:false)?.contains("Workers Free")==true)
         print("PASS: Cloudflare first-run onboarding, saved-token reuse, optional offline skip and AI readiness")
     }
 }
