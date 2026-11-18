@@ -26,7 +26,7 @@ assert "previousBases=finishingBase" in store and "generated=previous" in store
 review = (src / "PopReview.swift").read_text(encoding="utf-8")
 assert "confirmRepairAll" in review and "repairAllPanelsFromSource()" in review
 assert "元動画から修復" in review
-assert "for maximumSide in [768.0,640.0,512.0]" in api
+assert "for maximumSide in [496.0,448.0,384.0]" in api
 assert "CloudflareSetupPolicy.isValidAccountID" in api
 assert "CloudflareSetupPolicy.shouldShowFirstRun(" in (src / "PopApp.swift").read_text(encoding="utf-8")
 assert "capturedSession == videoSession &&" in store and "capturedReset == pinsResetEpoch &&" in store and "capturedRevision == pinsRevision" in store

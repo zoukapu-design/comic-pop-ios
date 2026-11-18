@@ -42,13 +42,14 @@ struct VideoFrameService {
     }
     static func compactJPEG(_ image:UIImage)->Data? {
         // Retain facial and prop detail before downsampling or compressing.
-        // Prefer 768px, then shrink only if the encoded size is too large.
+        // Cloudflare Klein 4B requires each reference image dimension <512px.
+        // Prefer 496px with high JPEG fidelity; shrink only when necessary.
         let largest=max(image.size.width,image.size.height)
         guard largest.isFinite,largest>0 else {return nil}
         let format=UIGraphicsImageRendererFormat()
         format.scale=1
         format.opaque=true
-        for maximumSide in [768.0,640.0,512.0] {
+        for maximumSide in [496.0,448.0,384.0] {
             let factor=min(1,maximumSide/largest)
             let size=CGSize(width:max(1,round(image.size.width*factor)),
                             height:max(1,round(image.size.height*factor)))
@@ -57,7 +58,7 @@ struct VideoFrameService {
                 UIRectFill(CGRect(origin:.zero,size:size))
                 image.draw(in:CGRect(origin:.zero,size:size))
             }
-            for quality in [0.86,0.76,0.66] {
+            for quality in [0.95,0.86,0.76] {
                 if let jpeg=scaled.jpegData(compressionQuality:quality),
                    jpeg.count<680_000 {
                     return jpeg
