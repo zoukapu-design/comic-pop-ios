@@ -36,9 +36,21 @@ struct VideoFrameService {
         generator.appliesPreferredTrackTransform=true
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
-        generator.maximumSize=CGSize(width:880,height:880)
+        generator.maximumSize=CGSize(width:1280,height:1280)
         let (cg,_) = try await generator.image(at:CMTime(seconds:max(0,seconds),preferredTimescale:600))
         return UIImage(cgImage:cg)
+    }
+    /// Stored pin previews are NOT Cloudflare reference images. Keep them
+    /// sufficiently detailed for local manga processing, draft recovery and
+    /// Japanese visual analysis. Only compactJPEG must be <512px for FLUX.
+    static func snapshotJPEG(_ image:UIImage)->Data? {
+        for quality in [0.92,0.84,0.74] {
+            if let bytes=image.jpegData(compressionQuality:quality),
+               bytes.count<2_500_000 {
+                return bytes
+            }
+        }
+        return compactJPEG(image)
     }
     static func compactJPEG(_ image:UIImage)->Data? {
         // Retain facial and prop detail before downsampling or compressing.

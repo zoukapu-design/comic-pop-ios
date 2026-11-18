@@ -22,6 +22,17 @@ assert "CloudflareCredentialVault.save(cleanToken)" in store
 assert "func connect(account candidate:String,token:String) async -> Bool" in store
 assert "CloudflareCredentialVault.load()" in store
 assert "func repairAllPanelsFromSource() async" in store
+assert "generator.maximumSize=CGSize(width:1280,height:1280)" in api
+assert "static func snapshotJPEG(_ image:UIImage)" in api
+assert "static func compactJPEG(_ image:UIImage)" in api
+assert "VideoFrameService.snapshotJPEG(frame)" in store
+assert "private func verifiedSourceFrame(for pin:MangaPin) async throws -> UIImage" in store
+assert "return try await VideoFrameService.frame(at:pin.seconds,from:movie)" in store
+assert "let original=try await verifiedSourceFrame(for:pin)" in store
+assert "func chooseSourceFaithfulComic(_ id:UUID) async" in store
+assert "try? await verifiedSourceFrame(for:pin)" in store
+assert "original:original,drawing:drawing,warning:panel.warning" in store
+
 assert "previousBases=finishingBase" in store and "generated=previous" in store
 review = (src / "PopReview.swift").read_text(encoding="utf-8")
 assert "confirmRepairAll" in review and "repairAllPanelsFromSource()" in review

@@ -688,7 +688,7 @@ assert 'MangaFidelityDistancePolicy.isUnreliable(' in visionGuard
 assert 'VNGenerateImageFeaturePrintRequest()' in visionGuard
 assert 'OfflineComicFilter.render(original,style:style,colorMode:colorMode)' in visionGuard
 assert 'var fidelityFallbacks=0' in store
-assert 'func chooseSourceFaithfulComic(_ id:UUID)' in store
+assert 'func chooseSourceFaithfulComic(_ id:UUID) async' in store
 assert 'store.chooseSourceFaithfulComic(id)' in review
 assert '元動画に忠実な漫画加工（AI追加消費なし）' in review
 assert '@AppStorage("pop.generation.sourceLocked.v1") private var sourceLocked = true' in genre

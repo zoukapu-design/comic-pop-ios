@@ -191,7 +191,7 @@ struct PopReviewScreen: View {
                 Task {await store.regeneratePanel(id)}
             }
             Button("元動画に忠実な漫画加工（AI追加消費なし）") {
-                if let id=activePanel?.id {store.chooseSourceFaithfulComic(id)}
+                if let id=activePanel?.id {Task {await store.chooseSourceFaithfulComic(id)}}
             }
             Button("元動画の画像に戻す") {
                 if let id=activePanel?.id {store.chooseOriginal(id)}
@@ -396,7 +396,7 @@ struct PopReviewScreen: View {
             // explicit no-AI-credit replacement from the filmed video frame.
             Button {
                 if let panel=activePanel {
-                    store.chooseSourceFaithfulComic(panel.id)
+                    Task {await store.chooseSourceFaithfulComic(panel.id)}
                 }
             } label:{
                 VStack(spacing:3) {

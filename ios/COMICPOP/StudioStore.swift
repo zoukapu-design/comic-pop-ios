@@ -403,7 +403,7 @@ struct PreviewPanel: Identifiable {
                 message="カード取得中に未保存の漫画ができました。既存の漫画を保護するため挿入を中止しました。"
                 return
             }
-            guard let bytes=VideoFrameService.compactJPEG(frame) else {throw MangaError.invalidImage}
+            guard let bytes=VideoFrameService.snapshotJPEG(frame) else {throw MangaError.invalidImage}
             let file="pin-\(UUID().uuidString).jpg"
             let snapshotURL=support.appendingPathComponent(file)
             try bytes.write(to:snapshotURL,options:.atomic)
@@ -497,6 +497,15 @@ struct PreviewPanel: Identifiable {
         message="カードを全削除しました"
     }
     func snapshot(for pin:MangaPin)->UIImage? {UIImage(contentsOfFile:support.appendingPathComponent(pin.snapshotFile).path)}
+    /// The filmed moment is the source of truth. Never redraw from an
+    /// older compressed pin thumbnail or previously AI-generated artwork.
+    /// Failed video reads abort before any new paid AI image request.
+    private func verifiedSourceFrame(for pin:MangaPin) async throws -> UIImage {
+        guard let movie=videoURL,fm.fileExists(atPath:movie.path) else {
+            throw MangaError.noVideo
+        }
+        return try await VideoFrameService.frame(at:pin.seconds,from:movie)
+    }
     func card(for pin:MangaPin)->PinDefinition {
         catalog.first(where:{$0.id==pin.cardID}) ?? catalog.first ??
             PinDefinition(id:"unknown",title:"未登録カード",subtitle:"カード情報を確認",category:"editing",art:0,color:"#eeeeee")
@@ -961,7 +970,12 @@ struct PreviewPanel: Identifiable {
         for index in startIndex..<pins.count {
             let pin=pins[index]
             do {
-                guard let original=snapshot(for:pin) else {throw MangaError.invalidImage}
+                let original=try await verifiedSourceFrame(for:pin)
+                guard startingSession == videoSession && startingRevision == pinsRevision &&
+                      style == data.style && colorMode == data.colorMode else {
+                    message="動画またはカードが変更されたためAI送信前に停止しました"
+                    return
+                }
                 message="AIで描き直しています \(index+1)/\(pins.count)（ユーザーの無料枠）"
                 let card=combinedCard(for:pin)
                 guard let beat=storyPlan?.beats.first(where:{$0.id==pin.id}) else {
@@ -1083,8 +1097,8 @@ struct PreviewPanel: Identifiable {
         let startIndex=generated.count
         for index in startIndex..<pins.count {
             let pin=pins[index]
-            guard let original=snapshot(for:pin) else {
-                rebuildPages();message="元動画の\(index+1)コマ目を取得できません";return
+            guard let original=try? await verifiedSourceFrame(for:pin) else {
+                rebuildPages();message="元動画の\(index+1)コマ目を読み出せません。動画ファイルを確認してください。";return
             }
             message="端末内で漫画調に変換しています \(index+1)/\(pins.count)"
             let drawing=await Task.detached(priority:.userInitiated) {
@@ -1163,7 +1177,6 @@ struct PreviewPanel: Identifiable {
         let mode=generatedMode ?? "offline"
         let style=data.style,colorMode=data.colorMode
         let startingSession=videoSession,startingRevision=pinsRevision
-        let original=generated[index].original
         let attempt=panelRetryCount[id,default:0]+1
         // Protect the current panel before a user explicitly spends another
         // AI request on retaking it.
@@ -1171,6 +1184,12 @@ struct PreviewPanel: Identifiable {
         isGenerating=true
         defer {isGenerating=false}
         do {
+            let original=try await verifiedSourceFrame(for:pin)
+            guard startingSession==videoSession && startingRevision==pinsRevision &&
+                  style==data.style && colorMode==data.colorMode else {
+                message="元動画が変更されたため、追加のAIリクエスト前に停止しました"
+                return
+            }
             let updated:UIImage
             if mode=="offline" {
                 guard let image=OfflineComicFilter.render(original,style:style,colorMode:colorMode) else {
@@ -1220,16 +1239,21 @@ struct PreviewPanel: Identifiable {
             // Publish the new drawing only if the durable checkpoint can
             // be written. On disk failure keep the previous visual, filters,
             // retry seed and dirty markers consistent with the saved draft.
-            let previousDrawing=generated[index].drawing
+            let previousPanel=generated[index]
             let previousFinishingBase=finishingBase[id]
             let previousRetryCount=panelRetryCount[id]
             let previousDirty=dirtyArtworkIDs
             panelRetryCount[id]=attempt
             finishingBase[id]=updated
-            generated[index].drawing=updated
+            generated[index]=PreviewPanel(
+                id:previousPanel.id,cardTitle:previousPanel.cardTitle,
+                original:original,drawing:updated,warning:previousPanel.warning,
+                caption:previousPanel.caption,dialogue:previousPanel.dialogue,
+                storyPrompt:previousPanel.storyPrompt,storyScene:previousPanel.storyScene
+            )
             dirtyArtworkIDs.insert(id)
             guard saveDraftCheckpoint() else {
-                generated[index].drawing=previousDrawing
+                generated[index]=previousPanel
                 finishingBase[id]=previousFinishingBase
                 panelRetryCount[id]=previousRetryCount
                 dirtyArtworkIDs=previousDirty
@@ -1283,31 +1307,50 @@ struct PreviewPanel: Identifiable {
     /// Restore the actual camera geometry as a manga-style drawing.
     /// Unlike an AI retake, this cannot invent a new person, vehicle or scene,
     /// and does not send video frames or spend any Workers AI quota.
-    func chooseSourceFaithfulComic(_ id:UUID) {
+    func chooseSourceFaithfulComic(_ id:UUID) async {
         guard !isGenerating else {message="生成中はコマを変更できません";return}
-        guard let index=generated.firstIndex(where:{$0.id==id}) else {return}
-        let original=generated[index].original
-        guard let faithful=OfflineComicFilter.render(
-            original,style:data.style,colorMode:data.colorMode
-        ) else {
-            message="元動画からの忠実な漫画加工に失敗しました"
-            return
+        guard let index=generated.firstIndex(where:{$0.id==id}),
+              let pin=scenePlan.renderPins.first(where:{$0.id==id}) else {
+            message="元動画のコマが見つかりません";return
         }
-        let previousDrawing=generated[index].drawing
-        let previousBase=finishingBase[id]
-        let previousDirty=dirtyArtworkIDs
-        finishingBase[id]=nil
-        generated[index].drawing=faithful
-        dirtyArtworkIDs.insert(id)
-        guard saveDraftCheckpoint() else {
-            generated[index].drawing=previousDrawing
-            finishingBase[id]=previousBase
-            dirtyArtworkIDs=previousDirty
-            return
+        let session=videoSession,revision=pinsRevision
+        let style=data.style,colorMode=data.colorMode
+        isGenerating=true
+        defer {isGenerating=false}
+        do {
+            let original=try await verifiedSourceFrame(for:pin)
+            let faithful=await Task.detached(priority:.userInitiated) {
+                OfflineComicFilter.render(original,style:style,colorMode:colorMode)
+            }.value
+            guard session==videoSession && revision==pinsRevision &&
+                  style==data.style && colorMode==data.colorMode else {
+                message="元動画・カードが変更されたため修復を中止しました"
+                return
+            }
+            guard let faithful else {throw MangaError.invalidImage}
+            let old=generated[index]
+            let previousBase=finishingBase[id]
+            let previousDirty=dirtyArtworkIDs
+            generated[index]=PreviewPanel(
+                id:old.id,cardTitle:old.cardTitle,original:original,
+                drawing:faithful,warning:old.warning,caption:old.caption,
+                dialogue:old.dialogue,storyPrompt:old.storyPrompt,
+                storyScene:old.storyScene
+            )
+            finishingBase[id]=nil
+            dirtyArtworkIDs.insert(id)
+            guard saveDraftCheckpoint() else {
+                generated[index]=old
+                finishingBase[id]=previousBase
+                dirtyArtworkIDs=previousDirty
+                return
+            }
+            refreshArtworkSimilarityWarnings()
+            rebuildPages()
+            message="元動画の高画質フレームから修復しました。AI追加利用なし。"
+        } catch {
+            message="元動画からコマを修復できません：\(error.localizedDescription)"
         }
-        refreshArtworkSimilarityWarnings()
-        rebuildPages()
-        message="元動画の人物・道具・背景を維持して、このコマを端末内で漫画加工しました（AIの追加利用なし）"
     }
 
     /// Restore previously generated draft artwork from actual filmed frames.
@@ -1324,7 +1367,14 @@ struct PreviewPanel: Identifiable {
         var repaired:[PreviewPanel]=[]
         for (index,panel) in previous.enumerated() {
             message="元動画から全コマを修復中 \(index+1)/\(previous.count)"
-            let original=panel.original
+            guard let pin=scenePlan.renderPins.first(where:{$0.id==panel.id}) else {
+                message="元動画のシーンが見つからないため、元の漫画を維持しました"
+                return
+            }
+            guard let original=try? await verifiedSourceFrame(for:pin) else {
+                message="\(index+1)コマ目の元動画を取得できず、元の漫画を維持しました"
+                return
+            }
             let drawing=await Task.detached(priority:.userInitiated) {
                 OfflineComicFilter.render(original,style:style,colorMode:colorMode)
             }.value
@@ -1337,9 +1387,12 @@ struct PreviewPanel: Identifiable {
                 message="\(index+1)コマ目の加工に失敗したため、元の漫画を保持しました"
                 return
             }
-            var fixed=panel
-            fixed.drawing=drawing
-            repaired.append(fixed)
+            repaired.append(PreviewPanel(
+                id:panel.id,cardTitle:panel.cardTitle,
+                original:original,drawing:drawing,warning:panel.warning,
+                caption:panel.caption,dialogue:panel.dialogue,
+                storyPrompt:panel.storyPrompt,storyScene:panel.storyScene
+            ))
         }
         // Publish only after all image work succeeds. Failed durable writes
         // must restore the original draft and finishing-filter baselines.
