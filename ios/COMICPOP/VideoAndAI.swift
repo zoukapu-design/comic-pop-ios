@@ -36,20 +36,48 @@ struct VideoFrameService {
         generator.appliesPreferredTrackTransform=true
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
-        generator.maximumSize=CGSize(width:880,height:880)
+        generator.maximumSize=CGSize(width:1280,height:1280)
         let (cg,_) = try await generator.image(at:CMTime(seconds:max(0,seconds),preferredTimescale:600))
         return UIImage(cgImage:cg)
     }
-    static func compactJPEG(_ image:UIImage)->Data? {
-        let largest=max(image.size.width,image.size.height)
-        let factor=min(1,480/max(largest,1))
-        let size=CGSize(width:max(1,round(image.size.width*factor)),height:max(1,round(image.size.height*factor)))
-        let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=true
-        let scaled=UIGraphicsImageRenderer(size:size,format:format).image{_ in
-            UIColor.white.setFill();UIRectFill(CGRect(origin:.zero,size:size))
-            image.draw(in:CGRect(origin:.zero,size:size))
+    /// Stored pin previews are NOT Cloudflare reference images. Keep them
+    /// sufficiently detailed for local manga processing, draft recovery and
+    /// Japanese visual analysis. Only compactJPEG must be <512px for FLUX.
+    static func snapshotJPEG(_ image:UIImage)->Data? {
+        for quality in [0.92,0.84,0.74] {
+            if let bytes=image.jpegData(compressionQuality:quality),
+               bytes.count<2_500_000 {
+                return bytes
+            }
         }
-        return scaled.jpegData(compressionQuality:0.7)
+        return compactJPEG(image)
+    }
+    static func compactJPEG(_ image:UIImage)->Data? {
+        // Retain facial and prop detail before downsampling or compressing.
+        // Cloudflare Klein 4B requires each reference image dimension <512px.
+        // Prefer 496px with high JPEG fidelity; shrink only when necessary.
+        let largest=max(image.size.width,image.size.height)
+        guard largest.isFinite,largest>0 else {return nil}
+        let format=UIGraphicsImageRendererFormat()
+        format.scale=1
+        format.opaque=true
+        for maximumSide in [496.0,448.0,384.0] {
+            let factor=min(1,maximumSide/largest)
+            let size=CGSize(width:max(1,round(image.size.width*factor)),
+                            height:max(1,round(image.size.height*factor)))
+            let scaled=UIGraphicsImageRenderer(size:size,format:format).image{_ in
+                UIColor.white.setFill()
+                UIRectFill(CGRect(origin:.zero,size:size))
+                image.draw(in:CGRect(origin:.zero,size:size))
+            }
+            for quality in [0.95,0.86,0.76] {
+                if let jpeg=scaled.jpegData(compressionQuality:quality),
+                   jpeg.count<680_000 {
+                    return jpeg
+                }
+            }
+        }
+        return nil
     }
 }
 
@@ -71,7 +99,7 @@ struct CloudflareAIService {
     private static let root="https://api.cloudflare.com/client/v4"
     private static let model="@cf/black-forest-labs/flux-2-klein-4b"
     private static func accountURL(_ id:String)->URL? {
-        guard id.count==32,id.utf8.allSatisfy({("0123456789abcdefABCDEF").utf8.contains($0)}) else{return nil}
+        guard CloudflareSetupPolicy.isValidAccountID(id) else{return nil}
         return URL(string:"\(root)/accounts/\(id)/ai/run/\(model)")
     }
     static func verify(account:String,token:String) async throws -> Bool {
@@ -85,7 +113,7 @@ struct CloudflareAIService {
         // Token validity is not a confirmation of the Workers Free plan or account permissions.
         return status.success == true && status.result?.status == "active"
     }
-    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int) async throws -> UIImage {
+    static func redraw(image:UIImage,card:PinDefinition,pin:MangaPin,style:String,colorMode:String,account:String,token:String,seed:Int,story:MangaStoryBeat?=nil,seriesPremise:String="",previousDrawing:UIImage?=nil,openingDrawing:UIImage?=nil,alternateComposition:Bool=false,combinedCardIDs:[String]=[]) async throws -> UIImage {
         guard let jpg=VideoFrameService.compactJPEG(image),jpg.count<700_000 else{throw MangaError.invalidImage}
         guard let url=accountURL(account),!token.isEmpty else{throw MangaError.credentialsMissing}
         let aspect=image.size.width/max(image.size.height,1)
@@ -93,19 +121,72 @@ struct CloudflareAIService {
         let width=aspect>=1 ? 768 : align16(768*aspect)
         let height=aspect>=1 ? align16(768/aspect) : 768
         let color=colorMode=="mono" ? "All panels use the same black and white ink and screentones, no color." : "All panels use consistent full comic color."
-        let prompt=["IMPORTANT: redrawing reference image 0, not inventing a new scene.",
-           "The reference is the absolute source of truth about subject count, clothing, objects, place, action, viewpoint, and position.",
-           "Reproduce THIS precise moment and do not repeat any earlier frame or scene.",
-           "No invented people or animals, no scene substitutions and no removal of major objects.",
-           MangaStyles.prompt(for:style),color,"Editorial card: \(card.title), \(card.subtitle).",pin.note,
-           "Professional original manga illustration, no words, captions or speech bubbles."].joined(separator:" ")
+        // These are preference *hints* from the UI, not measured quality scores.
+        let defaults=UserDefaults.standard
+        let character=(defaults.object(forKey:"pop.hint.character") as? Bool) ?? true
+        let palette=(defaults.object(forKey:"pop.hint.palette") as? Bool) ?? true
+        let scene=(defaults.object(forKey:"pop.hint.scene") as? Bool) ?? true
+        let sourceLocked=MangaSourceFidelityPolicy.sourceLocked()
+        let hints=[
+            character ? "Preserve recognisable facial features and clothing of the original subject in every panel." : "",
+            palette ? "Keep a coherent ink density, line weight and limited palette throughout the page." : "",
+            scene ? "Place especially strong emphasis on actual shot changes and background transitions." : "",
+            sourceLocked ? "Only restyle the original video frame; never replace subjects or props." : ""
+        ].filter{!$0.isEmpty}.joined(separator:" ")
+        // The pin is one dramatic beat in a whole chapter. The source frame is
+        // visual evidence, not a command to copy the shot exactly.
+        let alternate=alternateComposition
+            ? "THIS IS A RETAKE BECAUSE THE LAST COMPOSITION WAS TOO SIMILAR. Use a very DIFFERENT camera distance and angle, clearer emotion and different character posing, while keeping story beats, characters and clothing consistent."
+            : "Produce a different meaningful event and camera framing from the preceding scene; never reuse its composition."
+        let combinedEmotion=MangaCardFusion.instruction(
+            cardIDs:combinedCardIDs.isEmpty ? [pin.cardID] : combinedCardIDs,
+            title:card.title,subtitle:card.subtitle
+        )
+        let approvedDirection=story?.userVisualDirection ?? ""
+        let userSceneNote=String((story?.userSceneNoteJP ?? pin.note).prefix(800))
+        // User-authored emotions/intent live in userNote, not in the
+        // physical event field. An absent storyboard action stays absent.
+        let plotAction=String((story?.plotDescriptionJP ?? "").prefix(150))
+        let plannedIllustration=String((story?.imagePrompt ?? pin.note).prefix(540))
+        // Serialize the storyboard with hard priority for actual user notes,
+        // the reviewed plot, manual drawing directions, and every card in a
+        // simultaneous group. Supplementary hints are discarded before these.
+        let prompt=MangaDrawingPrompt.compose(MangaDrawingPromptInput(
+            stylePrompt:MangaStyles.prompt(for:style),
+            colorInstruction:color,
+            plotAction:plotAction,
+            userNote:userSceneNote,
+            userDirection:approvedDirection,
+            cardIDs:combinedCardIDs.isEmpty ? [pin.cardID] : combinedCardIDs,
+            cardInstruction:combinedEmotion,
+            visualInstruction:plannedIllustration,
+            causalLink:story?.causalLinkJP ?? "",
+            narrativeRole:story?.narrativeDutyJP ?? "",
+            referenceInstruction:"0=video moment; 1=previous manga; 2=opening manga, if present. Same identity/line style, NEW action.",
+            alternateInstruction:alternate,
+            seriesPremise:seriesPremise,
+            sceneContext:story?.scene ?? "",
+            transition:story?.transition ?? "",
+            consistencyHints:hints
+        ),sourceLocked:sourceLocked)
         var form=FormDataBuilder()
-        form.add(name:"prompt",value:String(prompt.prefix(2400)))
+        form.add(name:"prompt",value:prompt)
         form.add(name:"width",value:String(width))
         form.add(name:"height",value:String(height))
         form.add(name:"seed",value:String(seed))
         form.add(name:"guidance",value:"4.5")
         form.addJPEG(name:"input_image_0",bytes:jpg)
+        if MangaSourceFidelityPolicy.useEarlierMangaAsVisualReference(locked:sourceLocked),
+           let previousDrawing,
+           let continuityJPEG=VideoFrameService.compactJPEG(previousDrawing),
+           continuityJPEG.count<700_000 {
+            form.addJPEG(name:"input_image_1",bytes:continuityJPEG)
+            if let openingDrawing,
+               let anchorJPEG=VideoFrameService.compactJPEG(openingDrawing),
+               anchorJPEG.count<700_000 {
+                form.addJPEG(name:"input_image_2",bytes:anchorJPEG)
+            }
+        }
         form.finish()
         var request=URLRequest(url:url)
         request.httpMethod="POST"

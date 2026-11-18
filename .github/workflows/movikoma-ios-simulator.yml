@@ -1,0 +1,128 @@
+name: Movikoma native iOS Simulator compile
+# Public repositories can use free standard GitHub-hosted macOS runners.
+# The macOS build job never runs while this repository remains private.
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ios/**'
+      - 'tests/**'
+      - '.github/workflows/movikoma-ios-simulator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: movikoma-ios-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-ios:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: macos-26-intel
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare diagnostics
+        run: mkdir -p "$RUNNER_TEMP/movikoma"
+
+      - name: Run all Swift and resource preflight tests
+        id: preflight
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          swiftc --version
+          bash tests/run.sh 2>&1 | tee "$RUNNER_TEMP/movikoma/preflight.log"
+
+      - name: Check Xcode and install XcodeGen
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Generate native iOS project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ios
+          xcodegen generate --spec project.yml 2>&1 | tee "$RUNNER_TEMP/movikoma/xcodegen.log"
+          test -f COMICPOP.xcodeproj/project.pbxproj
+
+      - name: Compile unsigned iOS Simulator app
+        id: simulator
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ios
+          xcodebuild \
+            -project COMICPOP.xcodeproj \
+            -scheme COMICPOP \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/movikoma-derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/movikoma/ios-build.log"
+
+      - name: Package built Simulator app
+        if: steps.simulator.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/movikoma-derived/Build/Products/Debug-iphonesimulator/COMICPOP.app"
+          test -d "$app"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$app" "$RUNNER_TEMP/movikoma/COMICPOP-simulator.zip"
+
+      - name: Compile unsigned physical iPhone target
+        id: device
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ios
+          xcodebuild \
+            -project COMICPOP.xcodeproj \
+            -scheme COMICPOP \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/movikoma-derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/movikoma/iphoneos-build.log"
+          # An unsigned device build verifies the iPhone compiler target,
+          # but is NOT an installable IPA or a TestFlight upload.
+
+      - name: Upload logs and compiled app even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: movikoma-ios-simulator-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/movikoma/*.log
+            ${{ runner.temp }}/movikoma/*.zip
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce test and both compiler results
+        if: always()
+        shell: bash
+        run: |
+          echo "Preflight: ${{ steps.preflight.outcome }}"
+          echo "Simulator: ${{ steps.simulator.outcome }}"
+          echo "iPhone: ${{ steps.device.outcome }}"
+          if [[ "${{ steps.preflight.outcome }}" != success || \
+                "${{ steps.simulator.outcome }}" != success || \
+                "${{ steps.device.outcome }}" != success ]]; then
+            echo "FAIL: Review uploaded Swift preflight and Xcode compiler logs."
+            exit 1
+          fi

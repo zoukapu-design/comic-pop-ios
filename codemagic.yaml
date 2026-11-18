@@ -1,8 +1,8 @@
 workflows:
   ios-unsigned-check:
-    name: COMIC POP iOS / Source & Simulator Build
+    name: ムビコマ iOS / コンパイル検証（署名・アップロードなし）
     instance_type: mac_mini_m2
-    max_build_duration: 60
+    max_build_duration: 35
     environment:
       xcode: latest
     scripts:
@@ -10,7 +10,7 @@ workflows:
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR"
-          bash tests/run.sh
+          bash tests/run.sh 2>&1 | tee "$CM_BUILD_DIR/preflight.log"
       - name: Generate Xcode project
         script: |
           set -euo pipefail
@@ -18,23 +18,44 @@ workflows:
             brew install xcodegen
           fi
           cd "$CM_BUILD_DIR/ios"
-          xcodegen generate --spec project.yml
+          xcodegen generate --spec project.yml 2>&1 | tee "$CM_BUILD_DIR/xcodegen.log"
           test -f COMICPOP.xcodeproj/project.pbxproj
-      - name: Build unsigned iOS Simulator app
+      - name: Compile unsigned iOS Simulator app and preserve diagnostics
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR/ios"
+          set +e
           xcodebuild -project COMICPOP.xcodeproj -scheme COMICPOP \
             -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$CM_BUILD_DIR/DerivedData" \
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee "$CM_BUILD_DIR/ios-build.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          python3 - "$CM_BUILD_DIR/ios-build.log" "$CM_BUILD_DIR/ios-diagnostics.txt" <<'PY'
+          from pathlib import Path
+          import sys
+          source=Path(sys.argv[1])
+          output=Path(sys.argv[2])
+          lines=source.read_text(encoding="utf-8",errors="replace").splitlines()
+          errors=[line for line in lines if " error:" in line or "fatal error:" in line or "BUILD FAILED" in line]
+          warnings=[line for line in lines if " warning:" in line]
+          report=["ムビコマ iOS Simulator コンパイル診断",f"エラー行: {len(errors)}",f"警告行: {len(warnings)}",""]
+          report+=errors[-150:] if errors else ["Swiftコンパイラ由来のエラー行は検出されませんでした"]
+          report+=["","警告（末尾30件）",*warnings[-30:]]
+          output.write_text("\n".join(report)+"\n",encoding="utf-8")
+          print("\n".join(report[:4]))
+          PY
+          exit "$status"
     artifacts:
+      - $CM_BUILD_DIR/preflight.log
+      - $CM_BUILD_DIR/xcodegen.log
       - $CM_BUILD_DIR/ios-build.log
+      - $CM_BUILD_DIR/ios-diagnostics.txt
       - $CM_BUILD_DIR/DerivedData/Build/Products/**/*.app
 
   ios-signed-ipa:
-    name: COMIC POP iOS / Signed IPA (managed signing, no publish)
+    name: ムビコマ iOS / 署名付きIPA（アップロードなし）
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -98,7 +119,9 @@ workflows:
     # TestFlight publishing is intentionally disabled until owner reviews IPA.
 
   ios-testflight-upload:
-    name: ムビコマ iOS / Upload to TestFlight (manual trigger)
+    name: ムビコマ iOS / Legacy manual only (unused)
+    # No automatic Codemagic triggers. All future TestFlight uploads use
+    # .github/workflows/movikoma-testflight.yml (GitHub Actions).
     integrations:
       app_store_connect: Codemagic Cybernetic
     instance_type: mac_mini_m2
@@ -145,7 +168,9 @@ workflows:
           fi
           cd "$CM_BUILD_DIR/ios"
           xcodegen generate --spec project.yml
-          plutil -replace CFBundleVersion -string "${BUILD_NUMBER:-1}" COMICPOP/Info.plist
+          # PROJECT_BUILD_NUMBER increments across all workflows for this app.
+          # Avoid duplicate build numbers on repeated TestFlight uploads.
+          plutil -replace CFBundleVersion -string "${PROJECT_BUILD_NUMBER:-${BUILD_NUMBER:-1}}" COMICPOP/Info.plist
           test -f COMICPOP.xcodeproj/project.pbxproj
       - name: Apply Codemagic managed signing profiles
         script: |
@@ -188,10 +213,12 @@ workflows:
         auth: integration
         submit_to_testflight: false
         submit_to_app_store: false
-    # Uploads the signed IPA to App Store Connect only. The owner adds the build to internal testers manually.
+    # Upload to App Store Connect/TestFlight builds, without automatic external beta review.
+    # A pre-existing internal tester group can make the processed build available
+    # per the user\x27s App Store Connect internal testing setup.
 
   ios-simulator-screenshot:
-    name: COMIC POP iOS / Simulator screenshot (no Team required)
+    name: ムビコマ iOS / 初回案内＋実ホーム画面キャプチャ
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -229,10 +256,16 @@ workflows:
           xcrun simctl boot "$SIMULATOR_ID" || true
           xcrun simctl bootstatus "$SIMULATOR_ID" -b
           xcrun simctl install "$SIMULATOR_ID" "$APP_PATH"
-          xcrun simctl launch "$SIMULATOR_ID" com.example.comicpop.dev
-          sleep 6
           mkdir -p "$CM_BUILD_DIR/screenshots"
-          xcrun simctl io "$SIMULATOR_ID" screenshot "$CM_BUILD_DIR/screenshots/comicpop-launch.png"
+          # Capture onboarding, then launch the ACTUAL home by bypassing only
+          # the one-time welcome flag. Never substitute a static reference JPG.
+          xcrun simctl launch "$SIMULATOR_ID" com.example.comicpop.dev
+          sleep 4
+          xcrun simctl io "$SIMULATOR_ID" screenshot "$CM_BUILD_DIR/screenshots/movikoma-welcome.png"
+          xcrun simctl terminate "$SIMULATOR_ID" com.example.comicpop.dev
+          xcrun simctl launch "$SIMULATOR_ID" com.example.comicpop.dev -pop.didSeeWelcome YES
+          sleep 5
+          xcrun simctl io "$SIMULATOR_ID" screenshot "$CM_BUILD_DIR/screenshots/movikoma-home.png"
           xcrun simctl shutdown "$SIMULATOR_ID" || true
     artifacts:
       - $CM_BUILD_DIR/screenshots/*.png
