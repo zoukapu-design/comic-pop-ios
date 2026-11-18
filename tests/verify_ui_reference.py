@@ -715,6 +715,13 @@ assert 'reviewed:nil,originalNote:""' in visibleTests
 assert 'mangaVisibleLetteringPolicyTests.swift' in preflight
 assert 'MangaJapaneseLettering.clean' in visibleText
 assert 'VNRecognizeTextRequest()' in visionGuard
+assert 'VNDetectTextRectanglesRequest()' in visionGuard
+assert 'request.reportCharacterBoxes=true' in visionGuard
+assert 'MangaFidelityDistancePolicy.hasUnexpectedTextRegions(' in visionGuard
+assert 'static func hasUnexpectedTextRegions(' in distancePolicy
+assert 'even unreadable AI pseudo-kanji' in (root / "tests/mangaFidelityDistanceTests.swift").read_text(encoding="utf-8")
+assert '絵の中の偽文字を除去' in review
+assert 'store.chooseSourceFaithfulComic(panel.id)' in review
 assert 'MangaFidelityDistancePolicy.hasUnexpectedText(' in visionGuard
 assert 'static func hasUnexpectedText(' in distancePolicy
 assert 'hasUnexpectedText(' in (root / "tests/mangaFidelityDistanceTests.swift").read_text(encoding="utf-8")
