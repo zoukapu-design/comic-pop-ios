@@ -365,6 +365,28 @@ struct PopReviewScreen: View {
                     .stroke(PopColor.edge,lineWidth:1.5))
             }
             .disabled(store.isGenerating || activePanel == nil)
+            // AI sometimes bakes pseudo-Japanese straight into its pixels.
+            // Editing a native caption cannot touch those glyphs. Offer an
+            // explicit no-AI-credit replacement from the filmed video frame.
+            Button {
+                if let panel=activePanel {
+                    store.chooseSourceFaithfulComic(panel.id)
+                }
+            } label:{
+                VStack(spacing:3) {
+                    Image(systemName:"text.badge.xmark")
+                    Text("絵の中の偽文字を除去\n（元動画から再加工）")
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal:false,vertical:true)
+                }
+                .font(.system(size:10,weight:.heavy,design:.rounded))
+                .foregroundStyle(PopColor.ink)
+                .frame(maxWidth:.infinity).padding(.vertical,8)
+                .background(.white,in:RoundedRectangle(cornerRadius:10))
+                .overlay(RoundedRectangle(cornerRadius:10)
+                    .stroke(PopColor.edge,lineWidth:1.5))
+            }
+            .disabled(store.isGenerating || activePanel == nil)
             Button {confirmRegenerate=true} label:{
                 VStack(spacing:2) {
                     Image(systemName:"arrow.clockwise")

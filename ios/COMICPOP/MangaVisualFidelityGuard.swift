@@ -37,9 +37,43 @@ enum MangaVisualFidelityGuard {
         }
     }
 
+    /// Geometric text detection catches distorted glyphs that fail OCR,
+    /// including pseudo-kanji in AI-drawn speech balloons. Positions are
+    /// normalized so the source and generated frames can be compared.
+    private static func textRegions(_ image:UIImage)->[MangaDetectedTextRegion]? {
+        guard let cg=image.cgImage else {return nil}
+        let request=VNDetectTextRectanglesRequest()
+        request.reportCharacterBoxes=true
+        do {
+            try VNImageRequestHandler(cgImage:cg,options:[:]).perform([request])
+            return (request.results ?? []).map { observation in
+                let r=observation.boundingBox
+                return MangaDetectedTextRegion(
+                    centerX:Double(r.midX),centerY:Double(r.midY),
+                    width:Double(r.width),height:Double(r.height)
+                )
+            }
+        } catch {
+            return nil
+        }
+    }
+
     static func protectedImage(generated:UIImage,original:UIImage,
                                style:String,colorMode:String)->MangaVisualFidelityResult {
         let faithful=OfflineComicFilter.render(original,style:style,colorMode:colorMode) ?? original
+        // The generated image must be free of *new* letter-like regions.
+        // Shape detection is more robust than Japanese OCR for pseudo-glyphs.
+        // If Vision cannot inspect either image, fail closed to the faithful
+        // filmed-frame comic instead of displaying unchecked fake lettering.
+        guard let aiRegions=textRegions(generated),
+              let sourceRegions=textRegions(original) else {
+            return MangaVisualFidelityResult(image:faithful,usedSafeFallback:true)
+        }
+        if MangaFidelityDistancePolicy.hasUnexpectedTextRegions(
+            generated:aiRegions,original:sourceRegions
+        ) {
+            return MangaVisualFidelityResult(image:faithful,usedSafeFallback:true)
+        }
         // Text painted into the AI image is distinct from editable native
         // lettering. Reject sufficiently clear new glyphs not present in
         // the user's actual recorded frame.
